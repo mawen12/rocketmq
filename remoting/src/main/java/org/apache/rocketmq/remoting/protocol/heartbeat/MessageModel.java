@@ -21,15 +21,15 @@
 package org.apache.rocketmq.remoting.protocol.heartbeat;
 
 /**
- * Message model
+ * 消息模式
  */
 public enum MessageModel {
     /**
-     * broadcast
+     * 广播，每个消费者都能接收到相同的消息
      */
     BROADCASTING("BROADCASTING"),
     /**
-     * clustering
+     * 集群，一个消费者组中的消费者瓜分消息
      */
     CLUSTERING("CLUSTERING");
 

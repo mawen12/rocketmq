@@ -17,6 +17,9 @@
 
 package org.apache.rocketmq.common.filter;
 
+/**
+ * 表达式类型，用于匹配主题中的消息
+ */
 public class ExpressionType {
 
     /**

@@ -25,16 +25,20 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.common.MixAll;
 
 /**
- * The class describes that a typical broker cluster's (in replication) details: the cluster (in sharding) name
- * that it belongs to, and all the single instance information for this cluster.
+ * Broker信息，包含集群、集群内的其他实例的信息
  */
 public class BrokerData implements Comparable<BrokerData> {
-    private String cluster;
-    private String brokerName;
-
     /**
-     * The container that store the all single instances for the current broker replication cluster.
-     * The key is the brokerId, and the value is the address of the single broker instance.
+     * broker所在集群的名称
+     */
+    private String cluster;
+    /**
+     * broker名称
+     */
+    private String brokerName;
+    /**
+     * Map<brokerId, address>
+     * 保存当前broker复制集群所有单实例的容器
      */
     private HashMap<Long, String> brokerAddrs;
     private String zoneName;

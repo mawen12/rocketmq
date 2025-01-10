@@ -30,12 +30,25 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import org.apache.rocketmq.remoting.protocol.statictopic.TopicQueueMappingInfo;
 
+/**
+ * 主题路由数据
+ */
 public class TopicRouteData extends RemotingSerializable {
+
     private String orderTopicConf;
+    /**
+     * 主题下队列信息，一个主题下可以存在多个队列
+     */
     private List<QueueData> queueDatas;
+    /**
+     * 主题下broker信息
+     */
     private List<BrokerData> brokerDatas;
     private HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
     //It could be null or empty
+    /**
+     * Map<broker名称, 主题队列映射信息>
+     */
     private Map<String/*brokerName*/, TopicQueueMappingInfo> topicQueueMappingByBroker;
 
     public TopicRouteData() {
@@ -117,11 +130,20 @@ public class TopicRouteData extends RemotingSerializable {
         return topicRouteData;
     }
 
+    /**
+     * 将传递的路由数据与当前数据进行比对，如果不一致，返回true; 反之返回false
+     *
+     * @param oldData
+     * @return
+     */
     public boolean topicRouteDataChanged(TopicRouteData oldData) {
         if (oldData == null)
             return true;
         TopicRouteData old = new TopicRouteData(oldData);
         TopicRouteData now = new TopicRouteData(this);
+        /**
+         * 对queueData和brokerData进行重排序，方式因为顺序不一致导致差异
+         */
         Collections.sort(old.getQueueDatas());
         Collections.sort(old.getBrokerDatas());
         Collections.sort(now.getQueueDatas());

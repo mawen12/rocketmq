@@ -22,13 +22,34 @@ import org.apache.rocketmq.client.impl.producer.TopicPublishInfo;
 import org.apache.rocketmq.client.impl.producer.TopicPublishInfo.QueueFilter;
 import org.apache.rocketmq.common.message.MessageQueue;
 
+/**
+ * 消息队列的故障转移策略
+ */
 public class MQFaultStrategy {
+    /**
+     * 基于延迟的故障容错
+     */
     private LatencyFaultTolerance<String> latencyFaultTolerance;
+    /**
+     * 是否开启延迟容错
+     */
     private volatile boolean sendLatencyFaultEnable;
+    /**
+     * 是否启用开启检测器
+     */
     private volatile boolean startDetectorEnable;
+    /**
+     * 延迟的数据
+     */
     private long[] latencyMax = {50L, 100L, 550L, 1800L, 3000L, 5000L, 15000L};
+    /**
+     * 不可用的间隔
+     */
     private long[] notAvailableDuration = {0L, 0L, 2000L, 5000L, 6000L, 10000L, 30000L};
 
+    /**
+     * 基于broker名称的队列过滤器，即过滤不在当前broker上的队列
+     */
     public static class BrokerFilter implements QueueFilter {
         private String lastBrokerName;
 
@@ -36,19 +57,24 @@ public class MQFaultStrategy {
             this.lastBrokerName = lastBrokerName;
         }
 
-        @Override public boolean filter(MessageQueue mq) {
+        @Override
+        public boolean filter(MessageQueue mq) {
             if (lastBrokerName != null) {
+                /**
+                 * 过滤不在当前broker上的队列
+                 */
                 return !mq.getBrokerName().equals(lastBrokerName);
             }
             return true;
         }
     }
 
-    private ThreadLocal<BrokerFilter> threadBrokerFilter = new ThreadLocal<BrokerFilter>() {
-        @Override protected BrokerFilter initialValue() {
-            return new BrokerFilter();
-        }
-    };
+    /**
+     * 线程本地过滤器
+     *
+     * TODO by mawen 使用lambda提升可读性
+     */
+    private ThreadLocal<BrokerFilter> threadBrokerFilter = ThreadLocal.withInitial(BrokerFilter::new);
 
     private QueueFilter reachableFilter = new QueueFilter() {
         @Override public boolean filter(MessageQueue mq) {

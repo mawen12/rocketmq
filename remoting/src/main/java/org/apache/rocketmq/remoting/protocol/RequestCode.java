@@ -17,6 +17,8 @@
 
 package org.apache.rocketmq.remoting.protocol;
 
+import io.grpc.Metadata;
+
 public class RequestCode {
 
     public static final int SEND_MESSAGE = 10;
@@ -106,6 +108,11 @@ public class RequestCode {
     public static final int REGISTER_BROKER = 103;
 
     public static final int UNREGISTER_BROKER = 104;
+    /**
+     * 根据主题获取路由信息
+     *
+     * @see org.apache.rocketmq.auth.authorization.builder.DefaultAuthorizationContextBuilder#build(Metadata, com.google.protobuf.GeneratedMessageV3)
+     */
     public static final int GET_ROUTEINFO_BY_TOPIC = 105;
 
     public static final int GET_BROKER_CLUSTER_INFO = 106;

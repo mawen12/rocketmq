@@ -51,22 +51,46 @@ import org.apache.rocketmq.remoting.netty.TlsSystemConfig;
 import org.apache.rocketmq.remoting.protocol.RequestCode;
 import org.apache.rocketmq.srvutil.FileWatchService;
 
+/**
+ * Namesrv控制器，核心类
+ */
 public class NamesrvController {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private static final Logger WATER_MARK_LOG = LoggerFactory.getLogger(LoggerName.NAMESRV_WATER_MARK_LOGGER_NAME);
 
+    /**
+     * Namesrv配置
+     */
     private final NamesrvConfig namesrvConfig;
 
+    /**
+     * Netty服务端配置
+     */
     private final NettyServerConfig nettyServerConfig;
+    /**
+     * Netty客户端配置
+     */
     private final NettyClientConfig nettyClientConfig;
 
+    /**
+     * 调度服务，1个线程，线程名称NSScheduledThread，守护线程
+     */
     private final ScheduledExecutorService scheduledExecutorService = ThreadUtils.newScheduledThreadPool(1,
             new BasicThreadFactory.Builder().namingPattern("NSScheduledThread").daemon(true).build());
 
+    /**
+     * 调度服务，1个线程，线程名称NSScanScheduledThread，守护线程
+     */
     private final ScheduledExecutorService scanExecutorService = ThreadUtils.newScheduledThreadPool(1,
             new BasicThreadFactory.Builder().namingPattern("NSScanScheduledThread").daemon(true).build());
 
+    /**
+     * 键值配置管理器
+     */
     private final KVConfigManager kvConfigManager;
+    /**
+     * 路由信息管理器
+     */
     private final RouteInfoManager routeInfoManager;
 
     private RemotingClient remotingClient;
@@ -88,8 +112,17 @@ public class NamesrvController {
     }
 
     public NamesrvController(NamesrvConfig namesrvConfig, NettyServerConfig nettyServerConfig, NettyClientConfig nettyClientConfig) {
+        /**
+         * 初始化配置文件
+         */
         this.namesrvConfig = namesrvConfig;
+        /**
+         * 初始化netty服务端配置
+         */
         this.nettyServerConfig = nettyServerConfig;
+        /**
+         * 初始化netty客户端配置
+         */
         this.nettyClientConfig = nettyClientConfig;
         this.kvConfigManager = new KVConfigManager(this);
         this.brokerHousekeepingService = new BrokerHousekeepingService(this);

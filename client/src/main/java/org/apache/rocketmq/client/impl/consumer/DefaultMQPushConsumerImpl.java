@@ -1427,13 +1427,23 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
     @Override
     public boolean isSubscribeTopicNeedUpdate(String topic) {
+        /**
+         * Map<主题, 订阅信息>
+         * 获取该消费者的主题订阅信息
+         */
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
         if (subTable != null) {
             if (subTable.containsKey(topic)) {
+                /**
+                 * 如果消费者订阅了该主题，但是订阅信息中却不存在，代表需要更新
+                 */
                 return !this.rebalanceImpl.topicSubscribeInfoTable.containsKey(topic);
             }
         }
 
+        /**
+         * 代表该客户端上没有消费者，或有消费者但是信息都存在，则无需更新
+         */
         return false;
     }
 

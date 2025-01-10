@@ -82,25 +82,43 @@ public class NamespaceUtil {
     }
 
     public static String wrapNamespace(String namespace, String resourceWithOutNamespace) {
+        /**
+         * 如果两个资源其中一个为空，则无需拼接，直接返回
+         */
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(resourceWithOutNamespace)) {
             return resourceWithOutNamespace;
         }
 
+        /**
+         * 如果是系统资源，或者已经包含命名空间，无需再次处理，直接返回
+         */
         if (isSystemResource(resourceWithOutNamespace) || isAlreadyWithNamespace(resourceWithOutNamespace, namespace)) {
             return resourceWithOutNamespace;
         }
 
+        /**
+         * 移除资源上的重试和延迟信息
+         */
         String resourceWithoutRetryAndDLQ = withOutRetryAndDLQ(resourceWithOutNamespace);
         StringBuilder stringBuilder = new StringBuilder();
 
+        /**
+         * 如果是以%RETRY%为开头，则添加%RETRY%
+         */
         if (isRetryTopic(resourceWithOutNamespace)) {
             stringBuilder.append(MixAll.RETRY_GROUP_TOPIC_PREFIX);
         }
 
+        /**
+         * 如果是以%DLQ%为开头，则添加%DLQ%
+         */
         if (isDLQTopic(resourceWithOutNamespace)) {
             stringBuilder.append(MixAll.DLQ_GROUP_TOPIC_PREFIX);
         }
 
+        /**
+         * 拼接格式为[%RETRY%|%DLQ%]namespace%resource
+         */
         return stringBuilder.append(namespace).append(NAMESPACE_SEPARATOR).append(resourceWithoutRetryAndDLQ).toString();
 
     }

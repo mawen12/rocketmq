@@ -56,11 +56,17 @@ public class ClientRequestProcessor implements NettyRequestProcessor {
         return this.getRouteInfoByTopic(ctx, request);
     }
 
-    public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    /**
+     * 处理{@link GetRouteInfoRequestHeader}请求
+     *
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
+    public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        final GetRouteInfoRequestHeader requestHeader =
-            (GetRouteInfoRequestHeader) request.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
+        final GetRouteInfoRequestHeader requestHeader = (GetRouteInfoRequestHeader) request.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
         boolean namesrvReady = needCheckNamesrvReady.get() && System.currentTimeMillis() - startupTimeMillis >= TimeUnit.SECONDS.toMillis(namesrvController.getNamesrvConfig().getWaitSecondsForService());
 
@@ -80,9 +86,7 @@ public class ClientRequestProcessor implements NettyRequestProcessor {
             }
 
             if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
-                String orderTopicConf =
-                    this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG,
-                        requestHeader.getTopic());
+                String orderTopicConf = this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, requestHeader.getTopic());
                 topicRouteData.setOrderTopicConf(orderTopicConf);
             }
 
@@ -103,8 +107,7 @@ public class ClientRequestProcessor implements NettyRequestProcessor {
         }
 
         response.setCode(ResponseCode.TOPIC_NOT_EXIST);
-        response.setRemark("No topic route info in name server for the topic: " + requestHeader.getTopic()
-            + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
+        response.setRemark("No topic route info in name server for the topic: " + requestHeader.getTopic() + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
         return response;
     }
 

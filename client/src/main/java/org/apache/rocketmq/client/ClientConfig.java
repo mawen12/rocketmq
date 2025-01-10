@@ -78,6 +78,9 @@ public class ClientConfig {
 
     private String socksProxyConfig = System.getProperty(SOCKS_PROXY_CONFIG, "{}");
 
+    /**
+     * 客户端发起请求的超时时间，默认为3s
+     */
     private int mqClientApiTimeout = 3 * 1000;
     private int detectTimeout = 200;
     private int detectInterval = 2 * 1000;
@@ -174,8 +177,17 @@ public class ClientConfig {
         return resourceWithNamespace;
     }
 
+    /**
+     * 格式化资源，在%RETRY%和%DLQ%之后，添加namespace%
+     *
+     * @param resource
+     * @return
+     */
     @Deprecated
     public String withoutNamespace(String resource) {
+        /**
+         * 对资源添加namespace，从[%RETRY%|%DLQ%]resource -> [%RETRY%|%DLQ%]namespace%resource 或 resource -> namespace%resource
+         */
         return NamespaceUtil.withoutNamespace(resource, this.getNamespace());
     }
 

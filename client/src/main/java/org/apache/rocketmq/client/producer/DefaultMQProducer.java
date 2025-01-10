@@ -56,16 +56,9 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 
 /**
- * This class is the entry point for applications intending to send messages. </p>
+ * 该类是应用程序发送消息的入口点，提供发送消息的多个方法
  * <p>
- * It's fine to tune fields which exposes getter/setter methods, but keep in mind, all of them should work well out of
- * box for most scenarios. </p>
- * <p>
- * This class aggregates various <code>send</code> methods to deliver messages to broker(s). Each of them has pros and
- * cons; you'd better understand strengths and weakness of them before actually coding. </p>
- *
- * <p> <strong>Thread Safety:</strong> After configuring and starting process, this class can be regarded as thread-safe
- * and used among multiple threads context. </p>
+ * 线程安全类
  */
 public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
@@ -101,17 +94,17 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private List<String> topics;
 
     /**
-     * Just for testing or demo program
+     * 用于测试场景的Topic
      */
     private String createTopicKey = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
     /**
-     * Number of queues to create per default topic.
+     * 创建的Topic的默认队列数量，可读=可写=4
      */
     private volatile int defaultTopicQueueNums = 4;
 
     /**
-     * Timeout for sending messages.
+     * 发送消息的超时时间，单位为毫秒，默认为3s
      */
     private int sendMsgTimeout = 3000;
 
@@ -140,7 +133,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private boolean retryAnotherBrokerWhenNotStoreOK = false;
 
     /**
-     * Maximum allowed message body size in bytes.
+     * 允许发送消息的消息体的最大大小，默认为4m
      */
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 
@@ -447,11 +440,11 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     }
 
     /**
-     * Send message in synchronous mode. This method returns only when the sending procedure totally completes. </p>
-     *
-     * <strong>Warn:</strong> this method has internal retry-mechanism, that is, internal implementation will retry
-     * {@link #retryTimesWhenSendFailed} times before claiming failure. As a result, multiple messages may be potentially
-     * delivered to broker(s). It's up to the application developers to resolve potential duplication issue.
+     * 以同步模式发送消息，该方法仅在发送过程中完成处理后才返回
+     * <p>
+     * 该方法内部有重试机制，重试次数由{@link #retryTimesWhenSendFailed}参数影响。
+     * <p>
+     * 在重试过程中，多个消息可能被传递给MQ，应用开发人员需要解决潜在的重复问题，这就是生产者生产消息重复问题
      *
      * @param msg Message to send.
      * @return {@link SendResult} instance to inform senders details of the deliverable, say Message ID of the message,
@@ -462,9 +455,14 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * @throws InterruptedException if the sending thread is interrupted.
      */
     @Override
-    public SendResult send(
-        Message msg) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+    public SendResult send(Message msg) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        /**
+         * 对主题进行格式调整，新的主题格式为[%RETRY%|%DLQ%]namespace%resource
+         */
         msg.setTopic(withNamespace(msg.getTopic()));
+        /**
+         * 如果是自动批量发送，且消息是单个的，则使用累计器发送消息，否则直接发送
+         */
         if (this.getAutoBatch() && !(msg instanceof MessageBatch)) {
             return sendByAccumulator(msg, null, null);
         } else {
@@ -485,8 +483,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * @throws InterruptedException if the sending thread is interrupted.
      */
     @Override
-    public SendResult send(Message msg,
-        long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+    public SendResult send(Message msg, long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         msg.setTopic(withNamespace(msg.getTopic()));
         return this.defaultMQProducerImpl.send(msg, timeout);
     }
@@ -507,8 +504,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * @throws InterruptedException if the sending thread is interrupted.
      */
     @Override
-    public void send(Message msg,
-        SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException {
+    public void send(Message msg, SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException {
         msg.setTopic(withNamespace(msg.getTopic()));
         try {
             if (this.getAutoBatch() && !(msg instanceof MessageBatch)) {
@@ -532,8 +528,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * @throws InterruptedException if the sending thread is interrupted.
      */
     @Override
-    public void send(Message msg, SendCallback sendCallback, long timeout)
-        throws MQClientException, RemotingException, InterruptedException {
+    public void send(Message msg, SendCallback sendCallback, long timeout) throws MQClientException, RemotingException, InterruptedException {
         msg.setTopic(withNamespace(msg.getTopic()));
         this.defaultMQProducerImpl.send(msg, sendCallback, timeout);
     }
@@ -751,9 +746,22 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         this.defaultMQProducerImpl.send(msg, selector, arg, sendCallback, timeout);
     }
 
-    public SendResult sendDirect(Message msg, MessageQueue mq,
-        SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException, MQBrokerException {
-        // send in sync mode
+    /**
+     * 以同步模式发送消息
+     *
+     * @param msg
+     * @param mq
+     * @param sendCallback
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws InterruptedException
+     * @throws MQBrokerException
+     */
+    public SendResult sendDirect(Message msg, MessageQueue mq, SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException, MQBrokerException {
+        /**
+         * 根据是否存在{@link MessageQueue}和{@link SendCallback}是否有值，调用底层对应的方法
+         */
         if (sendCallback == null) {
             if (mq == null) {
                 return this.defaultMQProducerImpl.send(msg);

@@ -29,9 +29,15 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.protocol.RequestCode;
 import org.apache.rocketmq.remoting.rpc.TopicRequestHeader;
 
+/**
+ * 从Nameserver获取主题路由信息的请求
+ */
 @RocketMQAction(value = RequestCode.GET_ROUTEINFO_BY_TOPIC, resource = ResourceType.CLUSTER, action = Action.GET)
 public class GetRouteInfoRequestHeader extends TopicRequestHeader {
 
+    /**
+     * 主题
+     */
     @CFNotNull
     private String topic;
 

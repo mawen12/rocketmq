@@ -96,10 +96,13 @@ public class ClientMetadata {
     }
 
     public static ConcurrentMap<MessageQueue, String> topicRouteData2EndpointsForStaticTopic(final String topic, final TopicRouteData route) {
-        if (route.getTopicQueueMappingByBroker() == null
-                || route.getTopicQueueMappingByBroker().isEmpty()) {
+        /**
+         * 如果路由中没有主题与队列的映射信息，则返回空集合
+         */
+        if (route.getTopicQueueMappingByBroker() == null || route.getTopicQueueMappingByBroker().isEmpty()) {
             return new ConcurrentHashMap<>();
         }
+
         ConcurrentMap<MessageQueue, String> mqEndPointsOfBroker = new ConcurrentHashMap<>();
 
         Map<String, Map<String, TopicQueueMappingInfo>> mappingInfosByScope = new HashMap<>();

@@ -43,12 +43,33 @@ import org.apache.rocketmq.srvutil.ServerUtil;
 import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
 
+/**
+ * Broker启动器
+ */
 public class BrokerStartup {
 
     public static Logger log;
     public static final SystemConfigFileHelper CONFIG_FILE_HELPER = new SystemConfigFileHelper();
 
+    /**
+     * 本地启动配置：
+     * <p>
+     * Environment_Variables:
+     * <ul>
+     *     <li>ROCKETMQ_HOME=/Users/mawen/Documents/github/mawen12/rocketmq</li>
+     * </ul>
+     * <p>
+     * Arguments:
+     * <ul>
+     *     <li>-n 127.0.0.1 autoCreateTopicEnable=true</li>
+     * </ul>
+     *
+     * @param args
+     */
     public static void main(String[] args) {
+        /**
+         * 创建Broker控制器，并启动
+         */
         start(createBrokerController(args));
     }
 
@@ -81,9 +102,16 @@ public class BrokerStartup {
         }
     }
 
+
     public static BrokerController buildBrokerController(String[] args) throws Exception {
+        /**
+         * 设置 ENV(rocketmq.remoting.version)为DEFAULT(MQVersion#CURRENT_VERSION)
+         */
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
 
+        /**
+         * 初始化Broker配置，Netty服务端配置、Netty客户端配置、消息存储配置、授权配置
+         */
         final BrokerConfig brokerConfig = new BrokerConfig();
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
         final NettyClientConfig nettyClientConfig = new NettyClientConfig();
@@ -92,9 +120,14 @@ public class BrokerStartup {
         nettyServerConfig.setListenPort(10911);
         messageStoreConfig.setHaListenPort(0);
 
+        /**
+         * 读取启动命令行的参数信息
+         */
         Options options = ServerUtil.buildCommandlineOptions(new Options());
-        CommandLine commandLine = ServerUtil.parseCmdLine(
-            "mqbroker", args, buildCommandlineOptions(options), new DefaultParser());
+        CommandLine commandLine = ServerUtil.parseCmdLine("mqbroker", args, buildCommandlineOptions(options), new DefaultParser());
+        /**
+         * 如果未指定任何的命令行参数，则退出系统
+         */
         if (null == commandLine) {
             System.exit(-1);
         }
@@ -223,7 +256,13 @@ public class BrokerStartup {
 
     public static Runnable buildShutdownHook(BrokerController brokerController) {
         return new Runnable() {
+            /**
+             * 是否停止标志位，使用该状态指明关闭状态，并确保关闭仅进行一次
+             */
             private volatile boolean hasShutdown = false;
+            /**
+             * 关闭操作触发的统计次数
+             */
             private final AtomicInteger shutdownTimes = new AtomicInteger(0);
 
             @Override
@@ -233,7 +272,13 @@ public class BrokerStartup {
                     if (!this.hasShutdown) {
                         this.hasShutdown = true;
                         long beginTime = System.currentTimeMillis();
+                        /**
+                         * 暂停broker控制器
+                         */
                         brokerController.shutdown();
+                        /**
+                         * 计算暂停操作的耗时
+                         */
                         long consumingTimeTotal = System.currentTimeMillis() - beginTime;
                         log.info("Shutdown hook over, consuming total time(ms): {}", consumingTimeTotal);
                     }
@@ -244,12 +289,24 @@ public class BrokerStartup {
 
     public static BrokerController createBrokerController(String[] args) {
         try {
+            /**
+             * 创建Broker控制器
+             */
             BrokerController controller = buildBrokerController(args);
+            /**
+             * 判断控制器是否进行过初始化
+             */
             boolean initResult = controller.initialize();
+            /**
+             * 如果尚未初始化，则代表进行初始化的过程中出现问题，这时候需要停止并退出
+             */
             if (!initResult) {
                 controller.shutdown();
                 System.exit(-3);
             }
+            /**
+             * 注册该应用停止时需要执行的回调操作
+             */
             Runtime.getRuntime().addShutdownHook(new Thread(buildShutdownHook(controller)));
             return controller;
         } catch (Throwable e) {

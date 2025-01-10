@@ -45,17 +45,31 @@ import org.apache.rocketmq.remoting.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * 重新平衡实现
+ */
 public abstract class RebalanceImpl {
     protected static final Logger log = LoggerFactory.getLogger(RebalanceImpl.class);
 
     protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<>(64);
     protected final ConcurrentMap<MessageQueue, PopProcessQueue> popProcessQueueTable = new ConcurrentHashMap<>(64);
 
-    protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable =
-        new ConcurrentHashMap<>();
-    protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner =
-        new ConcurrentHashMap<>();
+    /**
+     * Map<主题, 消息队列集合>
+     * 保存了消费者订阅的主题及其消息队列集合
+     */
+    protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable = new ConcurrentHashMap<>();
+    /**
+     * Map<主题, 订阅信息>
+     */
+    protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner = new ConcurrentHashMap<>();
+    /**
+     * 消费组
+     */
     protected String consumerGroup;
+    /**
+     * 消息模式
+     */
     protected MessageModel messageModel;
     protected AllocateMessageQueueStrategy allocateMessageQueueStrategy;
     protected MQClientInstance mQClientFactory;

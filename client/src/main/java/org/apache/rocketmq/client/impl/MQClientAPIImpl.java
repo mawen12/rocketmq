@@ -2033,43 +2033,105 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
-    public TopicRouteData getDefaultTopicRouteInfoFromNameServer(final long timeoutMillis)
-        throws RemotingException, MQClientException, InterruptedException {
-
+    /**
+     * 从Namesrv读取TBW102主题的路由信息
+     *
+     * @param timeoutMillis 超时时间
+     * @return
+     * @throws RemotingException
+     * @throws MQClientException
+     * @throws InterruptedException
+     */
+    public TopicRouteData getDefaultTopicRouteInfoFromNameServer(final long timeoutMillis) throws RemotingException, MQClientException, InterruptedException {
+        /**
+         * 从Namesrv读取默认主题(TBW102)的路由信息，并且在主题不存在时，返回空值
+         */
         return getTopicRouteInfoFromNameServer(TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC, timeoutMillis, false);
     }
 
-    public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis)
-        throws RemotingException, MQClientException, InterruptedException {
+    /**
+     * 从Namesrv读取特定主题的路由信息
+     *
+     * @param topic 主题
+     * @param timeoutMillis 超时时间
+     * @return
+     * @throws RemotingException
+     * @throws MQClientException
+     * @throws InterruptedException
+     */
+    public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis) throws RemotingException, MQClientException, InterruptedException {
+        /**
+         * 从Namesrv读取对应主题的路由信息，并且在主题不存在时，输出错误信息到warn日志，返回空值
+         */
         return getTopicRouteInfoFromNameServer(topic, timeoutMillis, true);
     }
 
-    public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis,
-        boolean allowTopicNotExist) throws MQClientException, InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException {
+    /**
+     * 向服务端请求，获取主题对应的路由信息
+     *
+     * @param topic 主题
+     * @param timeoutMillis 超时时间
+     * @param allowTopicNotExist 是否允许主题不存在
+     * @return
+     * @throws MQClientException
+     * @throws InterruptedException
+     * @throws RemotingTimeoutException
+     * @throws RemotingSendRequestException
+     * @throws RemotingConnectException
+     */
+    public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis, boolean allowTopicNotExist) throws MQClientException, InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException {
+        /**
+         * 构造获取路由信息的请求头
+         */
         GetRouteInfoRequestHeader requestHeader = new GetRouteInfoRequestHeader();
+        /**
+         * 请求头设置主题
+         */
         requestHeader.setTopic(topic);
+        /**
+         * 构造请求命令
+         */
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ROUTEINFO_BY_TOPIC, requestHeader);
-
+        /**
+         * 向Namesrv发起同步调用，超时时间默认为{@link ClientConfig#mqClientApiTimeout}，即3s
+         */
         RemotingCommand response = this.remotingClient.invokeSync(null, request, timeoutMillis);
         assert response != null;
         switch (response.getCode()) {
+            /**
+             * 请求成功，但是主题不存在，则直接返回
+             */
             case ResponseCode.TOPIC_NOT_EXIST: {
+                /**
+                 * 是否允许主题不存在，如果允许则打印错误日志
+                 */
                 if (allowTopicNotExist) {
                     log.warn("get Topic [{}] RouteInfoFromNameServer is not exist value", topic);
                 }
 
                 break;
             }
+            /**
+             * 请求成功，解析路由信息
+             */
             case ResponseCode.SUCCESS: {
+                /**
+                 * 提取响应体
+                 */
                 byte[] body = response.getBody();
                 if (body != null) {
+                    /**
+                     * 反序列化
+                     */
                     return TopicRouteData.decode(body, TopicRouteData.class);
                 }
             }
             default:
                 break;
         }
-
+        /**
+         * 异常场景，抛出异常
+         */
         throw new MQClientException(response.getCode(), response.getRemark());
     }
 

@@ -17,6 +17,11 @@
 
 package org.apache.rocketmq.client.latency;
 
+/**
+ * 基于延迟的故障容错
+ *
+ * @param <T>
+ */
 public interface LatencyFaultTolerance<T> {
     /**
      * Update brokers' states, to decide if they are good or not.
@@ -31,7 +36,7 @@ public interface LatencyFaultTolerance<T> {
                          final boolean reachable);
 
     /**
-     * To check if this broker is available.
+     * 检查目标broker是否可达
      *
      * @param name Broker's name.
      * @return boolean variable, if this is true, then the broker is available.

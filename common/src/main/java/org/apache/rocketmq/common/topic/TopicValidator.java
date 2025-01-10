@@ -39,10 +39,33 @@ public class TopicValidator {
     public static final boolean[] VALID_CHAR_BIT_MAP = new boolean[128];
     private static final int TOPIC_MAX_LENGTH = 127;
 
+    /**
+     * 系统默认的主题，主题有：
+     * <ul>
+     *     <li>TBW102</li>
+     *     <li>SCHEDULE_TOPIC_XXXX</li>
+     *     <li>BenchmarkTest</li>
+     *     <li>RMQ_SYS_TRANS_HALF_TOPIC</li>
+     *     <li>RMQ_SYS_TRACE_TOPIC</li>
+     *     <li>RMQ_SYS_TRANS_OP_HALF_TOPIC</li>
+     *     <li>TRANS_CHECK_MAX_TIME_TOPIC</li>
+     *     <li>SELF_TEST_TOPIC</li>
+     *     <li>OFFSET_MOVED_EVENT</li>
+     *     <li>CHECKPOINT_TOPIC</li>
+     * </ul>
+     */
     private static final Set<String> SYSTEM_TOPIC_SET = new HashSet<>();
 
     /**
-     * Topics'set which client can not send msg!
+     * 不允许由客户端发送消息的主题，主题有：
+     * <ul>
+     *     <li>SCHEDULE_TOPIC_XXXX</li>
+     *     <li>RMQ_SYS_TRANS_HALF_TOPIC</li>
+     *     <li>RMQ_SYS_TRANS_OP_HALF_TOPIC</li>
+     *     <li>TRANS_CHECK_MAX_TIME_TOPIC</li>
+     *     <li>SELF_TEST_TOPIC</li>
+     *     <li>OFFSET_MOVED_EVENT</li>
+     * </ul>
      */
     private static final Set<String> NOT_ALLOWED_SEND_TOPIC_SET = new HashSet<>();
 

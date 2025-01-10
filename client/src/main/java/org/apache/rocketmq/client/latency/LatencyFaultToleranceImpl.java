@@ -31,14 +31,27 @@ import org.apache.rocketmq.client.common.ThreadLocalIndex;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * 基于延迟的故障容错的实现
+ */
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
     private final static Logger log = LoggerFactory.getLogger(MQFaultStrategy.class);
     private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
+    /**
+     * 检测超时时间，单位为毫秒，默认为200ms
+     */
     private int detectTimeout = 200;
+    /**
+     * 检测间隔，单位为毫秒，默认为2s
+     */
     private int detectInterval = 2000;
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
 
     private volatile boolean startDetectorEnable = false;
+
+    /**
+     * 调度服务，1个线程，线程名称LatencyFaultToleranceScheduledThread，非守护线程
+     */
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {

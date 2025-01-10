@@ -60,48 +60,80 @@ public class Validators {
     }
 
     public static void checkMessage(Message msg, DefaultMQProducer defaultMQProducer) throws MQClientException {
+        /**
+         * 消息不能为空
+         */
         if (null == msg) {
             throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL, "the message is null");
         }
         // topic
+        /**
+         * 校验主题格式，长度
+         */
         Validators.checkTopic(msg.getTopic());
+        /**
+         * 校验主题是否允许被客户端发送消息
+         */
         Validators.isNotAllowedSendTopic(msg.getTopic());
 
         // body
+        /**
+         * 消息体非空
+         */
         if (null == msg.getBody()) {
             throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL, "the message body is null");
         }
 
+        /**
+         * 消息体非空
+         */
         if (0 == msg.getBody().length) {
             throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL, "the message body length is zero");
         }
 
+        /**
+         * 消息体大小不能超过4m
+         */
         if (msg.getBody().length > defaultMQProducer.getMaxMessageSize()) {
-            throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL,
-                "the message body size over max value, MAX: " + defaultMQProducer.getMaxMessageSize());
+            throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL, "the message body size over max value, MAX: " + defaultMQProducer.getMaxMessageSize());
         }
 
+        /**
+         * 解析消息属性中的lmq路径，从msg.properties(INNER_MULTI_DISPATCH)
+         * 如果格式错误，则报错
+         */
         String lmqPath = msg.getUserProperty(MessageConst.PROPERTY_INNER_MULTI_DISPATCH);
         if (StringUtils.contains(lmqPath, File.separator)) {
-            throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL,
-                "INNER_MULTI_DISPATCH " + lmqPath + " can not contains " + File.separator + " character");
+            throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL, "INNER_MULTI_DISPATCH " + lmqPath + " can not contains " + File.separator + " character");
         }
     }
 
+    /**
+     * 校验主题格式、长度
+     *
+     * @param topic
+     * @throws MQClientException
+     */
     public static void checkTopic(String topic) throws MQClientException {
+        /**
+         * 主题不能为空
+         */
         if (UtilAll.isBlank(topic)) {
             throw new MQClientException("The specified topic is blank", null);
         }
 
+        /**
+         * 主题长度不能超过127，需要注意，这个主题可能存在namespace，并且可能存在%RETRY%或%DLQ%，因此原始的主题长度更短
+         */
         if (topic.length() > TOPIC_MAX_LENGTH) {
-            throw new MQClientException(
-                String.format("The specified topic is longer than topic max length %d.", TOPIC_MAX_LENGTH), null);
+            throw new MQClientException(String.format("The specified topic is longer than topic max length %d.", TOPIC_MAX_LENGTH), null);
         }
 
+        /**
+         * 检查主题格式必须为^[%|a-zA-Z0-9_-]+$
+         */
         if (isTopicOrGroupIllegal(topic)) {
-            throw new MQClientException(String.format(
-                    "The specified topic[%s] contains illegal characters, allowing only %s", topic,
-                    "^[%|a-zA-Z0-9_-]+$"), null);
+            throw new MQClientException(String.format("The specified topic[%s] contains illegal characters, allowing only %s", topic, "^[%|a-zA-Z0-9_-]+$"), null);
         }
     }
 
@@ -113,9 +145,11 @@ public class Validators {
     }
 
     public static void isNotAllowedSendTopic(String topic) throws MQClientException {
+        /**
+         * 如果该主题不允许被生产者发送，则报错
+         */
         if (TopicValidator.isNotAllowedSendTopic(topic)) {
-            throw new MQClientException(
-                    String.format("Sending message to topic[%s] is forbidden.", topic), null);
+            throw new MQClientException(String.format("Sending message to topic[%s] is forbidden.", topic), null);
         }
     }
 

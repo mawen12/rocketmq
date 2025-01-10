@@ -89,6 +89,9 @@ import org.apache.rocketmq.remoting.protocol.route.TopicRouteData;
 import static org.apache.rocketmq.remoting.rpc.ClientMetadata.topicRouteData2EndpointsForStaticTopic;
 
 public class MQClientInstance {
+    /**
+     * 默认锁的超时时间，单位为毫秒，默认为3s
+     */
     private final static long LOCK_TIMEOUT_MILLIS = 3000;
     private final static Logger log = LoggerFactory.getLogger(MQClientInstance.class);
     private final ClientConfig clientConfig;
@@ -114,6 +117,9 @@ public class MQClientInstance {
     private final MQAdminImpl mQAdminImpl;
     private final ConcurrentMap<String/* Topic */, TopicRouteData> topicRouteTable = new ConcurrentHashMap<>();
     private final ConcurrentMap<String/* Topic */, ConcurrentMap<MessageQueue, String/*brokerName*/>> topicEndPointsTable = new ConcurrentHashMap<>();
+    /**
+     * 本地Namesrv锁
+     */
     private final Lock lockNamesrv = new ReentrantLock();
     private final Lock lockHeartbeat = new ReentrantLock();
 
@@ -573,6 +579,9 @@ public class MQClientInstance {
     }
 
     public boolean updateTopicRouteInfoFromNameServer(final String topic) {
+        /**
+         * 将主题更新到Namesrv
+         */
         return updateTopicRouteInfoFromNameServer(topic, false, null);
     }
 
@@ -779,40 +788,85 @@ public class MQClientInstance {
         return true;
     }
 
-    public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
-        DefaultMQProducer defaultMQProducer) {
+    /**
+     * 从Namesrv读取主题的路由信息，并检查本地的生产者和消费者中的路由信息是否需要更新，并分别对其进行更新。
+     * 如果执行成功，返回true；如果出现异常，则返回false
+     *
+     * @param topic
+     * @param isDefault
+     * @param defaultMQProducer
+     * @return
+     */
+    public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault, DefaultMQProducer defaultMQProducer) {
         try {
+            /**
+             * 尝试获取Namesrv锁3s
+             */
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
+                    /**
+                     * 如果是默认，并且生产者不为空
+                     */
                     if (isDefault && defaultMQProducer != null) {
+                        /**
+                         * 从Namesrv获取默认主题TBW102的路由信息
+                         */
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(clientConfig.getMqClientApiTimeout());
                         if (topicRouteData != null) {
+                            /**
+                             * 解析TBW102下队列的信息，并修正队列的可读和可写的数量
+                             */
                             for (QueueData data : topicRouteData.getQueueDatas()) {
+                                /**
+                                 * 获取可读队列数量，从 min(DEFAULT(4), queueData.readQueueNums)
+                                 */
                                 int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums());
+                                /**
+                                 * 将修正后的队列数量，更新到{@link QueueData#readQueueNums}和{@link QueueData#writeQueueNums}
+                                 */
                                 data.setReadQueueNums(queueNums);
                                 data.setWriteQueueNums(queueNums);
                             }
                         }
                     } else {
+                        /**
+                         * 从Namesrv获取指定主题的路由信息
+                         */
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, clientConfig.getMqClientApiTimeout());
                     }
                     if (topicRouteData != null) {
+                        /**
+                         * 获取本地缓存的主题路由信息
+                         */
                         TopicRouteData old = this.topicRouteTable.get(topic);
+                        /**
+                         * 对比Namesrv和本地缓存是否一致
+                         */
                         boolean changed = topicRouteData.topicRouteDataChanged(old);
                         if (!changed) {
+                            /**
+                             * 检查生产者和消费者该主题的路由信息是否存在、是否合法、如果存在且合法，则返回false；反之返回false
+                             */
                             changed = this.isNeedUpdateTopicRouteInfo(topic);
                         } else {
+                            /**
+                             * 对于发生变更的路由信息，打印到info日志中
+                             */
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
                         if (changed) {
-
+                            /**
+                             * 将最新的路由信息中的broker地址更新到{@link brokerAddrTable}
+                             */
                             for (BrokerData bd : topicRouteData.getBrokerDatas()) {
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
 
-                            // Update endpoint map
+                            /**
+                             * 更新端点信息
+                             */
                             {
                                 ConcurrentMap<MessageQueue, String> mqEndPoints = topicRouteData2EndpointsForStaticTopic(topic, topicRouteData);
                                 if (!mqEndPoints.isEmpty()) {
@@ -820,7 +874,9 @@ public class MQClientInstance {
                                 }
                             }
 
-                            // Update Pub info
+                            /**
+                             * 更新发布者的主题信息
+                             */
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true);
@@ -832,7 +888,9 @@ public class MQClientInstance {
                                 }
                             }
 
-                            // Update sub info
+                            /**
+                             * 更新消费者的主题订阅信息
+                             */
                             if (!consumerTable.isEmpty()) {
                                 Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
                                 for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
@@ -844,26 +902,47 @@ public class MQClientInstance {
                             }
                             TopicRouteData cloneTopicRouteData = new TopicRouteData(topicRouteData);
                             log.info("topicRouteTable.put. Topic = {}, TopicRouteData[{}]", topic, cloneTopicRouteData);
+                            /**
+                             * 写入主题路由表
+                             */
                             this.topicRouteTable.put(topic, cloneTopicRouteData);
                             return true;
                         }
                     } else {
+                        /**
+                         * 该主题的路由信息为空，将错误信息写入warn日志
+                         */
                         log.warn("updateTopicRouteInfoFromNameServer, getTopicRouteInfoFromNameServer return null, Topic: {}. [{}]", topic, this.clientId);
                     }
                 } catch (MQClientException e) {
+                    /**
+                     * 对于客户端异常，不抛出，如果主题不是以%RETRY%或TBW102，则将错误信息写入warn日志
+                     */
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX) && !topic.equals(TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC)) {
                         log.warn("updateTopicRouteInfoFromNameServer Exception", e);
                     }
                 } catch (RemotingException e) {
+                    /**
+                     * 对于请求Namesrv发生的异常，错误信息写入error日志，并向上抛出异常
+                     */
                     log.error("updateTopicRouteInfoFromNameServer Exception", e);
                     throw new IllegalStateException(e);
                 } finally {
+                    /**
+                     * 解锁
+                     */
                     this.lockNamesrv.unlock();
                 }
             } else {
+                /**
+                 * 超时时间内未获取到锁，将错误信息写入warn日志
+                 */
                 log.warn("updateTopicRouteInfoFromNameServer tryLock timeout {}ms. [{}]", LOCK_TIMEOUT_MILLIS, this.clientId);
             }
         } catch (InterruptedException e) {
+            /**
+             * 记录被打断线程出现的异常，将错误信息写入warn日志
+             */
             log.warn("updateTopicRouteInfoFromNameServer Exception", e);
         }
 
@@ -920,26 +999,47 @@ public class MQClientInstance {
         return false;
     }
 
+    /**
+     * 是否需要更新生产者和消费者的路由信息，检查生产者和消费者下，该主题的路由信息是否存在、是否完整，如果是的话，返回false；反之返回true
+     *
+     * @param topic
+     * @return
+     */
     private boolean isNeedUpdateTopicRouteInfo(final String topic) {
         boolean result = false;
+        /**
+         * 获取所有生产者，并检查它们的主题发布信息是否合法，只要有一个不合法，就进入下一步
+         */
         Iterator<Entry<String, MQProducerInner>> producerIterator = this.producerTable.entrySet().iterator();
         while (producerIterator.hasNext() && !result) {
             Entry<String, MQProducerInner> entry = producerIterator.next();
             MQProducerInner impl = entry.getValue();
             if (impl != null) {
+                /**
+                 * 检查生产中该主题的发布信息是否合法
+                 */
                 result = impl.isPublishTopicNeedUpdate(topic);
             }
         }
 
+        /**
+         * 如果需要更新，则直接返回
+         */
         if (result) {
             return true;
         }
 
+        /**
+         * 获取所有消费者，并检查它们的主题
+         */
         Iterator<Entry<String, MQConsumerInner>> consumerIterator = this.consumerTable.entrySet().iterator();
         while (consumerIterator.hasNext() && !result) {
             Entry<String, MQConsumerInner> entry = consumerIterator.next();
             MQConsumerInner impl = entry.getValue();
             if (impl != null) {
+                /**
+                 * 检查消费者中该主题下的订阅信息是否存在
+                 */
                 result = impl.isSubscribeTopicNeedUpdate(topic);
             }
         }
