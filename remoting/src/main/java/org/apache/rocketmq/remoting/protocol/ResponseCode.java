@@ -19,22 +19,50 @@ package org.apache.rocketmq.remoting.protocol;
 
 public class ResponseCode extends RemotingSysResponseCode {
 
+    /**
+     * 写入磁盘超时，不可重试
+     */
     public static final int FLUSH_DISK_TIMEOUT = 10;
 
+    /**
+     * Slave不可用，集群状态下，不可重试
+     */
     public static final int SLAVE_NOT_AVAILABLE = 11;
 
+    /**
+     * Slave写入磁盘超时，不可重试，
+     */
     public static final int FLUSH_SLAVE_TIMEOUT = 12;
 
+    /**
+     * 消息非法，不可重试
+     */
     public static final int MESSAGE_ILLEGAL = 13;
 
+    /**
+     * 服务不可达，支持重试
+     */
     public static final int SERVICE_NOT_AVAILABLE = 14;
 
+    /**
+     * 版本不兼容，不可重试
+     */
     public static final int VERSION_NOT_SUPPORTED = 15;
 
+    /**
+     * 没有权限，支持重试
+     */
     public static final int NO_PERMISSION = 16;
 
+    /**
+     * 主题不存在，支持重试
+     */
     public static final int TOPIC_NOT_EXIST = 17;
+    /**
+     * 主题已经存在
+     */
     public static final int TOPIC_EXIST_ALREADY = 18;
+
     public static final int PULL_NOT_FOUND = 19;
 
     public static final int PULL_RETRY_IMMEDIATELY = 20;
@@ -64,8 +92,14 @@ public class ResponseCode extends RemotingSysResponseCode {
     public static final int TRANSACTION_STATE_UNKNOW = 202;
 
     public static final int TRANSACTION_STATE_GROUP_WRONG = 203;
+    /**
+     * 支持重试
+     */
     public static final int NO_BUYER_ID = 204;
 
+    /**
+     * 支持重试
+     */
     public static final int NOT_IN_CURRENT_UNIT = 205;
 
     public static final int CONSUMER_NOT_ONLINE = 206;
@@ -101,6 +135,9 @@ public class ResponseCode extends RemotingSysResponseCode {
     public static final int RPC_SEND_TO_CHANNEL_FAILED = -1004;
     public static final int RPC_TIME_OUT = -1006;
 
+    /**
+     * 支持重试
+     */
     public static final int GO_AWAY = 1500;
 
     /**

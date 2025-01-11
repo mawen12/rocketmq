@@ -25,10 +25,33 @@ import java.util.Map;
 public class Message implements Serializable {
     private static final long serialVersionUID = 8445773977080406428L;
 
+    /**
+     * 消息所属主题
+     */
     private String topic;
+    /**
+     * 标志位
+     */
     private int flag;
+    /**
+     * 消息属性，组成有：
+     * <ul>
+     *     <li>KEYS: 键，用户设置</li>
+     *     <li>TAGS: 标签，用户设置</li>
+     *     <li>WAIT: 是否等待消息存储完成，默认</li>
+     *     <li>UNIQ_KEY: 该消息的唯一ID，客户端设置</li>
+     * </ul>
+     *
+     * @see MessageClientIDSetter#setUniqID(Message)
+     */
     private Map<String, String> properties;
+    /**
+     * 经过压缩后的消息体
+     */
     private byte[] body;
+    /**
+     * 事务ID
+     */
     private String transactionId;
 
     public Message() {
@@ -82,15 +105,12 @@ public class Message implements Serializable {
 
     public void putUserProperty(final String name, final String value) {
         if (MessageConst.STRING_HASH_SET.contains(name)) {
-            throw new RuntimeException(String.format(
-                "The Property<%s> is used by system, input another please", name));
+            throw new RuntimeException(String.format("The Property<%s> is used by system, input another please", name));
         }
 
         if (value == null || value.trim().isEmpty()
             || name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException(
-                "The name or value of property can not be null or blank string!"
-            );
+            throw new IllegalArgumentException("The name or value of property can not be null or blank string!");
         }
 
         this.putProperty(name, value);

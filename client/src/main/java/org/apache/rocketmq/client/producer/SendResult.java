@@ -19,15 +19,44 @@ package org.apache.rocketmq.client.producer;
 import com.alibaba.fastjson.JSON;
 import org.apache.rocketmq.common.message.MessageQueue;
 
+/**
+ * 生产者发送消息的结果
+ */
 public class SendResult {
+    /**
+     * 发送状态，要么成功，要么消息存储失败
+     */
     private SendStatus sendStatus;
+    /**
+     * 消息ID
+     *
+     * @see org.apache.rocketmq.common.message.Message#properties[UNIQ_KEY]
+     */
     private String msgId;
+    /**
+     * 存储消息的队列
+     */
     private MessageQueue messageQueue;
+    /**
+     * 队列偏移量
+     */
     private long queueOffset;
+    /**
+     * 事务ID，仅在发送事务消息时才有值
+     */
     private String transactionId;
+    /**
+     *
+     */
     private String offsetMsgId;
     private String regionId;
+    /**
+     * 消息是否可追踪
+     */
     private boolean traceOn = true;
+    /**
+     * 原始的响应体
+     */
     private byte[] rawRespBody;
     private String recallHandle;
 
@@ -137,8 +166,7 @@ public class SendResult {
 
     @Override
     public String toString() {
-        return "SendResult [sendStatus=" + sendStatus + ", msgId=" + msgId + ", offsetMsgId=" + offsetMsgId + ", messageQueue=" + messageQueue
-            + ", queueOffset=" + queueOffset + ", recallHandle=" + recallHandle + "]";
+        return "SendResult [sendStatus=" + sendStatus + ", msgId=" + msgId + ", offsetMsgId=" + offsetMsgId + ", messageQueue=" + messageQueue + ", queueOffset=" + queueOffset + ", recallHandle=" + recallHandle + "]";
     }
 
     public void setRawRespBody(byte[] body) {

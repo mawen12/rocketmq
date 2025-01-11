@@ -42,6 +42,9 @@ import org.apache.rocketmq.remoting.rpc.TopicRequestHeader;
 
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.buildErrorResponse;
 
+/**
+ * 用于管理主题和队列映射
+ */
 public class TopicQueueMappingManager extends ConfigManager {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long LOCK_TIMEOUT_MILLIS = 3000;
@@ -51,6 +54,9 @@ public class TopicQueueMappingManager extends ConfigManager {
     private final DataVersion dataVersion = new DataVersion();
     private transient BrokerController brokerController;
 
+    /**
+     * Map<主题, 主题队列详细信息>
+     */
     private final ConcurrentMap<String, TopicQueueMappingDetail> topicQueueMappingTable = new ConcurrentHashMap<>();
 
 
@@ -186,63 +192,104 @@ public class TopicQueueMappingManager extends ConfigManager {
         return buildTopicQueueMappingContext(requestHeader, false);
     }
 
-    //Do not return a null context
+    /**
+     * 将请求头转换为TopicQueueMappingContext，不会返回空
+     *
+     * @param requestHeader
+     * @param selectOneWhenMiss
+     * @return
+     */
     public TopicQueueMappingContext buildTopicQueueMappingContext(TopicRequestHeader requestHeader, boolean selectOneWhenMiss) {
-        // if lo is set to false explicitly, it maybe the forwarded request
-        if (requestHeader.getLo() != null
-                && Boolean.FALSE.equals(requestHeader.getLo())) {
+        /**
+         * 检查lo是否为Flase，如果是的话，表示需要进一步处理
+         */
+        if (requestHeader.getLo() != null && Boolean.FALSE.equals(requestHeader.getLo())) {
             return new TopicQueueMappingContext(requestHeader.getTopic(), null, null, null, null);
         }
+        /**
+         * 获取主题
+         */
         String topic = requestHeader.getTopic();
+        /**
+         * 获取Cient计算好的队列ID
+         */
         Integer globalId = null;
-        if (requestHeader instanceof  TopicQueueRequestHeader) {
+        if (requestHeader instanceof TopicQueueRequestHeader) {
             globalId = ((TopicQueueRequestHeader) requestHeader).getQueueId();
         }
 
+        /**
+         * 获取该主题对应的队列映射信息
+         */
         TopicQueueMappingDetail mappingDetail = getTopicQueueMapping(topic);
         if (mappingDetail == null) {
             //it is not static topic
             return new TopicQueueMappingContext(topic, null, null, null, null);
         }
+        /**
+         * 检查Broker名称
+         */
         assert mappingDetail.getBname().equals(this.brokerController.getBrokerConfig().getBrokerName());
 
+        /**
+         * 对于没有队列ID的，直接返回
+         */
         if (globalId == null) {
             return new TopicQueueMappingContext(topic, null, mappingDetail, null, null);
         }
 
-        //If not find mappingItem, it encounters some errors
+        /**
+         * 对于队列ID<0，并且不允许选择的，直接返回
+         */
         if (globalId < 0 && !selectOneWhenMiss) {
             return new TopicQueueMappingContext(topic, globalId, mappingDetail, null, null);
         }
 
+        /**
+         * 对于队列ID<0进行修正
+         */
         if (globalId < 0) {
             try {
                 if (!mappingDetail.getHostedQueues().isEmpty()) {
-                    //do not check
                     globalId = mappingDetail.getHostedQueues().keySet().iterator().next();
                 }
             } catch (Throwable ignored) {
             }
         }
+        /**
+         * 如果队列ID仍然<0，直接返回
+         */
         if (globalId < 0) {
             return new TopicQueueMappingContext(topic, globalId,  mappingDetail, null, null);
         }
 
+        /**
+         * 获取该队列对应的逻辑文件映射信息
+         */
         List<LogicQueueMappingItem> mappingItemList = TopicQueueMappingDetail.getMappingInfo(mappingDetail, globalId);
         LogicQueueMappingItem leaderItem = null;
-        if (mappingItemList != null
-                && mappingItemList.size() > 0) {
+        /**
+         * 如果信息不为空，则获取最后一个
+         */
+        if (mappingItemList != null && mappingItemList.size() > 0) {
             leaderItem = mappingItemList.get(mappingItemList.size() - 1);
         }
+        /**
+         * 返回带有逻辑文件映射信息的主题队列映射上下文
+         */
         return new TopicQueueMappingContext(topic, globalId, mappingDetail, mappingItemList, leaderItem);
     }
 
 
     public  RemotingCommand rewriteRequestForStaticTopic(TopicQueueRequestHeader requestHeader, TopicQueueMappingContext mappingContext) {
         try {
+            /**
+             * 如果队列映射信息为空，则直接返回空
+             */
             if (mappingContext.getMappingDetail() == null) {
                 return null;
             }
+
             TopicQueueMappingDetail mappingDetail = mappingContext.getMappingDetail();
             if (!mappingContext.isLeader()) {
                 return buildErrorResponse(ResponseCode.NOT_LEADER_FOR_QUEUE, String.format("%s-%d does not exit in request process of current broker %s", requestHeader.getTopic(), requestHeader.getQueueId(), mappingDetail.getBname()));

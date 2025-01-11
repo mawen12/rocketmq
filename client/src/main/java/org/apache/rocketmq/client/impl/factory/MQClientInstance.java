@@ -99,12 +99,14 @@ public class MQClientInstance {
     private final long bootTimestamp = System.currentTimeMillis();
 
     /**
-     * The container of the producer in the current client. The key is the name of producerGroup.
+     * Map<生产者分组, 用于发送消息的生产者>
+     * 代表了当前客户端内不同分组的生产者
      */
     private final ConcurrentMap<String, MQProducerInner> producerTable = new ConcurrentHashMap<>();
 
     /**
-     * The container of the consumer in the current client. The key is the name of consumerGroup.
+     * Map<消费者分组, 用于接受消息的消费者>
+     * 代表了当前客户端内不同分组的消费者
      */
     private final ConcurrentMap<String, MQConsumerInner> consumerTable = new ConcurrentHashMap<>();
 
@@ -124,9 +126,10 @@ public class MQClientInstance {
     private final Lock lockHeartbeat = new ReentrantLock();
 
     /**
-     * The container which stores the brokerClusterInfo. The key of the map is the brokerCluster name.
-     * And the value is the broker instance list that belongs to the broker cluster.
-     * For the sub map, the key is the id of single broker instance, and the value is the address.
+     * Map<brokerName, Map<brokerId, brokerAddr>>
+     * 保存了broker的地址信息，并且对于brokerId=0的地址，就是集群中master的地址
+     * <p>
+     * 该信息是保存在Namesrv中的，当生产者发送请求时，发现本地没有对应的Broker信息，便会从Namesrv获取，并更新当前变量
      */
     private final ConcurrentMap<String, HashMap<Long, String>> brokerAddrTable = new ConcurrentHashMap<>();
 
@@ -145,6 +148,9 @@ public class MQClientInstance {
     private final DefaultMQProducer defaultMQProducer;
     private final ConsumerStatsManager consumerStatsManager;
     private final AtomicLong sendHeartbeatTimesTotal = new AtomicLong(0);
+    /**
+     * 服务状态
+     */
     private ServiceState serviceState = ServiceState.CREATE_JUST;
     private final Random random = new Random();
 
@@ -273,6 +279,9 @@ public class MQClientInstance {
                         continue;
                     }
 
+                    /**
+                     * 按照写队列数量，构造相同数量的消息队列，queueId使用i，从0开始设置
+                     */
                     for (int i = 0; i < qd.getWriteQueueNums(); i++) {
                         MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
                         info.getMessageQueueList().add(mq);
@@ -280,6 +289,9 @@ public class MQClientInstance {
                 }
             }
 
+            /**
+             * 默认为无序主题
+             */
             info.setOrderTopic(false);
         }
 
@@ -1202,6 +1214,12 @@ public class MQClientInstance {
         return this.consumerTable.get(group);
     }
 
+    /**
+     * 如果指定节点存在对应端点，则从端点中获取brokerName，否则从消息队列中获取
+     *
+     * @param mq
+     * @return
+     */
     public String getBrokerNameFromMessageQueue(final MessageQueue mq) {
         if (topicEndPointsTable.get(mq.getTopic()) != null && !topicEndPointsTable.get(mq.getTopic()).isEmpty()) {
             return topicEndPointsTable.get(mq.getTopic()).get(mq);
@@ -1238,12 +1256,24 @@ public class MQClientInstance {
         return null;
     }
 
+    /**
+     * 获取broker名称下MASTER的broker地址
+     *
+     * @param brokerName
+     * @return
+     */
     public String findBrokerAddressInPublish(final String brokerName) {
         if (brokerName == null) {
             return null;
         }
-        HashMap<Long/* brokerId */, String/* address */> map = this.brokerAddrTable.get(brokerName);
+        /**
+         * 获取broker地址映射表中，指定broker名称下的Master的地址
+         */
+        HashMap<Long, String> map = this.brokerAddrTable.get(brokerName);
         if (map != null && !map.isEmpty()) {
+            /**
+             * 取brokerId=0的地址，即集群Master的地址
+             */
             return map.get(MixAll.MASTER_ID);
         }
 

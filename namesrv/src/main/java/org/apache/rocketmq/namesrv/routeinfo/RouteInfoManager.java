@@ -65,15 +65,35 @@ import org.apache.rocketmq.remoting.protocol.route.QueueData;
 import org.apache.rocketmq.remoting.protocol.route.TopicRouteData;
 import org.apache.rocketmq.remoting.protocol.statictopic.TopicQueueMappingInfo;
 
+/**
+ * 路由信息管理器
+ */
 public class RouteInfoManager {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private static final long DEFAULT_BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
+
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
+    /**
+     * Map<主题, Map<broker名称, 队列数据>>
+     * 该表中的broker名称必须在{@link #brokerAddrTable}中存在
+     */
     private final Map<String/* topic */, Map<String, QueueData>> topicQueueTable;
+
+    /**
+     * Map<broker名称, broker数据>
+     */
     private final Map<String/* brokerName */, BrokerData> brokerAddrTable;
+
+    /**
+     * Map<集群名称, broker集合>
+     */
     private final Map<String/* clusterName */, Set<String/* brokerName */>> clusterAddrTable;
+
     private final Map<BrokerAddrInfo/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
+
     private final Map<BrokerAddrInfo/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
+
     private final Map<String/* topic */, Map<String/*brokerName*/, TopicQueueMappingInfo>> topicQueueMappingInfoTable;
 
     private final BatchUnregistrationService unRegisterService;
@@ -117,34 +137,66 @@ public class RouteInfoManager {
         return clusterInfoSerializeWrapper;
     }
 
+    /**
+     * 注册主题到
+     *
+     * @param topic
+     * @param queueDatas
+     */
     public void registerTopic(final String topic, List<QueueData> queueDatas) {
+        /**
+         * 忽略没有队列信息的主题
+         */
         if (queueDatas == null || queueDatas.isEmpty()) {
             return;
         }
 
         try {
+            /**
+             * 加上写锁
+             */
             this.lock.writeLock().lockInterruptibly();
             if (this.topicQueueTable.containsKey(topic)) {
+                /**
+                 * 获取主题的队列信息
+                 */
                 Map<String, QueueData> queueDataMap  = this.topicQueueTable.get(topic);
                 for (QueueData queueData : queueDatas) {
+                    /**
+                     * 忽略队列中Broker不存在的情况
+                     */
                     if (!this.brokerAddrTable.containsKey(queueData.getBrokerName())) {
                         log.warn("Register topic contains illegal broker, {}, {}", topic, queueData);
                         return;
                     }
+                    /**
+                     * 更新broker名称和队列信息
+                     */
                     queueDataMap.put(queueData.getBrokerName(), queueData);
                 }
                 log.info("Topic route already exist.{}, {}", topic, this.topicQueueTable.get(topic));
             } else {
-                // check and construct queue data map
+                /**
+                 * 对于之前没有注册过的主题，重新构造
+                 */
                 Map<String, QueueData> queueDataMap = new HashMap<>();
                 for (QueueData queueData : queueDatas) {
+                    /**
+                     * 忽略队列中broker不存在的情况
+                     */
                     if (!this.brokerAddrTable.containsKey(queueData.getBrokerName())) {
                         log.warn("Register topic contains illegal broker, {}, {}", topic, queueData);
                         return;
                     }
+                    /**
+                     * 写入broker名称和队列信息
+                     */
                     queueDataMap.put(queueData.getBrokerName(), queueData);
                 }
 
+                /**
+                 * 写入主题和队列信息
+                 */
                 this.topicQueueTable.put(topic, queueDataMap);
                 log.info("Register topic route:{}, {}", topic, queueDatas);
             }

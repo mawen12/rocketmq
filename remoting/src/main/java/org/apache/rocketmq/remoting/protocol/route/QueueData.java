@@ -37,7 +37,9 @@ public class QueueData implements Comparable<QueueData> {
      */
     private int writeQueueNums;
     /**
-     * 权限，分为2-4-6
+     * 权限，分为R-W-X，默认为7，即0111
+     *
+     * @see org.apache.rocketmq.common.constant.PermName
      */
     private int perm;
     /**

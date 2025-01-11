@@ -918,11 +918,16 @@ public class CommitLog implements Swappable {
     }
 
     public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
-        // Set the storage time
+
+        /**
+         * 如果未开启复制，则设置存储时间戳
+         */
         if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
             msg.setStoreTimestamp(System.currentTimeMillis());
         }
-        // Set the message body CRC (consider the most appropriate setting on the client)
+        /**
+         * 设置消息体CRC
+         */
         msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
         if (enabledAppendPropCRC) {
             // delete crc32 properties if exist
@@ -935,8 +940,10 @@ public class CommitLog implements Swappable {
 
         String topic = msg.getTopic();
         msg.setVersion(MessageVersion.MESSAGE_VERSION_V1);
-        boolean autoMessageVersionOnTopicLen =
-            this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
+        /**
+         * 根据开关和主题长度对消息版本进行修正
+         */
+        boolean autoMessageVersionOnTopicLen = this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
         if (autoMessageVersionOnTopicLen && topic.length() > Byte.MAX_VALUE) {
             msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
         }

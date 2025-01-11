@@ -16,9 +16,24 @@
  */
 package org.apache.rocketmq.client.producer;
 
+/**
+ * 消息发送状态，除了成功状态外，其他都是消息存储失败
+ */
 public enum SendStatus {
+    /**
+     * 发送成功，代表Broker已经保存好消息
+     */
     SEND_OK,
+    /**
+     * 写入磁盘超时
+     */
     FLUSH_DISK_TIMEOUT,
+    /**
+     * 写入Slave超时
+     */
     FLUSH_SLAVE_TIMEOUT,
+    /**
+     * Slave不可用
+     */
     SLAVE_NOT_AVAILABLE,
 }

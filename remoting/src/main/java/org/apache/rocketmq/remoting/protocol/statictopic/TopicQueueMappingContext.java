@@ -37,11 +37,9 @@ public class TopicQueueMappingContext  {
 
     }
 
-
     public boolean isLeader() {
         return leaderItem != null && leaderItem.getBname().equals(mappingDetail.getBname());
     }
-
 
     public String getTopic() {
         return topic;

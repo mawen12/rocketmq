@@ -31,6 +31,9 @@ public interface RemotingClient extends RemotingService {
 
     void updateNameServerAddressList(final List<String> addrs);
 
+    /**
+     * @return 返回所有的Namesrv地址
+     */
     List<String> getNameServerAddressList();
 
     List<String> getAvailableNameSrvList();

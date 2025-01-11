@@ -20,11 +20,30 @@ import java.nio.ByteBuffer;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.rocketmq.common.UtilAll;
 
+/**
+ * 消息ID的生成器，格式为：
+ * <pre>
+ * ┌────┬─────┬──────────┬──────┬─────────┐
+ * │ ip │ pid │ hashCode │ diff │ counter │
+ * ├────┼─────┼──────────┼──────┼─────────┤
+ * │ 4  │ 2   │ 4        │ 4    │ 2       │
+ * └────┴─────┴──────────┴──────┴─────────┘
+ * </pre>
+ */
 public class MessageClientIDSetter {
-    
+
     private static final int LEN;
+    /**
+     * 格式为以下三部分组成，对于ipv4来说，固定是10位
+     * <ul>
+     *     <li>ip</li>
+     *     <li>pid</li>
+     *     <li>ClassLoader#hashCode</li>
+     * </ul>
+     */
     private static final char[] FIX_STRING;
     private static final AtomicInteger COUNTER;
     private static long startTime;
@@ -37,10 +56,17 @@ public class MessageClientIDSetter {
         } catch (Exception e) {
             ip = createFakeIP();
         }
+
         LEN = ip.length + 2 + 4 + 4 + 2;
+        /**
+         * ip + pid + hashCode
+         */
         ByteBuffer tempBuffer = ByteBuffer.allocate(ip.length + 2 + 4);
+        // ip
         tempBuffer.put(ip);
+        // 当前实例的pid
         tempBuffer.putShort((short) UtilAll.getPid());
+        // 该类的类加载器的哈希值
         tempBuffer.putInt(MessageClientIDSetter.class.getClassLoader().hashCode());
         FIX_STRING = UtilAll.bytes2string(tempBuffer.array()).toCharArray();
         setStartTime(System.currentTimeMillis());
@@ -111,21 +137,48 @@ public class MessageClientIDSetter {
         return value & 0x0000FFFF;
     }
 
+    /**
+     * 为消息创建一个唯一ID
+     *
+     * @return
+     */
     public static String createUniqID() {
+        /**
+         * ID长度为16*2=32
+         */
         char[] sb = new char[LEN * 2];
+        /**
+         * 以ip+pid+hashcode作为ID前缀
+         */
         System.arraycopy(FIX_STRING, 0, sb, 0, FIX_STRING.length);
+        /**
+         * 获取当前时间
+         */
         long current = System.currentTimeMillis();
         if (current >= nextStartTime) {
             setStartTime(current);
         }
-        int diff = (int)(current - startTime);
+        /**
+         * 计算时间戳差值
+         */
+        int diff = (int) (current - startTime);
         if (diff < 0 && diff > -1000_000) {
             // may cause by NTP
             diff = 0;
         }
+
         int pos = FIX_STRING.length;
+        /**
+         * 写入时间差
+         */
         UtilAll.writeInt(sb, pos, diff);
+        /**
+         * 虽然写入的时间差是4字节，但是使用的是8字节
+         */
         pos += 8;
+        /**
+         * 写入该生产者发送的消息整数
+         */
         UtilAll.writeShort(sb, pos, COUNTER.getAndIncrement());
         return new String(sb);
     }

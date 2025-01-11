@@ -578,7 +578,9 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
-
+        /**
+         * 触发写入消息之前的生命周期函数，并进行回调
+         */
         for (PutMessageHook putMessageHook : putMessageHookList) {
             PutMessageResult handleResult = putMessageHook.executeBeforePutMessage(msg);
             if (handleResult != null) {
@@ -586,8 +588,10 @@ public class DefaultMessageStore implements MessageStore {
             }
         }
 
-        if (msg.getProperties().containsKey(MessageConst.PROPERTY_INNER_NUM)
-            && !MessageSysFlag.check(msg.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)) {
+        /**
+         * 校验消息属性
+         */
+        if (msg.getProperties().containsKey(MessageConst.PROPERTY_INNER_NUM) && !MessageSysFlag.check(msg.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)) {
             LOGGER.warn("[BUG]The message had property {} but is not an inner batch", MessageConst.PROPERTY_INNER_NUM);
             return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
         }
@@ -601,17 +605,25 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         long beginTime = this.getSystemClock().now();
+        /**
+         * 写入消息到commitLog
+         */
         CompletableFuture<PutMessageResult> putResultFuture = this.commitLog.asyncPutMessage(msg);
 
         putResultFuture.thenAccept(result -> {
             long elapsedTime = this.getSystemClock().now() - beginTime;
             if (elapsedTime > 500) {
-                LOGGER.warn("DefaultMessageStore#putMessage: CommitLog#putMessage cost {}ms, topic={}, bodyLength={}",
-                    elapsedTime, msg.getTopic(), msg.getBody().length);
+                LOGGER.warn("DefaultMessageStore#putMessage: CommitLog#putMessage cost {}ms, topic={}, bodyLength={}", elapsedTime, msg.getTopic(), msg.getBody().length);
             }
+            /**
+             * 记录消息写入耗时指标
+             */
             this.storeStatsService.setPutMessageEntireTimeMax(elapsedTime);
 
             if (null == result || !result.isOk()) {
+                /**
+                 * 记录消息写入失败数量指标
+                 */
                 this.storeStatsService.getPutMessageFailedTimes().add(1);
             }
         });

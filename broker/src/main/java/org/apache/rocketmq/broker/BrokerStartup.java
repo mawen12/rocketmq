@@ -61,7 +61,7 @@ public class BrokerStartup {
      * <p>
      * Arguments:
      * <ul>
-     *     <li>-n 127.0.0.1 autoCreateTopicEnable=true</li>
+     *     <li>-n 127.0.0.1:9876 autoCreateTopicEnable=true</li>
      * </ul>
      *
      * @param args

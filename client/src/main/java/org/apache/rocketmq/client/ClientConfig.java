@@ -46,6 +46,9 @@ public class ClientConfig {
     private String clientIP = NetworkUtil.getLocalAddress();
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
+    /**
+     * 命名空间，即租户，默认为空
+     */
     @Deprecated
     protected String namespace;
     private boolean namespaceInitialized = false;

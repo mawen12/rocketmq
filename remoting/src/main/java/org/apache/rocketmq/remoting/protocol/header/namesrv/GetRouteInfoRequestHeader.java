@@ -30,7 +30,7 @@ import org.apache.rocketmq.remoting.protocol.RequestCode;
 import org.apache.rocketmq.remoting.rpc.TopicRequestHeader;
 
 /**
- * 从Nameserver获取主题路由信息的请求
+ * 基于获取路由信息的主题队列请求头，向Namesrv查询指定主题的路由信息
  */
 @RocketMQAction(value = RequestCode.GET_ROUTEINFO_BY_TOPIC, resource = ResourceType.CLUSTER, action = Action.GET)
 public class GetRouteInfoRequestHeader extends TopicRequestHeader {

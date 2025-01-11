@@ -20,12 +20,21 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.apache.rocketmq.remoting.CommandCustomHeader;
 
+/**
+ * RPC请求头
+ */
 public abstract class RpcRequestHeader implements CommandCustomHeader {
-    //the namespace name
+    /**
+     * 命名空间
+     */
     protected String ns;
-    //if the data has been namespaced
+    /**
+     * 数据上是否已经携带命名空间
+     */
     protected Boolean nsd;
-    //the abstract remote addr name, usually the physical broker name
+    /**
+     * broker名称，通常是物理Broker名称
+     */
     protected String bname;
     //oneway
     protected Boolean oway;

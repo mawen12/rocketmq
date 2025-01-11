@@ -30,19 +30,40 @@ import org.apache.rocketmq.remoting.annotation.CFNullable;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.protocol.RequestCode;
 
+/**
+ * 注册Broker请求头，从Broker发送到Namesrv
+ */
 @RocketMQAction(value = RequestCode.REGISTER_BROKER, resource = ResourceType.CLUSTER, action = Action.UPDATE)
 public class RegisterBrokerRequestHeader implements CommandCustomHeader {
+    /**
+     * Broker名称
+     */
     @CFNotNull
     private String brokerName;
+    /**
+     * Broker地址
+     */
     @CFNotNull
     private String brokerAddr;
+    /**
+     * 集群名称
+     */
     @CFNotNull
     @RocketMQResource(ResourceType.CLUSTER)
     private String clusterName;
+    /**
+     * HA服务地址
+     */
     @CFNotNull
     private String haServerAddr;
+    /**
+     * brokerId
+     */
     @CFNotNull
     private Long brokerId;
+    /**
+     * 心跳超时
+     */
     @CFNullable
     private Long heartbeatTimeoutMillis;
     @CFNullable

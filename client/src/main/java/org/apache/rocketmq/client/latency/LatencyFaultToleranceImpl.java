@@ -32,10 +32,14 @@ import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
 /**
- * 基于延迟的故障容错的实现
+ * 基于延迟的故障容错的实现，通过检测Brok
  */
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
     private final static Logger log = LoggerFactory.getLogger(MQFaultStrategy.class);
+    /**
+     * Map<broker名称, 故障容错元素>
+     *
+     */
     private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
     /**
      * 检测超时时间，单位为毫秒，默认为200ms
@@ -47,10 +51,14 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
     private int detectInterval = 2000;
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
 
+    /**
+     * 是否开启检测，受{@link MQFaultStrategy#startDetectorEnable}影响，
+     * 该变量在运行时可变
+     */
     private volatile boolean startDetectorEnable = false;
 
     /**
-     * 调度服务，1个线程，线程名称LatencyFaultToleranceScheduledThread，非守护线程
+     * 单线程的调度服务，线程名称前缀LatencyFaultToleranceScheduledThread，非守护线程
      */
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
         @Override
@@ -59,8 +67,14 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         }
     });
 
+    /**
+     * 将broker名称转换为broker地址
+     */
     private final Resolver resolver;
 
+    /**
+     * 用于检测broker地址能否正常访问
+     */
     private final ServiceDetector serviceDetector;
 
     public LatencyFaultToleranceImpl(Resolver resolver, ServiceDetector serviceDetector) {
@@ -70,19 +84,45 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     @Override
     public void detectByOneRound() {
+        /**
+         * 将故障容错元素，即Broker元素依次取出，进行请求检测
+         */
         for (Map.Entry<String, FaultItem> item : this.faultItemTable.entrySet()) {
             FaultItem brokerItem = item.getValue();
+            /**
+             * 如果本次检测时间超过了该节点应该检测的时间，则进行检测
+             */
             if (System.currentTimeMillis() - brokerItem.checkStamp >= 0) {
+                /**
+                 * 更新下次检测时间
+                 */
                 brokerItem.checkStamp = System.currentTimeMillis() + this.detectInterval;
+                /**
+                 * 从broker名称解析broker地址
+                 */
                 String brokerAddr = resolver.resolve(brokerItem.getName());
                 if (brokerAddr == null) {
+                    /**
+                     * broker地址为空，则移除该容错元素
+                     */
                     faultItemTable.remove(item.getKey());
                     continue;
                 }
+                /**
+                 * 如果服务检测器为空，则跳过处理
+                 *
+                 * TODO by mawen 应该将此处判断提取到{@link #startDetector()}
+                 */
                 if (null == serviceDetector) {
                     continue;
                 }
+                /**
+                 * 执行检测，发送RPC调用
+                 */
                 boolean serviceOK = serviceDetector.detect(brokerAddr, detectTimeout);
+                /**
+                 * 如果检测成功，并且上一次检测的检测失败，则更新检测状态
+                 */
                 if (serviceOK && !brokerItem.reachableFlag) {
                     log.info(brokerItem.name + " is reachable now, then it can be used.");
                     brokerItem.reachableFlag = true;
@@ -93,16 +133,19 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     @Override
     public void startDetector() {
-        this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    if (startDetectorEnable) {
-                        detectByOneRound();
-                    }
-                } catch (Exception e) {
-                    log.warn("Unexpected exception raised while detecting service reachability", e);
+        /**
+         * 开启调度服务，延迟3s开始，并每隔3s执行一次
+         */
+        this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+            try {
+                /**
+                 * 如果开启了检测，则执行检测，否则跳过本次执行
+                 */
+                if (startDetectorEnable) {
+                    detectByOneRound();
                 }
+            } catch (Exception e) {
+                log.warn("Unexpected exception raised while detecting service reachability", e);
             }
         }, 3, 3, TimeUnit.SECONDS);
     }
@@ -113,8 +156,10 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
     }
 
     @Override
-    public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration,
-                                final boolean reachable) {
+    public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration, final boolean reachable) {
+        /**
+         * 获取
+         */
         FaultItem old = this.faultItemTable.get(name);
         if (null == old) {
             final FaultItem faultItem = new FaultItem(name);
@@ -206,7 +251,13 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         this.detectInterval = detectInterval;
     }
 
+    /**
+     * 故障容错元素
+     */
     public class FaultItem implements Comparable<FaultItem> {
+        /**
+         * Broker名称
+         */
         private final String name;
         private volatile long currentLatency;
         private volatile long startTimestamp;

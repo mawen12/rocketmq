@@ -16,6 +16,9 @@
  */
 package org.apache.rocketmq.client.latency;
 
+/**
+ * 将broker名称转换为broker地址
+ */
 public interface Resolver {
 
     String resolve(String name);

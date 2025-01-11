@@ -104,7 +104,16 @@ public class TopicPublishInfo {
         this.haveTopicRouterInfo = haveTopicRouterInfo;
     }
 
+    /**
+     * 从指定队列中，基于指定的队列过滤器配合轮询机制来选择一个消息队列
+     *
+     * @param filter
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(QueueFilter ...filter) {
+        /**
+         * 从指定队列中，根据队列索引和队列过滤器，选择一个消息队列
+         */
         return selectOneMessageQueue(this.messageQueueList, this.sendWhichQueue, filter);
     }
 

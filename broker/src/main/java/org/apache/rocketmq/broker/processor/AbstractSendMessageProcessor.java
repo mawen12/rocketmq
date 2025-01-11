@@ -349,35 +349,97 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         }
     }
 
-    protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx,
-        SendMessageRequestHeader requestHeader, RemotingCommand request) {
+    /**
+     * 解析请求头，并构造{@link SendMessageContext}
+     *
+     * @param ctx
+     * @param requestHeader
+     * @param request
+     * @return
+     */
+    protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx, SendMessageRequestHeader requestHeader, RemotingCommand request) {
+        /**
+         * 获取主题上的命令空间
+         */
         String namespace = NamespaceUtil.getNamespaceFromResource(requestHeader.getTopic());
 
         SendMessageContext sendMessageContext;
         sendMessageContext = new SendMessageContext();
+        /**
+         * 写入命名空间
+         */
         sendMessageContext.setNamespace(namespace);
+        /**
+         * 写入生产者组
+         */
         sendMessageContext.setProducerGroup(requestHeader.getProducerGroup());
+        /**
+         * 写入主题
+         */
         sendMessageContext.setTopic(requestHeader.getTopic());
+        /**
+         * 写入压缩后的消息体长度
+         */
         sendMessageContext.setBodyLength(request.getBody().length);
+        /**
+         * 写入消息属性
+         */
         sendMessageContext.setMsgProps(requestHeader.getProperties());
+        /**
+         * 写入发送消息的主机
+         */
         sendMessageContext.setBornHost(RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
+        /**
+         * 写入当前节点的主机
+         */
         sendMessageContext.setBrokerAddr(this.brokerController.getBrokerAddr());
+        /**
+         * 写入队列ID
+         */
         sendMessageContext.setQueueId(requestHeader.getQueueId());
+        /**
+         * 写入Broker区域ID，默认为DefaultRegion
+         */
         sendMessageContext.setBrokerRegionId(this.brokerController.getBrokerConfig().getRegionId());
+        /**
+         * 设置请求头创建时间
+         */
         sendMessageContext.setBornTimeStamp(requestHeader.getBornTimestamp());
+        /**
+         * 设置请求处理时间
+         */
         sendMessageContext.setRequestTimeStamp(System.currentTimeMillis());
 
-        String owner = request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER);
-        sendMessageContext.setCommercialOwner(owner);
+        /**
+         * 读取请求扩展Owner
+         */
+        sendMessageContext.setCommercialOwner(request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER));
 
+        /**
+         * 读取请求头属性
+         */
         Map<String, String> properties = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+        /**
+         * 写入MSG_REGION，默认为DefaultRegion
+         */
         properties.put(MessageConst.PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
+        /**
+         * 写入TRACE_ON，默认为true
+         */
         properties.put(MessageConst.PROPERTY_TRACE_SWITCH, String.valueOf(this.brokerController.getBrokerConfig().isTraceOn()));
+        /**
+         * 会写请求属性
+         */
         requestHeader.setProperties(MessageDecoder.messageProperties2String(properties));
 
-        String uniqueKey = properties.get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
-        sendMessageContext.setMsgUniqueKey(Optional.ofNullable(uniqueKey).orElse(""));
+        /**
+         * 写入属性UNIQ_KEY，即消息ID
+         */
+        sendMessageContext.setMsgUniqueKey(Optional.ofNullable(properties.get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX)).orElse(""));
 
+        /**
+         * 读取请求属性__SHARDINGKEY，如果存在，则表示为顺序消息；否则为普通消息
+         */
         if (properties.containsKey(MessageConst.PROPERTY_SHARDING_KEY)) {
             sendMessageContext.setMsgType(MessageType.Order_Msg);
         } else {
@@ -454,31 +516,51 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         return response;
     }
 
-    protected RemotingCommand msgCheck(final ChannelHandlerContext ctx,
-        final SendMessageRequestHeader requestHeader, final RemotingCommand request,
-        final RemotingCommand response) {
-        if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission())
-            && this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
+    /**
+     * 校验主题权限、格式、长度，配置、校验队列ID，并按需创建主题，同步到所有的Broker上
+     *
+     * @param ctx
+     * @param requestHeader
+     * @param request
+     * @param response
+     * @return
+     */
+    protected RemotingCommand msgCheck(final ChannelHandlerContext ctx, final SendMessageRequestHeader requestHeader, final RemotingCommand request, final RemotingCommand response) {
+        /**
+         * 如果Broker不允许写入，并且写入的主题是顺序的，则返回没有权限的错误
+         */
+        if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission()) && this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
             response.setCode(ResponseCode.NO_PERMISSION);
-            response.setRemark("the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1()
-                + "] sending message is forbidden");
+            response.setRemark("the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1() + "] sending message is forbidden");
             return response;
         }
 
+        /**
+         * 检查主题的格式、长度
+         */
         TopicValidator.ValidateTopicResult result = TopicValidator.validateTopic(requestHeader.getTopic());
         if (!result.isValid()) {
+            /**
+             * 对于校验未通过的主题，返回非法参数的错误
+             */
             response.setCode(ResponseCode.INVALID_PARAMETER);
             response.setRemark(result.getRemark());
             return response;
         }
+
+        /**
+         * 如果该主题不允许被生产者发送，则返回没有权限的错误
+         */
         if (TopicValidator.isNotAllowedSendTopic(requestHeader.getTopic())) {
             response.setCode(ResponseCode.NO_PERMISSION);
             response.setRemark("Sending message to topic[" + requestHeader.getTopic() + "] is forbidden.");
             return response;
         }
 
-        TopicConfig topicConfig =
-            this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
+        /**
+         * 获取主题配置
+         */
+        TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
         if (null == topicConfig) {
             int topicSysFlag = 0;
             if (requestHeader.isUnitMode()) {
@@ -490,43 +572,41 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             }
 
             LOGGER.warn("the topic {} not exist, producer: {}", requestHeader.getTopic(), ctx.channel().remoteAddress());
-            topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageMethod(
-                requestHeader.getTopic(),
-                requestHeader.getDefaultTopic(),
-                RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
-                requestHeader.getDefaultTopicQueueNums(), topicSysFlag);
+            /**
+             * 该主题不存在，在发送消息方法中创建主题，并同步到所有的Namesrv中
+             */
+            topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageMethod(requestHeader.getTopic(), requestHeader.getDefaultTopic(), RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getDefaultTopicQueueNums(), topicSysFlag);
 
             if (null == topicConfig) {
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-                    topicConfig =
-                        this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
-                            requestHeader.getTopic(), 1, PermName.PERM_WRITE | PermName.PERM_READ,
-                            topicSysFlag);
+                    topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(requestHeader.getTopic(), 1, PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
                 }
             }
 
             if (null == topicConfig) {
                 response.setCode(ResponseCode.TOPIC_NOT_EXIST);
-                response.setRemark("topic[" + requestHeader.getTopic() + "] not exist, apply first please!"
-                    + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
+                response.setRemark("topic[" + requestHeader.getTopic() + "] not exist, apply first please!" + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
                 return response;
             }
         }
 
+        /**
+         * 获取消息发送的队列ID
+         */
         int queueIdInt = requestHeader.getQueueId();
+        /**
+         * 判断队列ID是否在可写的队列数量范围内，如果队列ID错误，则返回非法参数的错误
+         */
         int idValid = Math.max(topicConfig.getWriteQueueNums(), topicConfig.getReadQueueNums());
         if (queueIdInt >= idValid) {
-            String errorInfo = String.format("request queueId[%d] is illegal, %s Producer: %s",
-                queueIdInt,
-                topicConfig,
-                RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
-
+            String errorInfo = String.format("request queueId[%d] is illegal, %s Producer: %s", queueIdInt, topicConfig, RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
             LOGGER.warn(errorInfo);
             response.setCode(ResponseCode.INVALID_PARAMETER);
             response.setRemark(errorInfo);
 
             return response;
         }
+
         return response;
     }
 
@@ -543,6 +623,9 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         if (hasSendMessageHook()) {
             for (SendMessageHook hook : this.sendMessageHookList) {
                 try {
+                    /**
+                     * 执行回调
+                     */
                     hook.sendMessageBefore(context);
                 } catch (AbortProcessException e) {
                     throw e;

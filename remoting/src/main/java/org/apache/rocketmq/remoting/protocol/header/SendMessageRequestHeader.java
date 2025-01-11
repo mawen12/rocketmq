@@ -32,33 +32,83 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.protocol.RequestCode;
 import org.apache.rocketmq.remoting.rpc.TopicQueueRequestHeader;
 
+/**
+ * 基于发送消息的主题队列请求头，从Client发送到Broker
+ * <p>
+ * 其中{@link SendMessageRequestHeaderV2}在此基础上精简了字段名称，精简了请求大小，加速反序列化速度
+ */
 @RocketMQAction(value = RequestCode.SEND_MESSAGE, action = Action.PUB)
 public class SendMessageRequestHeader extends TopicQueueRequestHeader {
+    /**
+     * 生产者组
+     */
     @CFNotNull
     private String producerGroup;
+    /**
+     * 消息发往的主题
+     */
     @CFNotNull
     @RocketMQResource(ResourceType.TOPIC)
     private String topic;
+    /**
+     * 默认主题
+     */
     @CFNotNull
     private String defaultTopic;
+    /**
+     * 默认主题的队列数量
+     */
     @CFNotNull
     private Integer defaultTopicQueueNums;
+    /**
+     * 存储消息的队列ID
+     */
     @CFNotNull
     private Integer queueId;
+    /**
+     * 系统标识，由以下组成：
+     * <pre>
+     * ┌──────┬──────────────────────────┬───┬───────────────┬───┐
+     * │ bit  │ 3                        │ 2 │ 1             │ 0 │
+     * ├──────┼──────────────────────────┼───┼───────────────┼───┤
+     * │ 标识内容 │ TRANSACTON_PREPARED_TYPE │   │ COMPRESS_FLAG │   │
+     * └──────┴──────────────────────────┴───┴───────────────┴───┘
+     * </pre>
+     *
+     * @see org.apache.rocketmq.common.sysflag.MessageSysFlag
+     */
     @CFNotNull
     private Integer sysFlag;
+    /**
+     * 请求头创建时间
+     */
     @CFNotNull
     private Long bornTimestamp;
+    /**
+     * 消息标识
+     */
     @CFNotNull
     private Integer flag;
+    /**
+     * 消息属性字符串表示，从 Map<key,value> -> String(key1 value1)
+     */
     @CFNullable
     private String properties;
+    /**
+     * 消息的重新消费次数
+     */
     @CFNullable
     private Integer reconsumeTimes;
     @CFNullable
     private Boolean unitMode;
+    /**
+     * 是否为批次消息
+     */
     @CFNullable
     private Boolean batch;
+    /**
+     * 消息的最大重新消费次数
+     */
     private Integer maxReconsumeTimes;
 
     @Override
@@ -204,19 +254,19 @@ public class SendMessageRequestHeader extends TopicQueueRequestHeader {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-            .add("producerGroup", producerGroup)
-            .add("topic", topic)
-            .add("defaultTopic", defaultTopic)
-            .add("defaultTopicQueueNums", defaultTopicQueueNums)
-            .add("queueId", queueId)
-            .add("sysFlag", sysFlag)
-            .add("bornTimestamp", bornTimestamp)
-            .add("flag", flag)
-            .add("properties", properties)
-            .add("reconsumeTimes", reconsumeTimes)
-            .add("unitMode", unitMode)
-            .add("batch", batch)
-            .add("maxReconsumeTimes", maxReconsumeTimes)
-            .toString();
+                .add("producerGroup", producerGroup)
+                .add("topic", topic)
+                .add("defaultTopic", defaultTopic)
+                .add("defaultTopicQueueNums", defaultTopicQueueNums)
+                .add("queueId", queueId)
+                .add("sysFlag", sysFlag)
+                .add("bornTimestamp", bornTimestamp)
+                .add("flag", flag)
+                .add("properties", properties)
+                .add("reconsumeTimes", reconsumeTimes)
+                .add("unitMode", unitMode)
+                .add("batch", batch)
+                .add("maxReconsumeTimes", maxReconsumeTimes)
+                .toString();
     }
 }

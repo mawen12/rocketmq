@@ -56,7 +56,9 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 
 /**
- * 该类是应用程序发送消息的入口点，提供发送消息的多个方法
+ * 生产者消息发送接口，该类是应用程序发送消息的入口点，提供发送消息的多个方法
+ * <p>
+ * 该类中部分参数影响了{@link DefaultMQProducerImpl}的行为
  * <p>
  * 线程安全类
  */
@@ -67,6 +69,19 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      */
     protected final transient DefaultMQProducerImpl defaultMQProducerImpl;
     private final Logger logger = LoggerFactory.getLogger(DefaultMQProducer.class);
+    /**
+     * 支持重试的响应码
+     * <ul>
+     *     <li>主题不存在: 17</li>
+     *     <li>服务不可用: 14</li>
+     *     <li>系统错误: 1</li>
+     *     <li>系统繁忙: 2</li>
+     *     <li>无权限: 16</li>
+     *     <li>无: 204</li>
+     *     <li>不在当前单位: 205</li>
+     *     <li>: 1500</li>
+     * </ul>
+     */
     private final Set<Integer> retryResponseCodes = new CopyOnWriteArraySet<>(Arrays.asList(
         ResponseCode.TOPIC_NOT_EXIST,
         ResponseCode.SERVICE_NOT_AVAILABLE,
@@ -79,12 +94,8 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     ));
 
     /**
-     * Producer group conceptually aggregates all producer instances of exactly same role, which is particularly
-     * important when transactional messages are involved. </p>
-     * <p>
-     * For non-transactional messages, it does not matter as long as it's unique per process. </p>
-     * <p>
-     * See <a href="https://rocketmq.apache.org/docs/introduction/02concepts">core concepts</a> for more discussion.
+     * 生产者组，聚合了所有具有完全相同角色的生产者实例，这在涉及事务型消息时尤为重要；
+     * 对于非事务性消息，只要每个进程都是唯一的，那就没关系
      */
     private String producerGroup;
 
@@ -94,7 +105,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private List<String> topics;
 
     /**
-     * 用于测试场景的Topic
+     * 用于测试场景的Topic，默认为TBW102
      */
     private String createTopicKey = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
@@ -114,21 +125,21 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
     /**
-     * Maximum number of retry to perform internally before claiming sending failure in synchronous mode. </p>
-     * <p>
-     * This may potentially cause message duplication which is up to application developers to resolve.
+     * 同步模式发送消息失败时，最大重试次数。默认为2，加上原本第一次调用，累计调用3次。
+     * 重试过程中可能导致消息被重复发送到服务端，这需要开发者进行处理
      */
     private int retryTimesWhenSendFailed = 2;
 
     /**
-     * Maximum number of retry to perform internally before claiming sending failure in asynchronous mode. </p>
-     * <p>
-     * This may potentially cause message duplication which is up to application developers to resolve.
+     * 异步模式发送消息失败时，最大重试次数，默认为2，加上原本第一次调用，累计调用3次。
+     * 重试过程中可能导致消息被重复发送到服务端，这需要开发者进行处理
      */
     private int retryTimesWhenSendAsyncFailed = 2;
 
     /**
-     * Indicate whether to retry another broker on sending failure internally.
+     * 指示当发送消息失败时，是否需要重试另一个Broker，默认不重试
+     * <p>
+     * 触发场景为发送结果{@link SendResult#sendStatus} != {@link SendStatus#SEND_OK}时
      */
     private boolean retryAnotherBrokerWhenNotStoreOK = false;
 
@@ -157,14 +168,12 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private boolean enableBackpressureForAsyncMode = false;
 
     /**
-     * on BackpressureForAsyncMode, limit maximum number of on-going sending async messages
-     * default is 10000
+     * 异步请求最大同时发送的消息数量，默认为1w
      */
     private int backPressureForAsyncSendNum = 10000;
 
     /**
-     * on BackpressureForAsyncMode, limit maximum message size of on-going sending async messages
-     * default is 100M
+     * 异步请求最大同时发送的消息大小，默认为100m
      */
     private int backPressureForAsyncSendSize = 100 * 1024 * 1024;
 
@@ -196,17 +205,22 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private final ReadWriteCASLock backPressureForAsyncSendSizeLock = new ReadWriteCASLock();
 
     /**
-     * Compress level of compress algorithm.
+     * 压缩算法对应的压缩级别，从 PROPERTIES(rocketmq.message.compressLevel) -> DEFAULT(5)
      */
     private int compressLevel = Integer.parseInt(System.getProperty(MixAll.MESSAGE_COMPRESS_LEVEL, "5"));
 
     /**
-     * Compress type of compress algorithm, default using ZLIB.
+     * 压缩算法对应的压缩类型，从 PROPERTIES(rocketmq.message.compressType) -> DEFAULT(ZLIB)
      */
     private CompressionType compressType = CompressionType.of(System.getProperty(MixAll.MESSAGE_COMPRESS_TYPE, "ZLIB"));
 
     /**
-     * Compressor of compress algorithm.
+     * 根据压缩类型，确定压缩算法的压缩器，压缩器有：
+     * <ul>
+     *     <li>LZ4: {@link org.apache.rocketmq.common.compression.Lz4Compressor}</li>
+     *     <li>ZSTD: {@link org.apache.rocketmq.common.compression.ZstdCompressor}</li>
+     *     <li>ZLIB: {@link org.apache.rocketmq.common.compression.ZlibCompressor}</li>
+     * </ul>
      */
     private Compressor compressor = CompressorFactory.getCompressor(compressType);
 

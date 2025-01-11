@@ -109,6 +109,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
     private final HashedWheelTimer timer = new HashedWheelTimer(r -> new Thread(r, "ClientHouseKeepingService"));
 
+    /**
+     * List<Namesrv地址>
+     */
     private final AtomicReference<List<String>> namesrvAddrList = new AtomicReference<>();
     private final ConcurrentMap<String, Boolean> availableNamesrvAddrMap = new ConcurrentHashMap<>();
     private final AtomicReference<String> namesrvAddrChoosed = new AtomicReference<>();
@@ -541,19 +544,33 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     }
 
     @Override
-    public RemotingCommand invokeSync(String addr, final RemotingCommand request, long timeoutMillis)
-        throws InterruptedException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException {
+    public RemotingCommand invokeSync(String addr, final RemotingCommand request, long timeoutMillis) throws InterruptedException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException {
         long beginStartTime = System.currentTimeMillis();
+        /**
+         * 根据主机地址，获取对应的Channel，如果没有则创建
+         */
         final Channel channel = this.getAndCreateChannel(addr);
+        /**
+         * 将Channel解析为远程地址
+         */
         String channelRemoteAddr = RemotingHelper.parseChannelRemoteAddr(channel);
+        /**
+         * 如果Channel正常可用
+         */
         if (channel != null && channel.isActive()) {
             long left = timeoutMillis;
             try {
+                /**
+                 * 发送消息前的第四次超时时间检查点
+                 */
                 long costTime = System.currentTimeMillis() - beginStartTime;
                 left -= costTime;
                 if (left <= 0) {
                     throw new RemotingTimeoutException("invokeSync call the addr[" + channelRemoteAddr + "] timeout");
                 }
+                /**
+                 * 发送同步调用，获取响应
+                 */
                 RemotingCommand response = this.invokeSyncImpl(channel, request, left);
                 updateChannelLastResponseTime(addr);
                 return response;
@@ -572,6 +589,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 throw e;
             }
         } else {
+            /**
+             * Channel异常，关闭Channel，并抛出异常
+             */
             this.closeChannel(addr, channel);
             throw new RemotingConnectException(addr);
         }
@@ -813,8 +833,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     }
 
     @Override
-    public CompletableFuture<ResponseFuture> invokeImpl(final Channel channel, final RemotingCommand request,
-        final long timeoutMillis) {
+    public CompletableFuture<ResponseFuture> invokeImpl(final Channel channel, final RemotingCommand request, final long timeoutMillis) {
         Stopwatch stopwatch = Stopwatch.createStarted();
         String channelRemoteAddr = RemotingHelper.parseChannelRemoteAddr(channel);
         doBeforeRpcHooks(channelRemoteAddr, request);

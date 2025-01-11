@@ -254,8 +254,11 @@ import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCC
 
 public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdown {
     private final static Logger log = LoggerFactory.getLogger(MQClientAPIImpl.class);
-    private static boolean sendSmartMsg =
-        Boolean.parseBoolean(System.getProperty("org.apache.rocketmq.client.sendSmartMsg", "true"));
+    /**
+     * 是否使用{@link SendMessageRequestHeaderV2}，否则使用{@link SendMessageRequestHeader}
+     * 从 PROPERTIES(org.apache.rocketmq.client.sendSmartMsg) -> DEFAULT(true)
+     */
+    private static boolean sendSmartMsg = Boolean.parseBoolean(System.getProperty("org.apache.rocketmq.client.sendSmartMsg", "true"));
 
     static {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
@@ -267,15 +270,11 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
     private String nameSrvAddr = null;
     private ClientConfig clientConfig;
 
-    public MQClientAPIImpl(final NettyClientConfig nettyClientConfig,
-        final ClientRemotingProcessor clientRemotingProcessor,
-        RPCHook rpcHook, final ClientConfig clientConfig) {
+    public MQClientAPIImpl(final NettyClientConfig nettyClientConfig, final ClientRemotingProcessor clientRemotingProcessor, RPCHook rpcHook, final ClientConfig clientConfig) {
         this(nettyClientConfig, clientRemotingProcessor, rpcHook, clientConfig, null);
     }
 
-    public MQClientAPIImpl(final NettyClientConfig nettyClientConfig,
-        final ClientRemotingProcessor clientRemotingProcessor,
-        RPCHook rpcHook, final ClientConfig clientConfig, final ChannelEventListener channelEventListener) {
+    public MQClientAPIImpl(final NettyClientConfig nettyClientConfig, final ClientRemotingProcessor clientRemotingProcessor, RPCHook rpcHook, final ClientConfig clientConfig, final ChannelEventListener channelEventListener) {
         this.clientConfig = clientConfig;
         topAddressing = new DefaultTopAddressing(MixAll.getWSAddr(), clientConfig.getUnitName());
         topAddressing.registerChangeCallBack(this);
@@ -288,6 +287,9 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
             this.remotingClient.registerRPCHook(new StreamTypeRPCHook());
         }
         this.remotingClient.registerRPCHook(rpcHook);
+        /**
+         * 默认注册RPCHook，用于向请求头添加__ZONE_NAME和__ZONE_MODE
+         */
         this.remotingClient.registerRPCHook(new DynamicalExtFieldRPCHook());
         this.remotingClient.registerProcessor(RequestCode.CHECK_TRANSACTION_STATE, this.clientRemotingProcessor, null);
 
@@ -578,52 +580,72 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
 
     }
 
-    public SendResult sendMessage(
-        final String addr,
-        final String brokerName,
-        final Message msg,
-        final SendMessageRequestHeader requestHeader,
-        final long timeoutMillis,
-        final CommunicationMode communicationMode,
-        final SendMessageContext context,
-        final DefaultMQProducerImpl producer
-    ) throws RemotingException, MQBrokerException, InterruptedException {
+    /**
+     * 发送消息到指定broker的指定主题的指定队列中
+     *
+     * @param addr
+     * @param brokerName
+     * @param msg
+     * @param requestHeader
+     * @param timeoutMillis
+     * @param communicationMode
+     * @param context
+     * @param producer
+     * @return
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
+    public SendResult sendMessage(final String addr, final String brokerName, final Message msg, final SendMessageRequestHeader requestHeader, final long timeoutMillis, final CommunicationMode communicationMode,
+                                  final SendMessageContext context, final DefaultMQProducerImpl producer) throws RemotingException, MQBrokerException, InterruptedException {
+        /**
+         * 失败时不重试
+         */
         return sendMessage(addr, brokerName, msg, requestHeader, timeoutMillis, communicationMode, null, null, null, 0, context, producer);
     }
 
-    public SendResult sendMessage(
-        final String addr,
-        final String brokerName,
-        final Message msg,
-        final SendMessageRequestHeader requestHeader,
-        final long timeoutMillis,
-        final CommunicationMode communicationMode,
-        final SendCallback sendCallback,
-        final TopicPublishInfo topicPublishInfo,
-        final MQClientInstance instance,
-        final int retryTimesWhenSendFailed,
-        final SendMessageContext context,
-        final DefaultMQProducerImpl producer
-    ) throws RemotingException, MQBrokerException, InterruptedException {
+    public SendResult sendMessage(final String addr, final String brokerName, final Message msg, final SendMessageRequestHeader requestHeader, final long timeoutMillis, final CommunicationMode communicationMode,
+                                  final SendCallback sendCallback, final TopicPublishInfo topicPublishInfo, final MQClientInstance instance, final int retryTimesWhenSendFailed, final SendMessageContext context, final DefaultMQProducerImpl producer) throws RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
         RemotingCommand request = null;
+        /**
+         * 获取消息类型
+         */
         String msgType = msg.getProperty(MessageConst.PROPERTY_MESSAGE_TYPE);
+        /**
+         * 判断是否为回复消息
+         */
         boolean isReply = msgType != null && msgType.equals(MixAll.REPLY_MESSAGE_FLAG);
         if (isReply) {
             if (sendSmartMsg) {
+                /**
+                 * 是回复消息，并且设置了发送智能消息，即以{@link RequestCode#SEND_REPLY_MESSAGE_V2}来构造请求
+                 */
                 SendMessageRequestHeaderV2 requestHeaderV2 = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV2(requestHeader);
                 request = RemotingCommand.createRequestCommand(RequestCode.SEND_REPLY_MESSAGE_V2, requestHeaderV2);
             } else {
+                /**
+                 * 是回复消息，但并未设置发送智能消息，即以{@link RequestCode#SEND_REPLY_MESSAGE}来构造请求
+                 */
                 request = RemotingCommand.createRequestCommand(RequestCode.SEND_REPLY_MESSAGE, requestHeader);
             }
         } else {
             if (sendSmartMsg || msg instanceof MessageBatch) {
+                /**
+                 * 非回复消息，但设置了发送智能消息，并且是批次消息，即以{@link RequestCode#SEND_BATCH_MESSAGE}来构造请求；如果不是批次消息，则以{@link RequestCode#SEND_MESSAGE_V2}来构造请求
+                 */
                 SendMessageRequestHeaderV2 requestHeaderV2 = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV2(requestHeader);
                 request = RemotingCommand.createRequestCommand(msg instanceof MessageBatch ? RequestCode.SEND_BATCH_MESSAGE : RequestCode.SEND_MESSAGE_V2, requestHeaderV2);
             } else {
+                /**
+                 * 非回复消息，并未设置发送智能消息，非批次消息，即以{@link RequestCode#SEND_MESSAGE}来构造请求
+                 */
                 request = RemotingCommand.createRequestCommand(RequestCode.SEND_MESSAGE, requestHeader);
             }
         }
+        /**
+         * 将消息体写入请求体
+         */
         request.setBody(msg.getBody());
 
         switch (communicationMode) {
@@ -639,11 +661,20 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
                 this.sendMessageAsync(addr, brokerName, msg, timeoutMillis - costTimeAsync, request, sendCallback, topicPublishInfo, instance,
                     retryTimesWhenSendFailed, times, context, producer);
                 return null;
+            /**
+             * 同步发送
+             */
             case SYNC:
+                /**
+                 * 发送消息前的第三次超时时间检查点
+                 */
                 long costTimeSync = System.currentTimeMillis() - beginStartTime;
                 if (timeoutMillis < costTimeSync) {
                     throw new RemotingTooMuchRequestException("sendMessage call timeout");
                 }
+                /**
+                 * 发送同步消息
+                 */
                 return this.sendMessageSync(addr, brokerName, msg, timeoutMillis - costTimeSync, request);
             default:
                 assert false;
@@ -653,15 +684,16 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
         return null;
     }
 
-    private SendResult sendMessageSync(
-        final String addr,
-        final String brokerName,
-        final Message msg,
-        final long timeoutMillis,
-        final RemotingCommand request
+    private SendResult sendMessageSync(final String addr, final String brokerName, final Message msg, final long timeoutMillis, final RemotingCommand request
     ) throws RemotingException, MQBrokerException, InterruptedException {
+        /**
+         * 调用同步发送，发送请求
+         */
         RemotingCommand response = this.remotingClient.invokeSync(addr, request, timeoutMillis);
         assert response != null;
+        /**
+         * 解析响应
+         */
         return this.processSendResponse(brokerName, msg, response, addr);
     }
 
@@ -783,8 +815,7 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
                 retryBrokerName = instance.getBrokerNameFromMessageQueue(mqChosen);
             }
             String addr = instance.findBrokerAddressInPublish(retryBrokerName);
-            log.warn("async send msg by retry {} times. topic={}, brokerAddr={}, brokerName={}", tmp, msg.getTopic(), addr,
-                retryBrokerName, e);
+            log.warn("async send msg by retry {} times. topic={}, brokerAddr={}, brokerName={}", tmp, msg.getTopic(), addr, retryBrokerName, e);
             request.setOpaque(RemotingCommand.createNewRequestId());
             sendMessageAsync(addr, retryBrokerName, msg, timeoutMillis, request, sendCallback, topicPublishInfo, instance,
                 timesTotal, curTimes, context, producer);

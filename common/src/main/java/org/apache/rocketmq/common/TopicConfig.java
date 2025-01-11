@@ -27,18 +27,41 @@ import org.apache.rocketmq.common.constant.PermName;
 
 import static org.apache.rocketmq.common.TopicAttributes.TOPIC_MESSAGE_TYPE_ATTRIBUTE;
 
+/**
+ * 主题配置
+ */
 public class TopicConfig {
     private static final String SEPARATOR = " ";
     public static int defaultReadQueueNums = 16;
     public static int defaultWriteQueueNums = 16;
-    private static final TypeReference<Map<String, String>> ATTRIBUTES_TYPE_REFERENCE = new TypeReference<Map<String, String>>() {
-    };
+    private static final TypeReference<Map<String, String>> ATTRIBUTES_TYPE_REFERENCE = new TypeReference<Map<String, String>>() {};
+    /**
+     * 主题名称
+     */
     private String topicName;
+    /**
+     * 读队列数量，默认为16
+     */
     private int readQueueNums = defaultReadQueueNums;
+    /**
+     * 写队列数量，默认为16
+     */
     private int writeQueueNums = defaultWriteQueueNums;
+    /**
+     * 默认权限为6，可读，可写
+     */
     private int perm = PermName.PERM_READ | PermName.PERM_WRITE;
+    /**
+     * 主题过滤类型，默认单标签
+     */
     private TopicFilterType topicFilterType = TopicFilterType.SINGLE_TAG;
+    /**
+     * 主题系统标志位
+     */
     private int topicSysFlag = 0;
+    /**
+     * 是否为有序主题
+     */
     private boolean order = false;
     // Field attributes should not have ' ' char in key or value, otherwise will lead to decode failure.
     private Map<String, String> attributes = new HashMap<>();

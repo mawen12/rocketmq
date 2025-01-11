@@ -1091,6 +1091,9 @@ public class BrokerController {
         }
     }
 
+    /**
+     * 注册不同{@link RequestCode}的请求处理器
+     */
     public void registerProcessor() {
         /*
          * SendMessageProcessor
@@ -1840,14 +1843,24 @@ public class BrokerController {
         }, 1000, brokerConfig.getBrokerHeartbeatInterval(), TimeUnit.MILLISECONDS));
     }
 
+    /**
+     * 同步方法
+     *
+     * @param topicConfig
+     */
     public synchronized void registerSingleTopicAll(final TopicConfig topicConfig) {
         TopicConfig tmpTopic = topicConfig;
-        if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission())
-            || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {
+        /**
+         * 如果Broker没有可读或可写的权限，则基于现有主题配置复制一份，并修正对应的权限，去除Broker没有的权限
+         */
+        if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission()) || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {
             // Copy the topic config and modify the perm
             tmpTopic = new TopicConfig(topicConfig);
             tmpTopic.setPerm(topicConfig.getPerm() & this.brokerConfig.getBrokerPermission());
         }
+        /**
+         * 将主题注册到所有的Namesrv上
+         */
         this.brokerOuterAPI.registerSingleTopicAll(this.brokerConfig.getBrokerName(), tmpTopic, 3000);
     }
 
@@ -1855,7 +1868,16 @@ public class BrokerController {
         this.registerIncrementBrokerData(Collections.singletonList(topicConfig), dataVersion);
     }
 
+    /**
+     * 注册增量的Broker数据到所有的Namesrv
+     *
+     * @param topicConfigList
+     * @param dataVersion
+     */
     public synchronized void registerIncrementBrokerData(List<TopicConfig> topicConfigList, DataVersion dataVersion) {
+        /**
+         * 忽略主题配置为空的情况
+         */
         if (topicConfigList == null || topicConfigList.isEmpty()) {
             return;
         }
@@ -1863,17 +1885,17 @@ public class BrokerController {
         TopicConfigAndMappingSerializeWrapper topicConfigSerializeWrapper = new TopicConfigAndMappingSerializeWrapper();
         topicConfigSerializeWrapper.setDataVersion(dataVersion);
 
+        /**
+         * 修正现有的主题权限，并保存到集合中
+         */
         ConcurrentMap<String, TopicConfig> topicConfigTable = topicConfigList.stream()
             .map(topicConfig -> {
                 TopicConfig registerTopicConfig;
-                if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission())
-                    || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {
-                    registerTopicConfig =
-                        new TopicConfig(topicConfig.getTopicName(),
-                            topicConfig.getReadQueueNums(),
-                            topicConfig.getWriteQueueNums(),
-                                topicConfig.getPerm()
-                                        & this.brokerConfig.getBrokerPermission(), topicConfig.getTopicSysFlag());
+                /**
+                 * 如果Broker没有可读或可写的权限，则基于现有主题配置复制一份，并修正对应的权限，去除Broker没有的权限
+                 */
+                if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission()) || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {
+                    registerTopicConfig = new TopicConfig(topicConfig.getTopicName(), topicConfig.getReadQueueNums(), topicConfig.getWriteQueueNums(), topicConfig.getPerm() & this.brokerConfig.getBrokerPermission(), topicConfig.getTopicSysFlag());
                 } else {
                     registerTopicConfig = new TopicConfig(topicConfig);
                 }
@@ -1882,6 +1904,9 @@ public class BrokerController {
             .collect(Collectors.toConcurrentMap(TopicConfig::getTopicName, Function.identity()));
         topicConfigSerializeWrapper.setTopicConfigTable(topicConfigTable);
 
+        /**
+         * 构造主题和队列的映射信息
+         */
         Map<String, TopicQueueMappingInfo> topicQueueMappingInfoMap = topicConfigList.stream()
             .map(TopicConfig::getTopicName)
             .map(topicName -> Optional.ofNullable(this.topicQueueMappingManager.getTopicQueueMapping(topicName))
@@ -1889,10 +1914,14 @@ public class BrokerController {
                 .orElse(null))
             .filter(Objects::nonNull)
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
         if (!topicQueueMappingInfoMap.isEmpty()) {
             topicConfigSerializeWrapper.setTopicQueueMappingInfoMap(topicQueueMappingInfoMap);
         }
 
+        /**
+         * 将Broker注册到所有的Namesrv
+         */
         doRegisterBrokerAll(true, false, topicConfigSerializeWrapper);
     }
 
@@ -1934,13 +1963,25 @@ public class BrokerController {
         }
     }
 
-    protected void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway,
-        TopicConfigSerializeWrapper topicConfigWrapper) {
-
+    /**
+     * 注册所有的Broker到Namesrv
+     *
+     * @param checkOrderConfig
+     * @param oneway
+     * @param topicConfigWrapper
+     */
+    protected void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway, TopicConfigSerializeWrapper topicConfigWrapper) {
+        /**
+         * Broker已暂停，不再处理
+         */
         if (shutdown) {
             BrokerController.LOG.info("BrokerController#doRegisterBrokerAll: broker has shutdown, no need to register any more.");
             return;
         }
+
+        /**
+         * 注册当前Broker到所有的Namesrv上
+         */
         List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(
             this.brokerConfig.getBrokerClusterName(),
             this.getBrokerAddr(),
@@ -1956,6 +1997,9 @@ public class BrokerController {
             this.brokerConfig.isEnableSlaveActingMaster() ? this.brokerConfig.getBrokerNotActiveTimeoutMillis() : null,
             this.getBrokerIdentity());
 
+        /**
+         * 更新本地的Master地址和HA服务地址，按需更新主题配置
+         */
         handleRegisterBrokerResult(registerBrokerResultList, checkOrderConfig);
     }
 
@@ -2014,17 +2058,31 @@ public class BrokerController {
         }
     }
 
-    protected void handleRegisterBrokerResult(List<RegisterBrokerResult> registerBrokerResultList,
-        boolean checkOrderConfig) {
+    /**
+     * 更新本地Master地址和HA服务地址，按需更新主题配置
+     *
+     * @param registerBrokerResultList
+     * @param checkOrderConfig
+     */
+    protected void handleRegisterBrokerResult(List<RegisterBrokerResult> registerBrokerResultList, boolean checkOrderConfig) {
         for (RegisterBrokerResult registerBrokerResult : registerBrokerResultList) {
             if (registerBrokerResult != null) {
+                /**
+                 * 如果开启了定期更新Master地址和HA服务地址，并且返回结果中携带了Ha地址，则将本地更新
+                 */
                 if (this.updateMasterHAServerAddrPeriodically && registerBrokerResult.getHaServerAddr() != null) {
                     this.messageStore.updateHaMasterAddress(registerBrokerResult.getHaServerAddr());
                     this.messageStore.updateMasterAddress(registerBrokerResult.getMasterAddr());
                 }
 
+                /**
+                 * 写入Master地址
+                 */
                 this.slaveSynchronize.setMasterAddr(registerBrokerResult.getMasterAddr());
                 if (checkOrderConfig) {
+                    /**
+                     * 更新主题配置
+                     */
                     this.getTopicConfigManager().updateOrderTopicConfig(registerBrokerResult.getKvTable());
                 }
                 break;

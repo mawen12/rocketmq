@@ -86,7 +86,7 @@ public abstract class NettyRemotingAbstract {
     protected final Semaphore semaphoreOneway;
 
     /**
-     * Semaphore to limit maximum number of on-going asynchronous requests, which protects system memory footprint.
+     * 使用信号量来限制正在进行的异步请求的最大数量，从而保护系统内存占用
      */
     protected final Semaphore semaphoreAsync;
 
@@ -494,46 +494,89 @@ public abstract class NettyRemotingAbstract {
         }
     }
 
-    public RemotingCommand invokeSyncImpl(final Channel channel, final RemotingCommand request,
-        final long timeoutMillis)
-        throws InterruptedException, RemotingSendRequestException, RemotingTimeoutException {
+    /**
+     * 发起同步的远程调用，然后解析响应
+     * 在请求出错或请求超时时，抛出对应异常
+     *
+     * @param channel
+     * @param request
+     * @param timeoutMillis
+     * @return
+     * @throws InterruptedException
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     */
+    public RemotingCommand invokeSyncImpl(final Channel channel, final RemotingCommand request, final long timeoutMillis) throws InterruptedException, RemotingSendRequestException, RemotingTimeoutException {
         try {
-            return invokeImpl(channel, request, timeoutMillis).thenApply(ResponseFuture::getResponseCommand)
-                .get(timeoutMillis, TimeUnit.MILLISECONDS);
+            /**
+             * 发起异步调用，但是会阻塞等待请求结果后返回
+             */
+            return invokeImpl(channel, request, timeoutMillis).thenApply(ResponseFuture::getResponseCommand).get(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
+            /**
+             * 服务器处理异常
+             */
             throw new RemotingSendRequestException(channel.remoteAddress().toString(), e.getCause());
         } catch (TimeoutException e) {
+            /**
+             * 处理器处理超时异常
+             */
             throw new RemotingTimeoutException(channel.remoteAddress().toString(), timeoutMillis, e.getCause());
         }
     }
 
-    public CompletableFuture<ResponseFuture> invokeImpl(final Channel channel, final RemotingCommand request,
-        final long timeoutMillis) {
+    /**
+     * 底层采用异步方式来进行请求
+     *
+     * @param channel
+     * @param request
+     * @param timeoutMillis
+     * @return
+     */
+    public CompletableFuture<ResponseFuture> invokeImpl(final Channel channel, final RemotingCommand request, final long timeoutMillis) {
         return invoke0(channel, request, timeoutMillis);
     }
 
-    protected CompletableFuture<ResponseFuture> invoke0(final Channel channel, final RemotingCommand request,
-        final long timeoutMillis) {
+    protected CompletableFuture<ResponseFuture> invoke0(final Channel channel, final RemotingCommand request, final long timeoutMillis) {
+        /**
+         * 保存响应结果
+         */
         CompletableFuture<ResponseFuture> future = new CompletableFuture<>();
         long beginStartTime = System.currentTimeMillis();
         final int opaque = request.getOpaque();
 
         boolean acquired;
         try {
+            /**
+             * 获取异步信号量，如果达到上限后，便需要等待指定时间，超时后抛出异常
+             */
             acquired = this.semaphoreAsync.tryAcquire(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
+            /**
+             * 对于获取到信号量失败的，直接抛出异常
+             */
             future.completeExceptionally(t);
             return future;
         }
+
         if (acquired) {
             final SemaphoreReleaseOnlyOnce once = new SemaphoreReleaseOnlyOnce(this.semaphoreAsync);
             long costTime = System.currentTimeMillis() - beginStartTime;
+            /**
+             * 发送消息前的第五次超时时间检查点
+             */
             if (timeoutMillis < costTime) {
+                /**
+                 * 超时就不在发起请求，执行释放
+                 */
                 once.release();
                 future.completeExceptionally(new RemotingTimeoutException("invokeAsyncImpl call timeout"));
                 return future;
             }
 
+            /**
+             * 原子类型的响应结果，用于确保多线程安全
+             */
             AtomicReference<ResponseFuture> responseFutureReference = new AtomicReference<>();
             final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, request, timeoutMillis - costTime,
                 new InvokeCallback() {
@@ -544,6 +587,9 @@ public abstract class NettyRemotingAbstract {
 
                     @Override
                     public void operationSucceed(RemotingCommand response) {
+                        /**
+                         * 保存响应
+                         */
                         future.complete(responseFutureReference.get());
                     }
 
@@ -552,36 +598,68 @@ public abstract class NettyRemotingAbstract {
                         future.completeExceptionally(throwable);
                     }
                 }, once);
+            /**
+             * 设置结果
+             */
             responseFutureReference.set(responseFuture);
             this.responseTable.put(opaque, responseFuture);
             try {
+                /**
+                 * 使用Channel发起请求，并设置监听器
+                 */
                 channel.writeAndFlush(request).addListener((ChannelFutureListener) f -> {
                     if (f.isSuccess()) {
+                        /**
+                         * 请求成功，设置请求成功标识位
+                         */
                         responseFuture.setSendRequestOK(true);
                         return;
                     }
+                    /**
+                     * 请求失败场景
+                     */
                     requestFail(opaque);
                     log.warn("send a request command to channel <{}>, channelId={}, failed.", RemotingHelper.parseChannelRemoteAddr(channel), channel.id());
                 });
                 return future;
             } catch (Exception e) {
+                /**
+                 * 请求异常场景，移除等待的响应结果
+                 */
                 responseTable.remove(opaque);
+                /**
+                 * 释放信号量
+                 */
                 responseFuture.release();
+                /**
+                 * 写入warn日志
+                 */
                 log.warn("send a request command to channel <{}> channelId={} Exception", RemotingHelper.parseChannelRemoteAddr(channel), channel.id(), e);
+                /**
+                 * 写入异常
+                 */
                 future.completeExceptionally(new RemotingSendRequestException(RemotingHelper.parseChannelRemoteAddr(channel), e));
                 return future;
             }
         } else {
+            /**
+             * 执行到获取信号量这一步时，超时时间已经为负数，代表之前其他的处理过程占用太长时间，主要可能是频繁调用带来的
+             */
             if (timeoutMillis <= 0) {
                 future.completeExceptionally(new RemotingTooMuchRequestException("invokeAsyncImpl invoke too fast"));
             } else {
-                String info =
-                    String.format("invokeAsyncImpl tryAcquire semaphore timeout, %dms, waiting thread nums: %d semaphoreAsyncValue: %d",
-                        timeoutMillis,
-                        this.semaphoreAsync.getQueueLength(),
-                        this.semaphoreAsync.availablePermits()
-                    );
+                /**
+                 * 在指定时间内无法获取信号量，代表该客户端其他线程占用了所有的信号量，因此该线程无法获取
+                 * 构造日志信息
+                 */
+                String info = String.format("invokeAsyncImpl tryAcquire semaphore timeout, %dms, waiting thread nums: %d semaphoreAsyncValue: %d", timeoutMillis, this.semaphoreAsync.getQueueLength(), this.semaphoreAsync.availablePermits());
+                /**
+                 * 写入warn日志
+                 */
                 log.warn(info);
+                /**
+                 * 写入异常
+                 */
                 future.completeExceptionally(new RemotingTimeoutException(info));
             }
             return future;

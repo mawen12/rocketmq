@@ -21,19 +21,52 @@ import java.util.Properties;
 import org.apache.rocketmq.common.message.MessageType;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
+/**
+ * 发送消息上下文，使用发送消息请求头构建
+ *
+ * @see org.apache.rocketmq.remoting.protocol.header.SendMessageRequestHeader
+ * @see org.apache.rocketmq.remoting.protocol.header.SendMessageRequestHeaderV2
+ */
 public class SendMessageContext {
-    /** namespace */
+    /**
+     * 主题上的命名空间
+     */
     private String namespace;
-    /** producer group without namespace. */
+    /**
+     * 不带有命名空间的生产者分组
+     */
     private String producerGroup;
-    /** topic without namespace. */
+    /**
+     * 不带有命名空间的主题
+     */
     private String topic;
+    /**
+     * 消息ID
+     */
     private String msgId;
+    /**
+     * 原始的消息ID
+     */
     private String originMsgId;
+    /**
+     * 队列ID
+     */
     private Integer queueId;
+    /**
+     * 消息在队列中的偏移量
+     */
     private Long queueOffset;
+    /**
+     * Broker地址
+     */
     private String brokerAddr;
+    /**
+     * Broker主机
+     */
     private String bornHost;
+    /**
+     * 消息体长度
+     */
     private int bodyLength;
     private int code;
     private String errorMsg;
@@ -44,6 +77,9 @@ public class SendMessageContext {
     private String msgUniqueKey;
     private long bornTimeStamp;
     private long requestTimeStamp;
+    /**
+     * 消息类型，默认为已提交事务消息
+     */
     private MessageType msgType = MessageType.Trans_msg_Commit;
 
     private boolean isSuccess = false;

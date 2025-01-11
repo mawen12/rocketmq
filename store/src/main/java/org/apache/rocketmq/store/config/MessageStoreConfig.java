@@ -270,9 +270,7 @@ public class MessageStoreConfig {
     private int maxTopicLength = Byte.MAX_VALUE;
 
     /**
-     * Use MessageVersion.MESSAGE_VERSION_V2 automatically if topic length larger than Bytes.MAX_VALUE.
-     * Otherwise, store use MESSAGE_VERSION_V1. Note: Client couldn't decode MESSAGE_VERSION_V2 version message.
-     * Enable this config to resolve this issue. https://github.com/apache/rocketmq/issues/5568
+     * 是否根据主题长度来自动设置消息版本，如果消息长度超过了127，则使用MESSAGE_VERSION_V2；否则使用MESSAGE_VERSION_V1
      */
     private boolean autoMessageVersionOnTopicLen = true;
 

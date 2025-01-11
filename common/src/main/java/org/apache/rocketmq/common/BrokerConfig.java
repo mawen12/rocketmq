@@ -47,7 +47,13 @@ public class BrokerConfig extends BrokerIdentity {
     @ImportantField
     private boolean recoverConcurrently = false;
 
+    /**
+     * Broker权限，默认为6，0110，
+     */
     private int brokerPermission = PermName.PERM_READ | PermName.PERM_WRITE;
+    /**
+     * 默认的消息队列数量，读写队列都是8个
+     */
     private int defaultTopicQueueNums = 8;
     @ImportantField
     private boolean autoCreateTopicEnable = true;
@@ -410,8 +416,9 @@ public class BrokerConfig extends BrokerIdentity {
     private boolean popResponseReturnActualRetryTopic = false;
 
     /**
-     * If both the deleteTopicWithBrokerRegistration flag in the NameServer configuration and this flag are set to true,
-     * it guarantees the ultimate consistency of data between the broker and the nameserver during topic deletion.
+     * 当设置为true，代表在Broker上创建的主题会同时发送到所有的Namesrv上。
+     * 并且，当Namesrv上设置了deleteTopicWithBrokerRegistration=true，且enableSingleTopicRegister=true，
+     * 则在删除主题时，通知到所有的Namesrv，确保Broker和Namesrv的数据一致性
      */
     private boolean enableSingleTopicRegister = false;
 

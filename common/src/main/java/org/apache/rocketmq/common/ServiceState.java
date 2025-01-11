@@ -16,21 +16,30 @@
  */
 package org.apache.rocketmq.common;
 
+/**
+ * 服务状态
+ */
 public enum ServiceState {
     /**
-     * Service just created,not start
+     * 刚创建，未启动
      */
     CREATE_JUST,
     /**
-     * Service Running
+     * 运行中
+     *
+     * @see org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl#start(boolean)
+     * @see org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl#start()
      */
     RUNNING,
     /**
-     * Service shutdown
+     * 关闭
+     *
+     * @see org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl#shutdown(boolean)
+     * @see org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl#shutdown(long)
      */
     SHUTDOWN_ALREADY,
     /**
-     * Service Start failure
+     * 启动失败
      */
     START_FAILED;
 }

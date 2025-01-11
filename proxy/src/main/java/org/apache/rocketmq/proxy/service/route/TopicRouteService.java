@@ -116,6 +116,7 @@ public abstract class TopicRouteService extends AbstractStartAndShutdown {
                     GetMaxOffsetRequestHeader requestHeader = new GetMaxOffsetRequestHeader();
                     requestHeader.setTopic(candidateTopic.get());
                     requestHeader.setQueueId(0);
+                    // TODO by mawen 应该忽略返回值
                     Long maxOffset = mqClientAPIFactory.getClient().getMaxOffset(endpoint, requestHeader, timeoutMillis).get();
                     return true;
                 } catch (Exception e) {

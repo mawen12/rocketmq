@@ -16,16 +16,26 @@
  */
 package org.apache.rocketmq.remoting.protocol.header.namesrv;
 
+import io.netty.channel.ChannelHandlerContext;
 import org.apache.rocketmq.common.action.Action;
 import org.apache.rocketmq.common.action.RocketMQAction;
 import org.apache.rocketmq.common.resource.ResourceType;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
+import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.rpc.TopicRequestHeader;
 import org.apache.rocketmq.remoting.protocol.RequestCode;
 
+/**
+ * 注册主题请求头，从Broker发送到所有的Namesrv
+ *
+ * @see org.apache.rocketmq.namesrv.processor.DefaultRequestProcessor
+ */
 @RocketMQAction(value = RequestCode.REGISTER_TOPIC_IN_NAMESRV, resource = ResourceType.CLUSTER, action = Action.UPDATE)
 public class RegisterTopicRequestHeader extends TopicRequestHeader {
+    /**
+     * 主题
+     */
     @CFNotNull
     private String topic;
 

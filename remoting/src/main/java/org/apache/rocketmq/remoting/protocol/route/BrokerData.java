@@ -37,8 +37,8 @@ public class BrokerData implements Comparable<BrokerData> {
      */
     private String brokerName;
     /**
-     * Map<brokerId, address>
-     * 保存当前broker复制集群所有单实例的容器
+     * Map<brokerId, address>，当brokerId=0时，代表该实例为集群的Master
+     * 保存了相同BrokerName下所有的实例
      */
     private HashMap<Long, String> brokerAddrs;
     private String zoneName;

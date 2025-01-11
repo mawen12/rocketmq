@@ -19,8 +19,17 @@ package org.apache.rocketmq.remoting.common;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * 一次性使用的{@link Semaphore}，确保{@link SemaphoreReleaseOnlyOnce#release()}仅执行一次
+ */
 public class SemaphoreReleaseOnlyOnce {
+    /**
+     * 使用原子变量，确保不会多次释放
+     */
     private final AtomicBoolean released = new AtomicBoolean(false);
+    /**
+     * 目标
+     */
     private final Semaphore semaphore;
 
     public SemaphoreReleaseOnlyOnce(Semaphore semaphore) {
@@ -29,7 +38,13 @@ public class SemaphoreReleaseOnlyOnce {
 
     public void release() {
         if (this.semaphore != null) {
+            /**
+             * 原子操作，确保只能执行一次
+             */
             if (this.released.compareAndSet(false, true)) {
+                /**
+                 * 释放
+                 */
                 this.semaphore.release();
             }
         }

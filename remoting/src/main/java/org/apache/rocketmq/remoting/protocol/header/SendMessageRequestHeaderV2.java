@@ -33,38 +33,89 @@ import org.apache.rocketmq.remoting.rpc.TopicQueueRequestHeader;
 import org.apache.rocketmq.remoting.protocol.RequestCode;
 
 /**
- * Use short variable name to speed up FastJson deserialization process.
+ * 基于发送消息的主题队列请求头，从Client发送到Broker
+ * <p>
+ * 对比{@link SendMessageRequestHeader}，V2版本对名称进行缩写，精简了请求大小，加快了反序列化速度
  */
 @RocketMQAction(value = RequestCode.SEND_MESSAGE_V2, action = Action.PUB)
 public class SendMessageRequestHeaderV2 extends TopicQueueRequestHeader implements CommandCustomHeader, FastCodesHeader {
+    /**
+     * 生产者分组
+     */
     @CFNotNull
     private String a; // producerGroup;
+    /**
+     * 消息发往的主题
+     */
     @CFNotNull
     @RocketMQResource(ResourceType.TOPIC)
     private String b; // topic;
+    /**
+     * 默认主题
+     */
     @CFNotNull
     private String c; // defaultTopic;
+    /**
+     * 默认主题的队列数量
+     */
     @CFNotNull
     private Integer d; // defaultTopicQueueNums;
+    /**
+     * 存储消息的队列ID
+     */
     @CFNotNull
     private Integer e; // queueId;
+    /**
+     * 系统标识，由以下组成：
+     * <pre>
+     * ┌──────┬──────────────────────────┬───┬───────────────┬───┐
+     * │ bit  │ 3                        │ 2 │ 1             │ 0 │
+     * ├──────┼──────────────────────────┼───┼───────────────┼───┤
+     * │ 标识内容 │ TRANSACTON_PREPARED_TYPE │   │ COMPRESS_FLAG │   │
+     * └──────┴──────────────────────────┴───┴───────────────┴───┘
+     * </pre>
+     *
+     * @see org.apache.rocketmq.common.sysflag.MessageSysFlag
+     */
     @CFNotNull
     private Integer f; // sysFlag;
+    /**
+     * 请求头创建时间
+     */
     @CFNotNull
     private Long g; // bornTimestamp;
+    /**
+     * 消息标识
+     */
     @CFNotNull
     private Integer h; // flag;
+    /**
+     * 消息属性，从 Map<Key, Value> -> String(key1, value1)
+     */
     @CFNullable
     private String i; // properties;
+    /**
+     * 消息重新消费次数
+     */
     @CFNullable
     private Integer j; // reconsumeTimes;
     @CFNullable
     private Boolean k; // unitMode;
-
+    /**
+     * 消息的最大重新消费次数
+     */
     private Integer l; // consumeRetryTimes
 
+    /**
+     * 是否为批次消息
+     */
     @CFNullable
     private Boolean m; //batch
+    /**
+     * broker名称
+     *
+     * TODO by mawen 该字段是否是重复的，因为{@link #bname}也是保存了broker名称
+     */
     @CFNullable
     private String n; // brokerName
 

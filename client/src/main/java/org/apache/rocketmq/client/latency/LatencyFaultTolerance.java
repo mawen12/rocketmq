@@ -36,7 +36,7 @@ public interface LatencyFaultTolerance<T> {
                          final boolean reachable);
 
     /**
-     * 检查目标broker是否可达
+     * 检查目标broker是否可用，即能否响应请求和正确处理请求
      *
      * @param name Broker's name.
      * @return boolean variable, if this is true, then the broker is available.
@@ -44,7 +44,7 @@ public interface LatencyFaultTolerance<T> {
     boolean isAvailable(final T name);
 
     /**
-     * To check if this broker is reachable.
+     * 检查目标Broker是否可达，即能够响应请求
      *
      * @param name Broker's name.
      * @return boolean variable, if this is true, then the broker is reachable.

@@ -23,6 +23,9 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
+/**
+ * 主题和队列映射
+ */
 public class TopicQueueMappingDetail extends TopicQueueMappingInfo {
 
     // the mapping info in current broker, do not register to nameserver
@@ -37,7 +40,6 @@ public class TopicQueueMappingDetail extends TopicQueueMappingInfo {
     public TopicQueueMappingDetail(String topic, int totalQueues, String bname, long epoch) {
         super(topic, totalQueues, bname, epoch);
     }
-
 
 
     public static boolean putMappingInfo(TopicQueueMappingDetail mappingDetail, Integer globalId, List<LogicQueueMappingItem> mappingInfo) {

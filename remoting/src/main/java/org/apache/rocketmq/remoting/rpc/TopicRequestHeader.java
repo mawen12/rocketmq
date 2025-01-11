@@ -16,11 +16,25 @@
  */
 package org.apache.rocketmq.remoting.rpc;
 
+/**
+ * 和Topic相关的RPC请求头
+ */
 public abstract class TopicRequestHeader extends RpcRequestHeader {
     //logical
+    /**
+     * 是否为转发的请求，false表示为是
+     */
     protected Boolean lo;
 
+    /**
+     * @return 返回主题
+     */
     public abstract String getTopic();
+
+    /**
+     * 设置主题
+     * @param topic
+     */
     public abstract void setTopic(String topic);
 
     public Boolean getLo() {

@@ -36,11 +36,11 @@ public class TopicQueueMappingInfo extends RemotingSerializable {
      */
     String scope = MixAll.METADATA_SCOPE_GLOBAL;
     /**
-     * 中的队列数量
+     * 队列数量
      */
     int totalQueues;
     /**
-     * broker名称缩写
+     * broker名称
      */
     String bname;  //identify the hosted broker name
     /**

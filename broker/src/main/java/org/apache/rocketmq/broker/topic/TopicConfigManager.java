@@ -86,6 +86,9 @@ public class TopicConfigManager extends ConfigManager {
 
     protected void init() {
         {
+            /**
+             * 创建内置系统主题SELF_TEST_TOPIC，1个读队列，1个写多列，rw权限
+             */
             String topic = TopicValidator.RMQ_SYS_SELF_TEST_TOPIC;
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -94,20 +97,27 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
+            /**
+             * 如果启动Broker时设置了autoCreateTopicEnable=true，代表创建内置系统主题TBW102，8个读队列，8个写队列，rwx权限
+             */
             if (this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) {
                 String topic = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
                 TopicConfig topicConfig = new TopicConfig(topic);
                 TopicValidator.addSystemTopic(topic);
-                topicConfig.setReadQueueNums(this.brokerController.getBrokerConfig()
-                    .getDefaultTopicQueueNums());
-                topicConfig.setWriteQueueNums(this.brokerController.getBrokerConfig()
-                    .getDefaultTopicQueueNums());
+                topicConfig.setReadQueueNums(this.brokerController.getBrokerConfig().getDefaultTopicQueueNums());
+                topicConfig.setWriteQueueNums(this.brokerController.getBrokerConfig().getDefaultTopicQueueNums());
+                /**
+                 * TBW102的默认权限为可读、可写、可被继承
+                 */
                 int perm = PermName.PERM_INHERIT | PermName.PERM_READ | PermName.PERM_WRITE;
                 topicConfig.setPerm(perm);
                 putTopicConfig(topicConfig);
             }
         }
         {
+            /**
+             * 创建内置系统主题BenchmarkTest，1024个读队列，1024个写队列，rw权限
+             */
             String topic = TopicValidator.RMQ_SYS_BENCHMARK_TOPIC;
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -116,10 +126,16 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
+            /**
+             * 创建内置系统主题DefaultCluster，16个读队列，16个写队列
+             */
             String topic = this.brokerController.getBrokerConfig().getBrokerClusterName();
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
             int perm = PermName.PERM_INHERIT;
+            /**
+             * 如果设置了clusterTopicEnable=true，权限设置追加可读、可写
+             */
             if (this.brokerController.getBrokerConfig().isClusterTopicEnable()) {
                 perm |= PermName.PERM_READ | PermName.PERM_WRITE;
             }
@@ -127,11 +143,16 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
-
+            /**
+             * 使用当前主机名创建内置系统主题，1个读队列，1个写队列
+             */
             String topic = this.brokerController.getBrokerConfig().getBrokerName();
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
             int perm = PermName.PERM_INHERIT;
+            /**
+             * 如果设置了brokerTopicEnable=true，权限设置追加可读、可写
+             */
             if (this.brokerController.getBrokerConfig().isBrokerTopicEnable()) {
                 perm |= PermName.PERM_READ | PermName.PERM_WRITE;
             }
@@ -141,6 +162,9 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
+            /**
+             * 创建内置系统主题OFFSET_MOVED_EVENT，1个读队列，1个写队列，rw权限
+             */
             String topic = TopicValidator.RMQ_SYS_OFFSET_MOVED_EVENT;
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -149,6 +173,9 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
+            /**
+             * 创建内置系统主题SCHEDULE_TOPIC_XXXX，18个读队列，18个写队列，rw权限
+             */
             String topic = TopicValidator.RMQ_SYS_SCHEDULE_TOPIC;
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -157,6 +184,9 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
+            /**
+             * 如果设置了traceTopicEnable=true，则创建内置系统主题RMQ_SYS_TRACE_TOPIC，1个读队列，1个写队列，rw权限
+             */
             if (this.brokerController.getBrokerConfig().isTraceTopicEnable()) {
                 String topic = this.brokerController.getBrokerConfig().getMsgTraceTopicName();
                 TopicConfig topicConfig = new TopicConfig(topic);
@@ -167,6 +197,9 @@ public class TopicConfigManager extends ConfigManager {
             }
         }
         {
+            /**
+             * 创建内置系统主题DefaultCluster_REPLY_TOPIC，1个读队列，1个写队列，rw权限
+             */
             String topic = this.brokerController.getBrokerConfig().getBrokerClusterName() + "_" + MixAll.REPLY_TOPIC_POSTFIX;
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -175,7 +208,9 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
-            // PopAckConstants.REVIVE_TOPIC
+            /**
+             * 创建内置系统主题rmq_sysREVIVE_LOG_，8个读队列，8个写队列，rw权限
+             */
             String topic = PopAckConstants.buildClusterReviveTopic(this.brokerController.getBrokerConfig().getBrokerClusterName());
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -184,7 +219,9 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
-            // sync broker member group topic
+            /**
+             * 创建内置系统主题rmq_sys_SYNC_BROKER_MEMBER+主机名，1个读队列，1个写队列，x权限
+             */
             String topic = TopicValidator.SYNC_BROKER_MEMBER_GROUP_PREFIX + this.brokerController.getBrokerConfig().getBrokerName();
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -194,7 +231,9 @@ public class TopicConfigManager extends ConfigManager {
             putTopicConfig(topicConfig);
         }
         {
-            // TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC
+            /**
+             * 创建内置系统主题RMQ_SYS_TRANS_HALF_TOPIC，1个读队列，1个写队列，rw权限
+             */
             String topic = TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC;
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -204,7 +243,9 @@ public class TopicConfigManager extends ConfigManager {
         }
 
         {
-            // TopicValidator.RMQ_SYS_TRANS_OP_HALF_TOPIC
+            /**
+             * 创建内置系统主题RMQ_SYS_TRANS_OP_HALF_TOPIC，1个读队列，1个写队列，rw权限
+             */
             String topic = TopicValidator.RMQ_SYS_TRANS_OP_HALF_TOPIC;
             TopicConfig topicConfig = new TopicConfig(topic);
             TopicValidator.addSystemTopic(topic);
@@ -214,6 +255,9 @@ public class TopicConfigManager extends ConfigManager {
         }
 
         {
+            /**
+             * 如果设置了timerWheelEnable=true，则创建系统内置主题rmq_sys_wheel_timer，1个读队列，1个写队列，rw权限
+             */
             if (this.brokerController.getMessageStoreConfig().isTimerWheelEnable()) {
                 String topic = TimerMessageStore.TIMER_TOPIC;
                 TopicConfig topicConfig = new TopicConfig(topic);
@@ -241,30 +285,50 @@ public class TopicConfigManager extends ConfigManager {
         return getTopicConfig(topic);
     }
 
-    public TopicConfig createTopicInSendMessageMethod(final String topic, final String defaultTopic,
-        final String remoteAddress, final int clientDefaultTopicQueueNums, final int topicSysFlag) {
+    public TopicConfig createTopicInSendMessageMethod(final String topic, final String defaultTopic, final String remoteAddress, final int clientDefaultTopicQueueNums, final int topicSysFlag) {
         TopicConfig topicConfig = null;
         boolean createNew = false;
 
         try {
+            /**
+             * 获取主题配置表的锁
+             */
             if (this.topicConfigTableLock.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
+                    /**
+                     * 获取主题配置
+                     */
                     topicConfig = getTopicConfig(topic);
+                    /**
+                     * 配置已经被创建，则直接返回
+                     */
                     if (topicConfig != null) {
                         return topicConfig;
                     }
 
+                    /**
+                     * 获取默认的主题配置
+                     */
                     TopicConfig defaultTopicConfig = getTopicConfig(defaultTopic);
                     if (defaultTopicConfig != null) {
+                        /**
+                         * 如果默认主题是TBW102，并且未开启自动创建主题开关，则更新默认主题配置为6，即可读可写
+                         */
                         if (defaultTopic.equals(TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC)) {
                             if (!this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) {
                                 defaultTopicConfig.setPerm(PermName.PERM_READ | PermName.PERM_WRITE);
                             }
                         }
 
+                        /**
+                         * 如果默认主题可被继承，则参考默认主题创建新主题
+                         */
                         if (PermName.isInherited(defaultTopicConfig.getPerm())) {
                             topicConfig = new TopicConfig(topic);
 
+                            /**
+                             * 从 8 和 4 种取较小值
+                             */
                             int queueNums = Math.min(clientDefaultTopicQueueNums, defaultTopicConfig.getWriteQueueNums());
 
                             if (queueNums < 0) {
@@ -274,29 +338,50 @@ public class TopicConfigManager extends ConfigManager {
                             topicConfig.setReadQueueNums(queueNums);
                             topicConfig.setWriteQueueNums(queueNums);
                             int perm = defaultTopicConfig.getPerm();
+                            /**
+                             * 设置权限为不可继承
+                             */
                             perm &= ~PermName.PERM_INHERIT;
                             topicConfig.setPerm(perm);
                             topicConfig.setTopicSysFlag(topicSysFlag);
+                            /**
+                             * 继承默认主题的单标签过滤
+                             */
                             topicConfig.setTopicFilterType(defaultTopicConfig.getTopicFilterType());
                         } else {
-                            log.warn("Create new topic failed, because the default topic[{}] has no perm [{}] producer:[{}]",
-                                defaultTopic, defaultTopicConfig.getPerm(), remoteAddress);
+                            /**
+                             * 输出到warn日志中
+                             */
+                            log.warn("Create new topic failed, because the default topic[{}] has no perm [{}] producer:[{}]", defaultTopic, defaultTopicConfig.getPerm(), remoteAddress);
                         }
                     } else {
-                        log.warn("Create new topic failed, because the default topic[{}] not exist. producer:[{}]",
-                            defaultTopic, remoteAddress);
+                        /**
+                         * 默认配置不存在，无法创建主题
+                         */
+                        log.warn("Create new topic failed, because the default topic[{}] not exist. producer:[{}]", defaultTopic, remoteAddress);
                     }
 
                     if (topicConfig != null) {
-                        log.info("Create new topic by default topic:[{}] config:[{}] producer:[{}]",
-                            defaultTopic, topicConfig, remoteAddress);
+                        log.info("Create new topic by default topic:[{}] config:[{}] producer:[{}]", defaultTopic, topicConfig, remoteAddress);
 
+                        /**
+                         * 放到{@link #topicConfigTable}
+                         */
                         putTopicConfig(topicConfig);
 
+                        /**
+                         * 更新数据版本
+                         */
                         updateDataVersion();
 
+                        /**
+                         * 更新创建新主题标识位
+                         */
                         createNew = true;
 
+                        /**
+                         * 持久化保存
+                         */
                         this.persist();
                     }
                 } finally {
@@ -308,6 +393,9 @@ public class TopicConfigManager extends ConfigManager {
         }
 
         if (createNew) {
+            /**
+             * 将主题信息发送到所有的Namesrv
+             */
             registerBrokerData(topicConfig);
         }
 
@@ -722,9 +810,15 @@ public class TopicConfigManager extends ConfigManager {
     }
 
     private void registerBrokerData(TopicConfig topicConfig) {
+        /**
+         * 如果设置了enableSingleTopicRegister=true，则将主题信息注册到所有的Namesrv上
+         */
         if (brokerController.getBrokerConfig().isEnableSingleTopicRegister()) {
             this.brokerController.registerSingleTopicAll(topicConfig);
         } else {
+            /**
+             * 将增量的Broker信息注册到所有的Namesrv上
+             */
             this.brokerController.registerIncrementBrokerData(topicConfig, dataVersion);
         }
     }

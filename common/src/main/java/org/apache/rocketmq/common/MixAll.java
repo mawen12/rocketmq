@@ -82,6 +82,9 @@ public class MixAll {
     public static final List<String> LOCAL_INET_ADDRESS = getLocalInetAddress();
     public static final String LOCALHOST = localhost();
     public static final String DEFAULT_CHARSET = "UTF-8";
+    /**
+     * 相同BrokerName中，brokerId=0的就是MASTER
+     */
     public static final long MASTER_ID = 0L;
     public static final long FIRST_SLAVE_ID = 1L;
 

@@ -463,18 +463,39 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    private RemotingCommand registerTopicToNamesrv(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    /**
+     * 将Broker上的主题注册到Namesrv上
+     *
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
+    private RemotingCommand registerTopicToNamesrv(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
+        /**
+         * 创建响应
+         */
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        /**
+         * 反序列化{@link RegisterTopicRequestHeader}
+         */
+        final RegisterTopicRequestHeader requestHeader = request.decodeCommandCustomHeader(RegisterTopicRequestHeader.class);
 
-        final RegisterTopicRequestHeader requestHeader =
-            (RegisterTopicRequestHeader) request.decodeCommandCustomHeader(RegisterTopicRequestHeader.class);
-
+        /**
+         * 反序列化请求体
+         */
         TopicRouteData topicRouteData = TopicRouteData.decode(request.getBody(), TopicRouteData.class);
+
+        /**
+         * 如果主题的队列不为空，则向Namesrv的路由管理器上注册
+         */
         if (topicRouteData != null && topicRouteData.getQueueDatas() != null && !topicRouteData.getQueueDatas().isEmpty()) {
             this.namesrvController.getRouteInfoManager().registerTopic(requestHeader.getTopic(), topicRouteData.getQueueDatas());
         }
 
+        /**
+         * 设置响应状态，返回
+         */
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
         return response;

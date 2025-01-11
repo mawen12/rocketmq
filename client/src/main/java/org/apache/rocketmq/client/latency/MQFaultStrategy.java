@@ -23,7 +23,7 @@ import org.apache.rocketmq.client.impl.producer.TopicPublishInfo.QueueFilter;
 import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
- * 消息队列的故障转移策略
+ * MQ的故障转移策略，提供从主题下选择消息队列的功能，默认实现调用{@link TopicPublishInfo#selectOneMessageQueue(String)}
  */
 public class MQFaultStrategy {
     /**
@@ -77,13 +77,15 @@ public class MQFaultStrategy {
     private ThreadLocal<BrokerFilter> threadBrokerFilter = ThreadLocal.withInitial(BrokerFilter::new);
 
     private QueueFilter reachableFilter = new QueueFilter() {
-        @Override public boolean filter(MessageQueue mq) {
+        @Override
+        public boolean filter(MessageQueue mq) {
             return latencyFaultTolerance.isReachable(mq.getBrokerName());
         }
     };
 
     private QueueFilter availableFilter = new QueueFilter() {
-        @Override public boolean filter(MessageQueue mq) {
+        @Override
+        public boolean filter(MessageQueue mq) {
             return latencyFaultTolerance.isAvailable(mq.getBrokerName());
         }
     };
@@ -160,35 +162,68 @@ public class MQFaultStrategy {
         this.latencyFaultTolerance.shutdown();
     }
 
+    /**
+     * 选择一个主题下的消息队列并返回
+     *
+     * @param tpInfo
+     * @param lastBrokerName
+     * @param resetIndex
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName, final boolean resetIndex) {
+        /**
+         * 获取基于broker名称的过滤器
+         */
         BrokerFilter brokerFilter = threadBrokerFilter.get();
+        /**
+         * 将消息队列上的broker更新上去
+         */
         brokerFilter.setLastBrokerName(lastBrokerName);
+        /**
+         * 如果开启基于延迟的容错
+         */
         if (this.sendLatencyFaultEnable) {
+            /**
+             * 重置索引，即从头开始找
+             */
             if (resetIndex) {
                 tpInfo.resetIndex();
             }
+            /**
+             * 使用可用和排除指定broker的过滤器配合轮询机制来查找消息队列
+             */
             MessageQueue mq = tpInfo.selectOneMessageQueue(availableFilter, brokerFilter);
             if (mq != null) {
                 return mq;
             }
-
+            /**
+             * 基于可达到和排除指定broker的过滤器配合轮询机制来查找消息队列
+             */
             mq = tpInfo.selectOneMessageQueue(reachableFilter, brokerFilter);
             if (mq != null) {
                 return mq;
             }
 
+            /**
+             * 使用轮询机制选择下一个
+             */
             return tpInfo.selectOneMessageQueue();
         }
 
+        /**
+         * 仅基于排除broker的过滤器配合轮询机制来查找消息队列
+         */
         MessageQueue mq = tpInfo.selectOneMessageQueue(brokerFilter);
         if (mq != null) {
             return mq;
         }
+        /**
+         * 使用轮询机制选择下一个
+         */
         return tpInfo.selectOneMessageQueue();
     }
 
-    public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation,
-                                final boolean reachable) {
+    public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation, final boolean reachable) {
         if (this.sendLatencyFaultEnable) {
             long duration = computeNotAvailableDuration(isolation ? 10000 : currentLatency);
             this.latencyFaultTolerance.updateFaultItem(brokerName, currentLatency, duration, reachable);

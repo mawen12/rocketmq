@@ -21,22 +21,36 @@ import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * 基于动态扩展字段的{@link RPCHook}实现
+ */
 public class DynamicalExtFieldRPCHook implements RPCHook {
 
     @Override
     public void doBeforeRequest(String remoteAddr, RemotingCommand request) {
+        /**
+         * 获取zone名称，从 PROPERTIES(rocketmq.zone) -> ENV(ROCKETMQ_ZONE)
+         */
         String zoneName = System.getProperty(MixAll.ROCKETMQ_ZONE_PROPERTY, System.getenv(MixAll.ROCKETMQ_ZONE_ENV));
         if (StringUtils.isNotBlank(zoneName)) {
+            /**
+             * 向请求头添加{@link __ZONE_NAME}头信息
+             */
             request.addExtField(MixAll.ZONE_NAME, zoneName);
         }
+        /**
+         * 获取zone模式，从 PROPERTIES(rocketmq.zone.mode) -> ENV(ROCKETMQ_ZONE_MODE)
+         */
         String zoneMode = System.getProperty(MixAll.ROCKETMQ_ZONE_MODE_PROPERTY, System.getenv(MixAll.ROCKETMQ_ZONE_MODE_ENV));
         if (StringUtils.isNotBlank(zoneMode)) {
+            /**
+             * 向请求头添加{@link __ZONE_MODE}头信息
+             */
             request.addExtField(MixAll.ZONE_MODE, zoneMode);
         }
     }
 
     @Override
     public void doAfterResponse(String remoteAddr, RemotingCommand request, RemotingCommand response) {
-
     }
 }

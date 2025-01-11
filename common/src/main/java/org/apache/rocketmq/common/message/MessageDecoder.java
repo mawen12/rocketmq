@@ -35,6 +35,9 @@ import org.apache.rocketmq.common.compression.Compressor;
 import org.apache.rocketmq.common.compression.CompressorFactory;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
 
+/**
+ * 消息解码器
+ */
 public class MessageDecoder {
 //    public final static int MSG_ID_LENGTH = 8 + 8;
 
@@ -50,6 +53,9 @@ public class MessageDecoder {
 
     // End of file empty MAGIC CODE cbd43194
     public final static int BLANK_MAGIC_CODE = -875286124;
+    /**
+     * 为空格内容
+     */
     public static final char NAME_VALUE_SEPARATOR = 1;
     public static final char PROPERTY_SEPARATOR = 2;
     public static final int PHY_POS_POSITION = 4 + 4 + 4 + 4 + 4 + 8;
@@ -607,6 +613,10 @@ public class MessageDecoder {
             return "";
         }
         int len = 0;
+        /**
+         * 计算属性中整体长度，计算格式为name.length+value.length+2
+         * 提前计算长度，是为了解决StringBuilder可能存在的扩容
+         */
         for (final Map.Entry<String, String> entry : properties.entrySet()) {
             final String name = entry.getKey();
             final String value = entry.getValue();
@@ -614,11 +624,23 @@ public class MessageDecoder {
                 continue;
             }
             if (name != null) {
+                /**
+                 * name长度
+                 */
                 len += name.length();
             }
+            /**
+             * value长度
+             */
             len += value.length();
+            /**
+             * 分隔符长度
+             */
             len += 2; // separator
         }
+        /**
+         * 将其转换为字符串，格式为name1 value2
+         */
         StringBuilder sb = new StringBuilder(len);
         for (final Map.Entry<String, String> entry : properties.entrySet()) {
             final String name = entry.getKey();

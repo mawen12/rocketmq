@@ -17,11 +17,29 @@
 
 package org.apache.rocketmq.common.message;
 
+/**
+ * 消息类型
+ */
 public enum MessageType {
+    /**
+     * 普通消息
+     */
     Normal_Msg("Normal"),
+    /**
+     * 半事务消息
+     */
     Trans_Msg_Half("Trans"),
+    /**
+     * 已提交事务消息
+     */
     Trans_msg_Commit("TransCommit"),
+    /**
+     * 延迟消息
+     */
     Delay_Msg("Delay"),
+    /**
+     * 顺序消息
+     */
     Order_Msg("Order");
 
     private final String shortName;
@@ -35,6 +53,9 @@ public enum MessageType {
     }
 
     public static MessageType getByShortName(String shortName) {
+        /**
+         * TODO by mawen 可能存在内存问题
+         */
         for (MessageType msgType : MessageType.values()) {
             if (msgType.getShortName().equals(shortName)) {
                 return msgType;

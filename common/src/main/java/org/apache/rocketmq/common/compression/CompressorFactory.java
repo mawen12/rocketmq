@@ -19,6 +19,10 @@ package org.apache.rocketmq.common.compression;
 
 import java.util.EnumMap;
 
+/**
+ * 工厂设计模式
+ * 压缩器工厂，根据不同的压缩类型创建不同的压缩器
+ */
 public class CompressorFactory {
     private static final EnumMap<CompressionType, Compressor> COMPRESSORS;
 

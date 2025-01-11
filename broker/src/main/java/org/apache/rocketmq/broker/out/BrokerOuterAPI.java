@@ -149,12 +149,19 @@ import org.apache.rocketmq.store.timer.TimerMetrics;
 import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCCESS;
 import static org.apache.rocketmq.remoting.protocol.ResponseCode.CONTROLLER_MASTER_STILL_EXIST;
 
+/**
+ * Broker对外的API
+ */
 public class BrokerOuterAPI {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final RemotingClient remotingClient;
     private final TopAddressing topAddressing = new DefaultTopAddressing(MixAll.getWSAddr());
-    private final ExecutorService brokerOuterExecutor = ThreadUtils.newThreadPoolExecutor(4, 10, 1, TimeUnit.MINUTES,
-            new ArrayBlockingQueue<>(32), new ThreadFactoryImpl("brokerOutApi_thread_", true));
+
+    /**
+     * 任务执行器，初始4个线程，最大10个线程，线程存活时间1m，任务队列容量32个，守护线程名称前缀brokerOutApi_thread_
+     * 用于执行注册主题到所有的Namesrv的任务
+     */
+    private final ExecutorService brokerOuterExecutor = ThreadUtils.newThreadPoolExecutor(4, 10, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<>(32), new ThreadFactoryImpl("brokerOutApi_thread_", true));
     private final ClientMetadata clientMetadata;
     private final RpcClient rpcClient;
     private String nameSrvAddr = null;
@@ -467,8 +474,8 @@ public class BrokerOuterAPI {
     }
 
     /**
-     * Considering compression brings much CPU overhead to name server, stream API will not support compression and
-     * compression feature is deprecated.
+     * 注册Broker到所有的Namesrv
+     * 考虑到压缩会给Namesrv带来巨大的CPU开销，流式API将不支持压缩，并且压缩功能已过期
      *
      * @param clusterName
      * @param brokerAddr
@@ -482,33 +489,47 @@ public class BrokerOuterAPI {
      * @param compressed         default false
      * @return
      */
-    public List<RegisterBrokerResult> registerBrokerAll(
-        final String clusterName,
-        final String brokerAddr,
-        final String brokerName,
-        final long brokerId,
-        final String haServerAddr,
-        final TopicConfigSerializeWrapper topicConfigWrapper,
-        final List<String> filterServerList,
-        final boolean oneway,
-        final int timeoutMills,
-        final boolean enableActingMaster,
-        final boolean compressed,
-        final Long heartbeatTimeoutMillis,
-        final BrokerIdentity brokerIdentity) {
+    public List<RegisterBrokerResult> registerBrokerAll(final String clusterName, final String brokerAddr, final String brokerName, final long brokerId, final String haServerAddr, final TopicConfigSerializeWrapper topicConfigWrapper,
+        final List<String> filterServerList, final boolean oneway, final int timeoutMills, final boolean enableActingMaster, final boolean compressed, final Long heartbeatTimeoutMillis, final BrokerIdentity brokerIdentity) {
 
         final List<RegisterBrokerResult> registerBrokerResultList = new CopyOnWriteArrayList<>();
+        /**
+         * 获取所有可用的Namesrv地址列表
+         */
         List<String> nameServerAddressList = this.remotingClient.getAvailableNameSrvList();
         if (nameServerAddressList != null && nameServerAddressList.size() > 0) {
-
+            /**
+             * 构造注册Broker请求头
+             */
             final RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
+            /**
+             * 设置broker地址
+             */
             requestHeader.setBrokerAddr(brokerAddr);
+            /**
+             * 设置brokerId
+             */
             requestHeader.setBrokerId(brokerId);
+            /**
+             * 设置broker名称
+             */
             requestHeader.setBrokerName(brokerName);
+            /**
+             * 设置集群名称
+             */
             requestHeader.setClusterName(clusterName);
+            /**
+             * 设置HA服务地址
+             */
             requestHeader.setHaServerAddr(haServerAddr);
             requestHeader.setEnableActingMaster(enableActingMaster);
+            /**
+             * 设置不压缩
+             */
             requestHeader.setCompressed(false);
+            /**
+             * 设置心跳超时时间
+             */
             if (heartbeatTimeoutMillis != null) {
                 requestHeader.setHeartbeatTimeoutMillis(heartbeatTimeoutMillis);
             }
@@ -519,12 +540,21 @@ public class BrokerOuterAPI {
             final byte[] body = requestBody.encode(compressed);
             final int bodyCrc32 = UtilAll.crc32(body);
             requestHeader.setBodyCrc32(bodyCrc32);
+            /**
+             * 构造对应数量的闭锁
+             */
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
             for (final String namesrvAddr : nameServerAddressList) {
+                /**
+                 * 向任务队列中提交注册Broker到Namesrv的任务
+                 */
                 brokerOuterExecutor.execute(new AbstractBrokerRunnable(brokerIdentity) {
                     @Override
                     public void run0() {
                         try {
+                            /**
+                             * 发起注册Broker请求
+                             */
                             RegisterBrokerResult result = registerBroker(namesrvAddr, oneway, timeoutMills, requestHeader, body);
                             if (result != null) {
                                 registerBrokerResultList.add(result);
@@ -551,15 +581,31 @@ public class BrokerOuterAPI {
         return registerBrokerResultList;
     }
 
-    private RegisterBrokerResult registerBroker(
-        final String namesrvAddr,
-        final boolean oneway,
-        final int timeoutMills,
-        final RegisterBrokerRequestHeader requestHeader,
-        final byte[] body
-    ) throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException,
-        InterruptedException {
+    /**
+     * 注册Broker到Namesrv
+     *
+     * @param namesrvAddr
+     * @param oneway
+     * @param timeoutMills
+     * @param requestHeader
+     * @param body
+     * @return
+     * @throws RemotingCommandException
+     * @throws MQBrokerException
+     * @throws RemotingConnectException
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     * @throws InterruptedException
+     */
+    private RegisterBrokerResult registerBroker(final String namesrvAddr, final boolean oneway, final int timeoutMills, final RegisterBrokerRequestHeader requestHeader, final byte[] body)
+            throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
+        /**
+         * 创建请求
+         */
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
+        /**
+         * 设置请求体
+         */
         request.setBody(body);
 
         if (oneway) {
@@ -571,13 +617,25 @@ public class BrokerOuterAPI {
             return null;
         }
 
+        /**
+         * 同步调用
+         */
         RemotingCommand response = this.remotingClient.invokeSync(namesrvAddr, request, timeoutMills);
         assert response != null;
         switch (response.getCode()) {
             case ResponseCode.SUCCESS: {
+                /**
+                 * 解析响应头
+                 */
                 RegisterBrokerResponseHeader responseHeader = response.decodeCommandCustomHeader(RegisterBrokerResponseHeader.class);
                 RegisterBrokerResult result = new RegisterBrokerResult();
+                /**
+                 * 回写Master地址
+                 */
                 result.setMasterAddr(responseHeader.getMasterAddr());
+                /**
+                 * 回写HA服务地址
+                 */
                 result.setHaServerAddr(responseHeader.getHaServerAddr());
                 if (response.getBody() != null) {
                     result.setKvTable(KVTable.decode(response.getBody(), KVTable.class));
@@ -638,56 +696,111 @@ public class BrokerOuterAPI {
     }
 
     /**
-     * Register the topic route info of single topic to all name server nodes.
-     * This method is used to replace incremental broker registration feature.
+     * 将主题配置信息发送到所有的Namesrv服务节点上，此方法用于替代增量注册功能
      */
-    public void registerSingleTopicAll(
-        final String brokerName,
-        final TopicConfig topicConfig,
-        final int timeoutMills) {
+    public void registerSingleTopicAll(final String brokerName, final TopicConfig topicConfig, final int timeoutMills) {
+        /**
+         * 获取主题名称
+         */
         String topic = topicConfig.getTopicName();
+        /**
+         * 构造注册主题请求头
+         */
         RegisterTopicRequestHeader requestHeader = new RegisterTopicRequestHeader();
+        /**
+         * 设置主题
+         */
         requestHeader.setTopic(topic);
 
+        /**
+         * 构造主题路由数据
+         */
         TopicRouteData topicRouteData = new TopicRouteData();
         List<QueueData> queueDatas = new ArrayList<>();
         topicRouteData.setQueueDatas(queueDatas);
 
+        /**
+         * 构造队列数据
+         */
         final QueueData queueData = new QueueData();
+        /**
+         * 设置broker名称
+         */
         queueData.setBrokerName(brokerName);
+        /**
+         * 设置主题权限
+         */
         queueData.setPerm(topicConfig.getPerm());
+        /**
+         * 设置主题读队列数量
+         */
         queueData.setReadQueueNums(topicConfig.getReadQueueNums());
+        /**
+         * 设置主题写队列数量
+         */
         queueData.setWriteQueueNums(topicConfig.getWriteQueueNums());
+        /**
+         * 设置主题系统标志位
+         */
         queueData.setTopicSysFlag(topicConfig.getTopicSysFlag());
         queueDatas.add(queueData);
+        /**
+         * 编码
+         */
         final byte[] topicRouteBody = topicRouteData.encode();
 
+        /**
+         * 获取所有的Namesrv地址
+         */
         List<String> nameServerAddressList = this.remotingClient.getNameServerAddressList();
+        /**
+         * 构造对应数量的闭锁
+         */
         final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
         for (final String namesrvAddr : nameServerAddressList) {
+            /**
+             * 构造请求
+             */
             RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.REGISTER_TOPIC_IN_NAMESRV, requestHeader);
+            /**
+             * 设置请求体
+             */
             request.setBody(topicRouteBody);
 
             try {
+                /**
+                 * 向任务队列中提交注册主题到Namesrv的任务
+                 */
                 brokerOuterExecutor.execute(() -> {
                     try {
+                        /**
+                         * 发起RPC调用
+                         */
                         RemotingCommand response = BrokerOuterAPI.this.remotingClient.invokeSync(namesrvAddr, request, timeoutMills);
                         assert response != null;
                         LOGGER.info("Register single topic {} to broker {} with response code {}", topic, brokerName, response.getCode());
                     } catch (Exception e) {
                         LOGGER.warn("Register single topic {} to broker {} exception", topic, brokerName, e);
                     } finally {
+                        /**
+                         * 执行完成后，更新闭锁
+                         */
                         countDownLatch.countDown();
                     }
                 });
             } catch (Exception e) {
                 LOGGER.warn("Execute single topic registration task failed, topic {}, broker name {}", topic, brokerName);
+                /**
+                 * 出现异常后，更新闭锁
+                 */
                 countDownLatch.countDown();
             }
-
         }
 
         try {
+            /**
+             * 等待指定时间，超时后输出到warn日志中
+             */
             if (!countDownLatch.await(timeoutMills, TimeUnit.MILLISECONDS)) {
                 LOGGER.warn("Registration single topic to one or more name servers timeout. Timeout threshold: {}ms", timeoutMills);
             }

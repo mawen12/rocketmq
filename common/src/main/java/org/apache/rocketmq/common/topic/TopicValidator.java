@@ -125,15 +125,23 @@ public class TopicValidator {
     }
 
     public static ValidateTopicResult validateTopic(String topic) {
-
+        /**
+         * 主题不能为空
+         */
         if (UtilAll.isBlank(topic)) {
             return new ValidateTopicResult(false, "The specified topic is blank.");
         }
 
+        /**
+         * 检查主题格式必须为^[%|a-zA-Z0-9_-]+$
+         */
         if (isTopicOrGroupIllegal(topic)) {
             return new ValidateTopicResult(false, "The specified topic contains illegal characters, allowing only ^[%|a-zA-Z0-9_-]+$");
         }
 
+        /**
+         * 主题长度不能超过127，需要注意，这个主题可能存在namespace，并且可能存在%RETRY%或%DLQ%，因此原始的主题长度更短
+         */
         if (topic.length() > TOPIC_MAX_LENGTH) {
             return new ValidateTopicResult(false, "The specified topic is longer than topic max length.");
         }
