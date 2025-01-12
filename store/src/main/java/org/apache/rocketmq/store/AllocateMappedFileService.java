@@ -34,15 +34,19 @@ import org.apache.rocketmq.store.logfile.DefaultMappedFile;
 import org.apache.rocketmq.store.logfile.MappedFile;
 
 /**
- * Create MappedFile in advance
+ * 用于创建映射文件的服务
  */
 public class AllocateMappedFileService extends ServiceThread {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private static int waitTimeOut = 1000 * 5;
-    private ConcurrentMap<String, AllocateRequest> requestTable =
-        new ConcurrentHashMap<>();
-    private PriorityBlockingQueue<AllocateRequest> requestQueue =
-        new PriorityBlockingQueue<>();
+    /**
+     * Map<映射文件的完整路径, 创建文件的请求>
+     */
+    private ConcurrentMap<String, AllocateRequest> requestTable = new ConcurrentHashMap<>();
+    /**
+     * 优先级阻塞队列
+     */
+    private PriorityBlockingQueue<AllocateRequest> requestQueue = new PriorityBlockingQueue<>();
     private volatile boolean hasException = false;
     private DefaultMessageStore messageStore;
 
@@ -52,56 +56,109 @@ public class AllocateMappedFileService extends ServiceThread {
 
     public MappedFile putRequestAndReturnMappedFile(String nextFilePath, String nextNextFilePath, int fileSize) {
         int canSubmitRequests = 2;
+        /**
+         * 检查是否开启临时存储池
+         */
         if (this.messageStore.isTransientStorePoolEnable()) {
-            if (this.messageStore.getMessageStoreConfig().isFastFailIfNoBufferInStorePool()
-                && BrokerRole.SLAVE != this.messageStore.getMessageStoreConfig().getBrokerRole()) { //if broker is slave, don't fast fail even no buffer in pool
+            /**
+             * 当开启临时存储池，检查是否开启了存储池中没有空间可用时快速失败，以及Broker角色是否为Slave
+             * <p>
+             * 当Broker是Slave时，即使存储池中没有缓存可用，不会立刻失败
+             */
+            if (this.messageStore.getMessageStoreConfig().isFastFailIfNoBufferInStorePool() && BrokerRole.SLAVE != this.messageStore.getMessageStoreConfig().getBrokerRole()) {
+                /**
+                 * 计算可以提交的请求数，使用存储池中可用数-请求队列数
+                 */
                 canSubmitRequests = this.messageStore.remainTransientStoreBufferNumbs() - this.requestQueue.size();
             }
         }
 
+        /**
+         * 构造分配文件请求
+         */
         AllocateRequest nextReq = new AllocateRequest(nextFilePath, fileSize);
+        /**
+         * 将请求放入到请求表中
+         */
         boolean nextPutOK = this.requestTable.putIfAbsent(nextFilePath, nextReq) == null;
 
         if (nextPutOK) {
+            /**
+             * 放入成功，但是可提交的请求数量<=0，代表临时存储池空间不足，无法创建，直接移除该路径与请求
+             */
             if (canSubmitRequests <= 0) {
-                log.warn("[NOTIFYME]TransientStorePool is not enough, so create mapped file error, " +
-                    "RequestQueueSize : {}, StorePoolSize: {}", this.requestQueue.size(), this.messageStore.remainTransientStoreBufferNumbs());
+                log.warn("[NOTIFYME]TransientStorePool is not enough, so create mapped file error, " + "RequestQueueSize : {}, StorePoolSize: {}", this.requestQueue.size(), this.messageStore.remainTransientStoreBufferNumbs());
                 this.requestTable.remove(nextFilePath);
                 return null;
             }
+            /**
+             * 向请求队列放入请求
+             */
             boolean offerOK = this.requestQueue.offer(nextReq);
             if (!offerOK) {
+                /**
+                 * 放入失败，输出到warn日志中
+                 */
                 log.warn("never expected here, add a request to preallocate queue failed");
             }
+            /**
+             * 减去占用的可提交请求数
+             */
             canSubmitRequests--;
         }
 
+        /**
+         * 构造创建下下一个文件路径请求
+         */
         AllocateRequest nextNextReq = new AllocateRequest(nextNextFilePath, fileSize);
+        /**
+         * 将请求放入到请求表中
+         */
         boolean nextNextPutOK = this.requestTable.putIfAbsent(nextNextFilePath, nextNextReq) == null;
         if (nextNextPutOK) {
+            /**
+             * 放入成功，但是可提交的请求数量<=0，代表临时存储池空间不足，无法创建，直接移除该路径与请求
+             */
             if (canSubmitRequests <= 0) {
-                log.warn("[NOTIFYME]TransientStorePool is not enough, so skip preallocate mapped file, " +
-                    "RequestQueueSize : {}, StorePoolSize: {}", this.requestQueue.size(), this.messageStore.remainTransientStoreBufferNumbs());
+                log.warn("[NOTIFYME]TransientStorePool is not enough, so skip preallocate mapped file, " + "RequestQueueSize : {}, StorePoolSize: {}", this.requestQueue.size(), this.messageStore.remainTransientStoreBufferNumbs());
                 this.requestTable.remove(nextNextFilePath);
             } else {
+                /**
+                 * 向请求队列放入请求
+                 */
                 boolean offerOK = this.requestQueue.offer(nextNextReq);
                 if (!offerOK) {
+                    /**
+                     * 放入失败，输出到warn日志中
+                     */
                     log.warn("never expected here, add a request to preallocate queue failed");
                 }
             }
         }
 
+        /**
+         * 出现异常时，直接返回
+         */
         if (hasException) {
             log.warn(this.getServiceName() + " service has exception. so return null");
             return null;
         }
 
+        /**
+         * 获取对应路径的请求
+         */
         AllocateRequest result = this.requestTable.get(nextFilePath);
         try {
             if (result != null) {
                 messageStore.getPerfCounter().startTick("WAIT_MAPFILE_TIME_MS");
+                /**
+                 * 等待执行结果
+                 */
                 boolean waitOK = result.getCountDownLatch().await(waitTimeOut, TimeUnit.MILLISECONDS);
                 messageStore.getPerfCounter().endTick("WAIT_MAPFILE_TIME_MS");
+                /**
+                 * 结果成功，则移除请求表，并返回映射文件；反之打印warn日志，并返回空
+                 */
                 if (!waitOK) {
                     log.warn("create mmap timeout " + result.getFilePath() + " " + result.getFileSize());
                     return null;
@@ -225,11 +282,25 @@ public class AllocateMappedFileService extends ServiceThread {
         return true;
     }
 
+    /**
+     * 创建文件的请求
+     */
     static class AllocateRequest implements Comparable<AllocateRequest> {
-        // Full file path
+        /**
+         * 文件路径
+         */
         private String filePath;
+        /**
+         * 文件大小
+         */
         private int fileSize;
+        /**
+         * 闭锁
+         */
         private CountDownLatch countDownLatch = new CountDownLatch(1);
+        /**
+         * 映射文件
+         */
         private volatile MappedFile mappedFile = null;
 
         public AllocateRequest(String filePath, int fileSize) {

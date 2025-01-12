@@ -43,6 +43,9 @@ import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.logfile.MappedFile;
 
+/**
+ * 基于批次消息的消费队列实现，其支持{@link CQType#BatchCQ}
+ */
 public class BatchConsumeQueue implements ConsumeQueueInterface {
     protected static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 

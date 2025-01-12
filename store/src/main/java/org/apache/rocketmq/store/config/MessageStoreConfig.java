@@ -19,6 +19,7 @@ package org.apache.rocketmq.store.config;
 import java.io.File;
 
 import org.apache.rocketmq.common.annotation.ImportantField;
+import org.apache.rocketmq.common.annotation.PerformancePoint;
 import org.apache.rocketmq.store.ConsumeQueue;
 import org.apache.rocketmq.store.StoreType;
 import org.apache.rocketmq.store.queue.BatchConsumeQueue;
@@ -49,13 +50,20 @@ public class MessageStoreConfig {
 
     private String readOnlyCommitLogStorePaths = null;
 
-    // CommitLog file size,default is 1G
+    /**
+     * 提交日志文件大小，默认为1G
+     */
     private int mappedFileSizeCommitLog = 1024 * 1024 * 1024;
 
-    // CompactionLog file size, default is 100M
+    /**
+     * 压缩日志文件大小，默认为100M
+     */
     private int compactionMappedFileSize = 100 * 1024 * 1024;
 
     // CompactionLog consumeQueue file size, default is 10M
+    /**
+     * 压缩日志的消费队列文件队列大小，默认为10M
+     */
     private int compactionCqMappedFileSize = 10 * 1024 * 1024;
 
     private int compactionScheduleInternal = 15 * 60 * 1000;
@@ -165,7 +173,9 @@ public class MessageStoreConfig {
     private int deleteFileBatchMax = 10;
     // Flow control for ConsumeQueue
     private int putMsgIndexHightWater = 600000;
-    // The maximum size of message body,default is 4M,4M only for body length,not include others.
+    /**
+     * 最大消息体大小，默认为4m
+     */
     private int maxMessageSize = 1024 * 1024 * 4;
 
     // The maximum size of message body can be  set in config;count with maxMsgNums * CQ_STORE_UNIT_SIZE(20 || 46)
@@ -229,14 +239,23 @@ public class MessageStoreConfig {
     private boolean warmMapedFileEnable = false;
     private boolean offsetCheckInSlave = false;
     private boolean debugLockEnable = false;
+    /**
+     * 是否启用复制
+     */
     private boolean duplicationEnable = false;
     private boolean diskFallRecorded = true;
     private long osPageCacheBusyTimeOutMills = 1000;
     private int defaultQueryMaxNum = 32;
 
+    /**
+     * 是否开启临时存储池，默认不开启
+     */
     @ImportantField
     private boolean transientStorePoolEnable = false;
     private int transientStorePoolSize = 5;
+    /**
+     * 是否在存储池中没有可用缓存时快速失败，默认不会快速失败
+     */
     private boolean fastFailIfNoBufferInStorePool = false;
 
     // DLedger message store config
@@ -275,8 +294,9 @@ public class MessageStoreConfig {
     private boolean autoMessageVersionOnTopicLen = true;
 
     /**
-     * It cannot be changed after the broker is started.
-     * Modifications need to be restarted to take effect.
+     * 是否开启追加属性CRC，默认为false，表示不开启
+     * <p>
+     * 该值不支持动态修改
      */
     private boolean enabledAppendPropCRC = false;
     private boolean forceVerifyPropCRC = false;
@@ -316,10 +336,9 @@ public class MessageStoreConfig {
     private int totalReplicas = 1;
 
     /**
-     * Each message must be written successfully to at least in-sync replicas.
-     * The master broker is considered one of the in-sync replicas, and it's included in the count of total.
-     * If a master broker is ASYNC_MASTER, inSyncReplicas will be ignored.
-     * If enableControllerMode is true and ackAckInSyncStateSet is true, inSyncReplicas will be ignored.
+     * 每个消息默认至少成功写入一个同步副本，Master Broker被视为同步副本之一，并包含在总数中。
+     * 如果Master Broker是一个异步的，该值将会被忽略。
+     * 如果{@link org.apache.rocketmq.common.BrokerConfig#enableControllerMode=true}，且{@link #allAckInSyncStateSet=true}，则该值将会被忽略
      */
     @ImportantField
     private int inSyncReplicas = 1;
@@ -332,14 +351,13 @@ public class MessageStoreConfig {
     private int minInSyncReplicas = 1;
 
     /**
-     * Each message must be written successfully to all replicas in SyncStateSet.
+     * 每个消息必须写入到同步状态集中所有的副本
      */
     @ImportantField
     private boolean allAckInSyncStateSet = false;
 
     /**
-     * Dynamically adjust in-sync replicas to provide higher availability, the real time in-sync replicas
-     * will smaller than inSyncReplicas config.
+     * 是否动态调整同步副本以实现更高的可用性，实时同步副本将小于{@link #inSyncReplicas}值，默认为false，代表不动态调整
      */
     @ImportantField
     private boolean enableAutoInSyncReplicas = false;
@@ -395,6 +413,9 @@ public class MessageStoreConfig {
 
     private boolean coldDataFlowControlEnable = false;
     private boolean coldDataScanEnable = false;
+    /**
+     * 是否开启数据预读，默认开启
+     */
     private boolean dataReadAheadEnable = true;
     private int timerColdDataCheckIntervalMs = 60 * 1000;
     private int sampleSteps = 32;
@@ -413,6 +434,11 @@ public class MessageStoreConfig {
     private boolean realTimePersistRocksDBConfig = true;
     private boolean enableRocksDBLog = false;
 
+    /**
+     * 默认主题队列锁为32个，该值最终用于{@link org.apache.rocketmq.store.TopicQueueLock#size}，
+     * 如果要创建的主题队列超过32个，则该值也需要设置对应的值
+     */
+    @PerformancePoint
     private int topicQueueLockNum = 32;
 
     /**

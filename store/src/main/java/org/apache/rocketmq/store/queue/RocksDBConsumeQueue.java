@@ -31,6 +31,9 @@ import org.apache.rocketmq.store.MessageFilter;
 import org.apache.rocketmq.store.MessageStore;
 import org.rocksdb.RocksDBException;
 
+/**
+ * 基于RockSDB的消费队列实现，其支持{@link CQType#RocksDBCQ}
+ */
 public class RocksDBConsumeQueue implements ConsumeQueueInterface {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private static final Logger ERROR_LOG = LoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);

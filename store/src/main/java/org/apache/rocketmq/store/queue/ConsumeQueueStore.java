@@ -384,8 +384,17 @@ public class ConsumeQueueStore extends AbstractConsumeQueueStore {
 
     @Override
     public ConsumeQueueInterface findOrCreateConsumeQueue(String topic, int queueId) {
+        /**
+         * 获取消费队列表中该主题的队列映射
+         */
         ConcurrentMap<Integer, ConsumeQueueInterface> map = consumeQueueTable.get(topic);
+        /**
+         * 检查主题下是否存在队列映射
+         */
         if (null == map) {
+            /**
+             * 对于不存在的情况，构造并写入
+             */
             ConcurrentMap<Integer, ConsumeQueueInterface> newMap = new ConcurrentHashMap<>(128);
             ConcurrentMap<Integer, ConsumeQueueInterface> oldMap = consumeQueueTable.putIfAbsent(topic, newMap);
             if (oldMap != null) {
@@ -395,31 +404,42 @@ public class ConsumeQueueStore extends AbstractConsumeQueueStore {
             }
         }
 
+        /**
+         * 获取对应映射中该队列的消费队列接口
+         */
         ConsumeQueueInterface logic = map.get(queueId);
+        /**
+         * 存在消费队列接口，则直接返回
+         */
         if (logic != null) {
             return logic;
         }
 
         ConsumeQueueInterface newLogic;
 
+        /**
+         * 获取队列配置
+         */
         Optional<TopicConfig> topicConfig = this.messageStore.getTopicConfig(topic);
         // TODO maybe the topic has been deleted.
+        /**
+         * 检测是否为批量消费类型，除非显式指定，默认为SimpleCQ
+         */
         if (Objects.equals(CQType.BatchCQ, QueueTypeUtils.getCQType(topicConfig))) {
-            newLogic = new BatchConsumeQueue(
-                topic,
-                queueId,
-                getStorePathBatchConsumeQueue(this.messageStoreConfig.getStorePathRootDir()),
-                this.messageStoreConfig.getMapperFileSizeBatchConsumeQueue(),
-                this.messageStore);
+            /**
+             * 构造批量消息队列
+             */
+            newLogic = new BatchConsumeQueue(topic, queueId, getStorePathBatchConsumeQueue(this.messageStoreConfig.getStorePathRootDir()), this.messageStoreConfig.getMapperFileSizeBatchConsumeQueue(), this.messageStore);
         } else {
-            newLogic = new ConsumeQueue(
-                topic,
-                queueId,
-                getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()),
-                this.messageStoreConfig.getMappedFileSizeConsumeQueue(),
-                this.messageStore);
+            /**
+             * 构造默认的消息队列
+             */
+            newLogic = new ConsumeQueue(topic, queueId, getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()), this.messageStoreConfig.getMappedFileSizeConsumeQueue(), this.messageStore);
         }
 
+        /**
+         * 写入消费队列映射，并返回
+         */
         ConsumeQueueInterface oldLogic = map.putIfAbsent(queueId, newLogic);
         if (oldLogic != null) {
             logic = oldLogic;

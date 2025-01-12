@@ -30,22 +30,63 @@ public class MessageSysFlag {
      * | byte 3 |   |   |           |          |             |                  |                  |                  |
      * | byte 4 |   |   |           |          |             |                  |                  |                  |
      */
+    /**
+     * 消息压缩标志
+     */
     public final static int COMPRESSED_FLAG = 0x1;
+    /**
+     * 消息多个Tags标志
+     */
     public final static int MULTI_TAGS_FLAG = 0x1 << 1;
+    /**
+     * 非事务消息类型
+     */
     public final static int TRANSACTION_NOT_TYPE = 0;
+    /**
+     * 事务预准备类型
+     */
     public final static int TRANSACTION_PREPARED_TYPE = 0x1 << 2;
+    /**
+     * 事务提交类型
+     */
     public final static int TRANSACTION_COMMIT_TYPE = 0x2 << 2;
+    /**
+     * 事务会滚类型
+     */
     public final static int TRANSACTION_ROLLBACK_TYPE = 0x3 << 2;
+    /**
+     * 发送主机IPv6标识
+     */
     public final static int BORNHOST_V6_FLAG = 0x1 << 4;
+    /**
+     * 存储主机IPv6标识
+     */
     public final static int STOREHOSTADDRESS_V6_FLAG = 0x1 << 5;
-    //Mark the flag for batch to avoid conflict
+    /**
+     * 批量消息，需要解除包装的标识
+     */
     public final static int NEED_UNWRAP_FLAG = 0x1 << 6;
+    /**
+     * 内置批量消息标识
+     */
     public final static int INNER_BATCH_FLAG = 0x1 << 7;
 
     // COMPRESSION_TYPE
+    /**
+     * 压缩类型：LZ4
+     */
     public final static int COMPRESSION_LZ4_TYPE = 0x1 << 8;
+    /**
+     * 压缩类型：ZSTD
+     */
     public final static int COMPRESSION_ZSTD_TYPE = 0x2 << 8;
+    /**
+     * 压缩类型：ZLIB
+     */
     public final static int COMPRESSION_ZLIB_TYPE = 0x3 << 8;
+    /**
+     * 压缩类型比较器
+     */
     public final static int COMPRESSION_TYPE_COMPARATOR = 0x7 << 8;
 
     public static int getTransactionValue(final int flag) {

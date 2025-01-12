@@ -31,6 +31,7 @@ import org.apache.rocketmq.client.trace.TraceDispatcher;
 import org.apache.rocketmq.client.trace.hook.EndTransactionTraceHookImpl;
 import org.apache.rocketmq.client.trace.hook.SendMessageTraceHookImpl;
 import org.apache.rocketmq.common.MixAll;
+import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.compression.CompressionType;
 import org.apache.rocketmq.common.compression.Compressor;
 import org.apache.rocketmq.common.compression.CompressorFactory;
@@ -62,6 +63,7 @@ import java.util.concurrent.ExecutorService;
  * <p>
  * 线程安全类
  */
+@ImportantPoint("客户端生产者")
 public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
@@ -163,7 +165,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private ProduceAccumulator produceAccumulator = null;
 
     /**
-     * Indicate whether to block message when asynchronous sending traffic is too heavy.
+     * 是否在异步发送流量太多时，阻塞消息
      */
     private boolean enableBackpressureForAsyncMode = false;
 
@@ -195,12 +197,12 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private RPCHook rpcHook = null;
 
     /**
-     *  backPressureForAsyncSendNum is guaranteed to be modified at runtime and no new requests are allowed
+     *  用于在获取{@link DefaultMQProducerImpl#semaphoreAsyncSendNum}时加上读锁
      */
     private final ReadWriteCASLock backPressureForAsyncSendNumLock = new ReadWriteCASLock();
 
     /**
-     * backPressureForAsyncSendSize is guaranteed to be modified at runtime and no new requests are allowed
+     * 用于在获取{@link DefaultMQProducerImpl#semaphoreAsyncSendSize}时加上写锁
      */
     private final ReadWriteCASLock backPressureForAsyncSendSizeLock = new ReadWriteCASLock();
 
@@ -519,11 +521,19 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      */
     @Override
     public void send(Message msg, SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException {
+        /**
+         * 对主题进行格式调整，新的主题格式为[%RETRY%|%DLQ%]namespace%resource
+         */
         msg.setTopic(withNamespace(msg.getTopic()));
         try {
+            /**
+             * 如果是自动批量发送，且消息是单个的，则使用累计器发送消息；否则直接发送
+             */
             if (this.getAutoBatch() && !(msg instanceof MessageBatch)) {
+                // 使用累计器发送
                 sendByAccumulator(msg, null, sendCallback);
             } else {
+                // 直接发送
                 sendDirect(msg, null, sendCallback);
             }
         } catch (Throwable e) {

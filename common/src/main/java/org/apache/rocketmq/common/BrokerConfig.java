@@ -320,9 +320,8 @@ public class BrokerConfig extends BrokerIdentity {
     private long forwardTimeout = 3 * 1000;
 
     /**
-     * Slave will act master when failover. For example, if master down, timer or transaction message which is expire in slave will
-     * put to master (master of the same process in broker container mode or other masters in cluster when enableFailoverRemotingActing is true)
-     * when enableSlaveActingMaster is true
+     * 在故障转移时，Slave服务器将充当Master。如果设置true，当原本的Master宕机，Slave上过期的计时器或事务消息将放入Master
+     * （在enableFailoverRemotingActing=true时，代理容器模式下的同一进程的主服务器或集群中的其他主服务器）
      */
     private boolean enableSlaveActingMaster = false;
 
@@ -330,6 +329,9 @@ public class BrokerConfig extends BrokerIdentity {
 
     private boolean skipPreOnline = false;
 
+    /**
+     * 是否开启发送，默认为true
+     */
     private boolean asyncSendEnable = true;
 
     private boolean useServerSideResetOffset = true;

@@ -91,6 +91,9 @@ public class MixAll {
     public static final long FIRST_BROKER_CONTROLLER_ID = 1L;
     public static final long CURRENT_JVM_PID = getPID();
     public final static int UNIT_PRE_SIZE_FOR_MSG = 28;
+    /**
+     * 写入的消息需要同步到全部的副本中，包含Master本身
+     */
     public final static int ALL_ACK_IN_SYNC_STATE_SET = -1;
 
     public static final String RETRY_GROUP_TOPIC_PREFIX = "%RETRY%";

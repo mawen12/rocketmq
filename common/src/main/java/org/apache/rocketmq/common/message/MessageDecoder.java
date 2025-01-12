@@ -47,8 +47,13 @@ public class MessageDecoder {
     public final static int MESSAGE_PHYSIC_OFFSET_POSITION = 28;
     public final static int MESSAGE_STORE_TIMESTAMP_POSITION = 56;
 
-    // Set message magic code v2 if topic length > 127
+    /**
+     * V1版本
+     */
     public final static int MESSAGE_MAGIC_CODE = -626843481;
+    /**
+     * V2版本，当主题长度超过了127，由Broker自动设置为V2
+     */
     public final static int MESSAGE_MAGIC_CODE_V2 = -626843477;
 
     // End of file empty MAGIC CODE cbd43194

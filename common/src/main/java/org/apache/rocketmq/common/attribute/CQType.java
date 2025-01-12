@@ -17,8 +17,26 @@
 
 package org.apache.rocketmq.common.attribute;
 
+/**
+ * 消费队列类型
+ */
 public enum CQType {
+    /**
+     * 简单
+     *
+     * @see org.apache.rocketmq.store.ConsumeQueue
+     */
     SimpleCQ,
+    /**
+     * 批量
+     *
+     * @see org.apache.rocketmq.store.queue.BatchConsumeQueue
+     */
     BatchCQ,
+    /**
+     * 基于RocksDB
+     *
+     * @see org.apache.rocketmq.store.queue.RocksDBConsumeQueue
+     */
     RocksDBCQ
 }

@@ -24,11 +24,20 @@ import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.TopicFilterType;
 import org.apache.rocketmq.common.utils.MessageUtils;
 
+/**
+ * 用于Broker内部的消息扩展
+ */
 public class MessageExtBrokerInner extends MessageExt {
     private static final long serialVersionUID = 7256001576878700634L;
+    /**
+     * 消息属性字符串
+     */
     private String propertiesString;
     private long tagsCode;
 
+    /**
+     * 消息整体的字节缓存区
+     */
     private ByteBuffer encodedBuff;
 
     private volatile boolean encodeCompleted;

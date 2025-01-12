@@ -34,6 +34,9 @@ public abstract class AbstractConsumeQueueStore implements ConsumeQueueStoreInte
     protected final DefaultMessageStore messageStore;
     protected final MessageStoreConfig messageStoreConfig;
     protected final QueueOffsetOperator queueOffsetOperator = new QueueOffsetOperator();
+    /**
+     * Map<主题, Map<队列ID, 消费队列接口>>
+     */
     protected final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueueInterface>> consumeQueueTable;
 
     public AbstractConsumeQueueStore(DefaultMessageStore messageStore) {
@@ -69,13 +72,25 @@ public abstract class AbstractConsumeQueueStore implements ConsumeQueueStoreInte
 
     @Override
     public void assignQueueOffset(MessageExtBrokerInner msg) throws RocksDBException {
+        /**
+         * 查找主题主题，如果有直接返回；反之根据主题配置的queueType构造消息队列
+         */
         ConsumeQueueInterface consumeQueue = findOrCreateConsumeQueue(msg.getTopic(), msg.getQueueId());
+        /**
+         * 使用消息队列为消息分配偏移量，如果不存在，则设置为0
+         */
         consumeQueue.assignQueueOffset(this.queueOffsetOperator, msg);
     }
 
     @Override
     public void increaseQueueOffset(MessageExtBrokerInner msg, short messageNum) {
+        /**
+         * 查找主题主题，如果有直接返回；反之根据主题配置的queueType构造消息队列
+         */
         ConsumeQueueInterface consumeQueue = findOrCreateConsumeQueue(msg.getTopic(), msg.getQueueId());
+        /**
+         * 增加队列消息总数，即队列偏移量
+         */
         consumeQueue.increaseQueueOffset(this.queueOffsetOperator, msg, messageNum);
     }
 

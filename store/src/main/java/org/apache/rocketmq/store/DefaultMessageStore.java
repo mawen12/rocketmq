@@ -595,7 +595,6 @@ public class DefaultMessageStore implements MessageStore {
             LOGGER.warn("[BUG]The message had property {} but is not an inner batch", MessageConst.PROPERTY_INNER_NUM);
             return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
         }
-
         if (MessageSysFlag.check(msg.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)) {
             Optional<TopicConfig> topicConfig = this.getTopicConfig(msg.getTopic());
             if (!QueueTypeUtils.isBatchCq(topicConfig)) {
@@ -2137,9 +2136,18 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public void assignOffset(MessageExtBrokerInner msg) throws RocksDBException {
+        /**
+         * 获取消息事务类型
+         */
         final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
 
+        /**
+         * 是否为非事务消息，或为事务提交消息
+         */
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
+            /**
+             * 分配队列偏移量
+             */
             this.consumeQueueStore.assignQueueOffset(msg);
         }
     }
@@ -2148,7 +2156,13 @@ public class DefaultMessageStore implements MessageStore {
     public void increaseOffset(MessageExtBrokerInner msg, short messageNum) {
         final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
 
+        /**
+         * 仅处理非事务消息，或已提交的事务消息
+         */
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
+            /**
+             * 增加该队列的消息总数，即队列偏移量
+             */
             this.consumeQueueStore.increaseQueueOffset(msg, messageNum);
         }
     }
@@ -3372,14 +3386,10 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * Enable transient commitLog store pool only if transientStorePoolEnable is true and broker role is not SLAVE or
-     * enableControllerMode is true
-     *
-     * @return <tt>true</tt> or <tt>false</tt>
+     * 仅在PROPERTIES(transientStorePoolEnable)=true，且(PROPERTIES(enableControllerMode)=true或Broker角色并为Slave)，才会开启
      */
     public boolean isTransientStorePoolEnable() {
-        return this.messageStoreConfig.isTransientStorePoolEnable() &&
-            (this.brokerConfig.isEnableControllerMode() || this.messageStoreConfig.getBrokerRole() != BrokerRole.SLAVE);
+        return this.messageStoreConfig.isTransientStorePoolEnable() && (this.brokerConfig.isEnableControllerMode() || this.messageStoreConfig.getBrokerRole() != BrokerRole.SLAVE);
     }
 
     public long getReputFromOffset() {

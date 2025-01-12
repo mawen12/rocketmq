@@ -165,11 +165,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     // @see <a href="https://medium.com/@jayphelps/backpressure-explained-the-flow-of-data-through-software-2350b3e77ce7">Backpressure</a>
 
     /**
-     * 基于限制异步生产者同时可发送消息数量实现的背压
+     * 基于限制异步生产者同时可发送消息数量实现的背压，默认为1w
      */
     private Semaphore semaphoreAsyncSendNum;
     /**
-     * 基于限制异步生产者同时可发送消息体总体大小实现的背压
+     * 基于限制异步生产者同时可发送消息体总体大小实现的背压，默认为100m
      */
     private Semaphore semaphoreAsyncSendSize;
 
@@ -612,10 +612,18 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     /**
-     * DEFAULT ASYNC -------------------------------------------------------
+     * 以异步模式发送消息
+     *
+     * @param msg
+     * @param sendCallback
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws InterruptedException
      */
-    public void send(Message msg,
-        SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException {
+    public void send(Message msg, SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException {
+        /**
+         * 带有超时时间的发送，默认为3s
+         */
         send(msg, sendCallback, this.defaultMQProducer.getSendMsgTimeout());
     }
 
@@ -628,27 +636,35 @@ public class DefaultMQProducerImpl implements MQProducerInner {
      * provided in next version
      */
     @Deprecated
-    public void send(final Message msg, final SendCallback sendCallback, final long timeout)
-        throws MQClientException, RemotingException, InterruptedException {
+    public void send(final Message msg, final SendCallback sendCallback, final long timeout) throws MQClientException, RemotingException, InterruptedException {
+        /**
+         * 构造背压发送回调
+         */
         BackpressureSendCallBack newCallBack = new BackpressureSendCallBack(sendCallback);
 
         final long beginStartTime = System.currentTimeMillis();
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                long costTime = System.currentTimeMillis() - beginStartTime;
-                if (timeout > costTime) {
-                    try {
-                        sendDefaultImpl(msg, CommunicationMode.ASYNC, newCallBack, timeout - costTime);
-                    } catch (Exception e) {
-                        newCallBack.onException(e);
-                    }
-                } else {
-                    newCallBack.onException(
-                        new RemotingTooMuchRequestException("DEFAULT ASYNC send call timeout"));
+        Runnable runnable = () -> {
+            long costTime = System.currentTimeMillis() - beginStartTime;
+            /**
+             * 发送消息前的第一次超时时间检查点
+             */
+            if (timeout > costTime) {
+                try {
+                    // 未超时，直接调用请求
+                    sendDefaultImpl(msg, CommunicationMode.ASYNC, newCallBack, timeout - costTime);
+                } catch (Exception e) {
+                    newCallBack.onException(e);
                 }
+            } else {
+                /**
+                 * 发生超时，返回请求太多的异常
+                 */
+                newCallBack.onException(new RemotingTooMuchRequestException("DEFAULT ASYNC send call timeout"));
             }
         };
+        /**
+         * 执行异步发布
+         */
         executeAsyncMessageSend(runnable, msg, newCallBack, timeout, beginStartTime);
     }
 
@@ -710,46 +726,97 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
     }
 
-    public void executeAsyncMessageSend(Runnable runnable, final Message msg, final BackpressureSendCallBack sendCallback,
-        final long timeout, final long beginStartTime)
-        throws MQClientException, InterruptedException {
+    public void executeAsyncMessageSend(Runnable runnable, final Message msg, final BackpressureSendCallBack sendCallback, final long timeout, final long beginStartTime) throws MQClientException, InterruptedException {
+        /**
+         * 获取发送的执行器
+         */
         ExecutorService executor = this.getAsyncSenderExecutor();
+        /**
+         * 是否开启异步发送背压
+         */
         boolean isEnableBackpressureForAsyncMode = this.getDefaultMQProducer().isEnableBackpressureForAsyncMode();
         boolean isSemaphoreAsyncNumAcquired = false;
         boolean isSemaphoreAsyncSizeAcquired = false;
+        /**
+         * 消息体大小
+         */
         int msgLen = msg.getBody() == null ? 1 : msg.getBody().length;
         sendCallback.msgLen = msgLen;
 
         try {
+            /**
+             * 开启背压
+             */
             if (isEnableBackpressureForAsyncMode) {
-                defaultMQProducer.acquireBackPressureForAsyncSendNumLock();
-                long costTime = System.currentTimeMillis() - beginStartTime;
+                long costTime = 0L;
 
-                isSemaphoreAsyncNumAcquired = timeout - costTime > 0 && semaphoreAsyncSendNum.tryAcquire(timeout - costTime, TimeUnit.MILLISECONDS);
-                sendCallback.isSemaphoreAsyncNumAcquired = isSemaphoreAsyncNumAcquired;
-                defaultMQProducer.releaseBackPressureForAsyncSendNumLock();
-                if (!isSemaphoreAsyncNumAcquired) {
-                    sendCallback.onException(
-                        new RemotingTooMuchRequestException("send message tryAcquire semaphoreAsyncNum timeout"));
-                    return;
+                /**
+                 * 获取发布消息数量的信号量
+                 */
+                {
+                    /**
+                     * 获取异步发送消息数量的读锁
+                     */
+                    defaultMQProducer.acquireBackPressureForAsyncSendNumLock();
+                    costTime = System.currentTimeMillis() - beginStartTime;
+                    /**
+                     * 在指定超时时间内获取异步发送消息数量的信号量
+                     */
+                    isSemaphoreAsyncNumAcquired = timeout - costTime > 0 && semaphoreAsyncSendNum.tryAcquire(timeout - costTime, TimeUnit.MILLISECONDS);
+                    /**
+                     * 写入回调
+                     */
+                    sendCallback.isSemaphoreAsyncNumAcquired = isSemaphoreAsyncNumAcquired;
+                    /**
+                     * 释放获取异步发送消息数量的读锁
+                     */
+                    defaultMQProducer.releaseBackPressureForAsyncSendNumLock();
+
+                    if (!isSemaphoreAsyncNumAcquired) {
+                        /**
+                         * 锁申请失败，触发异常回调并释放锁资源
+                         */
+                        sendCallback.onException(new RemotingTooMuchRequestException("send message tryAcquire semaphoreAsyncNum timeout"));
+                        return;
+                    }
                 }
 
-                defaultMQProducer.acquireBackPressureForAsyncSendSizeLock();
-                costTime = System.currentTimeMillis() - beginStartTime;
-
-                isSemaphoreAsyncSizeAcquired = timeout - costTime > 0
-                    && semaphoreAsyncSendSize.tryAcquire(msgLen, timeout - costTime, TimeUnit.MILLISECONDS);
-                sendCallback.isSemaphoreAsyncSizeAcquired = isSemaphoreAsyncSizeAcquired;
-                defaultMQProducer.releaseBackPressureForAsyncSendSizeLock();
-                if (!isSemaphoreAsyncSizeAcquired) {
-                    sendCallback.onException(
-                        new RemotingTooMuchRequestException("send message tryAcquire semaphoreAsyncSize timeout"));
-                    return;
+                /**
+                 * 获取异步发送消息大小的信号量
+                 */
+                {
+                    /**
+                     * 获取异步发送消息大小的读锁
+                     */
+                    defaultMQProducer.acquireBackPressureForAsyncSendSizeLock();
+                    costTime = System.currentTimeMillis() - beginStartTime;
+                    /**
+                     * 在指定超时时间内获取异步发送消息大小的信号量
+                     */
+                    isSemaphoreAsyncSizeAcquired = timeout - costTime > 0 && semaphoreAsyncSendSize.tryAcquire(msgLen, timeout - costTime, TimeUnit.MILLISECONDS);
+                    sendCallback.isSemaphoreAsyncSizeAcquired = isSemaphoreAsyncSizeAcquired;
+                    /**
+                     * 释放获取异步发送消息大小的读锁
+                     */
+                    defaultMQProducer.releaseBackPressureForAsyncSendSizeLock();
+                    if (!isSemaphoreAsyncSizeAcquired) {
+                        /**
+                         * 锁申请失败，触发异常回调并释放锁资源
+                         */
+                        sendCallback.onException(new RemotingTooMuchRequestException("send message tryAcquire semaphoreAsyncSize timeout"));
+                        return;
+                    }
                 }
             }
 
+            /**
+             * 提交任务到线程池，异步执行
+             */
             executor.submit(runnable);
         } catch (RejectedExecutionException e) {
+            /**
+             * 拒绝执行时
+             */
             if (isEnableBackpressureForAsyncMode) {
                 runnable.run();
             } else {
@@ -758,19 +825,33 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
     }
 
-    public MessageQueue invokeMessageQueueSelector(Message msg, MessageQueueSelector selector, Object arg,
-                                                   final long timeout) throws MQClientException, RemotingTooMuchRequestException {
+    public MessageQueue invokeMessageQueueSelector(Message msg, MessageQueueSelector selector, Object arg, final long timeout) throws MQClientException, RemotingTooMuchRequestException {
         long beginStartTime = System.currentTimeMillis();
+        /**
+         * 检查后生产者状态为RUNNING
+         */
         this.makeSureStateOK();
+        /**
+         * 检查消息的主题、消息体、属性
+         */
         Validators.checkMessage(msg, this.defaultMQProducer);
 
+        /**
+         * 获取主题对应的发布信息，其中包含消息队列的信息
+         */
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
+
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             MessageQueue mq = null;
             try {
-                List<MessageQueue> messageQueueList =
-                        mQClientFactory.getMQAdminImpl().parsePublishMessageQueues(topicPublishInfo.getMessageQueueList());
+                /**
+                 * 获取消息队列列表
+                 */
+                List<MessageQueue> messageQueueList = mQClientFactory.getMQAdminImpl().parsePublishMessageQueues(topicPublishInfo.getMessageQueueList());
                 Message userMessage = MessageAccessor.cloneMessage(msg);
+                /**
+                 * 获取原始的主题
+                 */
                 String userTopic = NamespaceUtil.withoutNamespace(userMessage.getTopic(), mQClientFactory.getClientConfig().getNamespace());
                 userMessage.setTopic(userTopic);
 

@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.rocketmq.common.MixAll;
+import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.utils.ConcurrentHashMapUtils;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
@@ -30,20 +31,31 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.store.exception.ConsumeQueueException;
 
 /**
- * QueueOffsetOperator is a component for operating offsets for queues.
+ * 用于操作队列中偏移量的组件
  */
+@ImportantPoint("队列的偏移量，就是队列中消息数量")
 public class QueueOffsetOperator {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * Map<topic-queueId, 队列中消息总数，即队列偏移量>
+     */
     private ConcurrentMap<String, Long> topicQueueTable = new ConcurrentHashMap<>(1024);
+
+    /**
+     * Map<topic-queueId, 队列中消息总数，即队列偏移量>
+     */
     private ConcurrentMap<String, Long> batchTopicQueueTable = new ConcurrentHashMap<>(1024);
 
     /**
-     * {TOPIC}-{QUEUE_ID} --> NEXT Consume Queue Offset
+     * Map<topic-queueId, 队列中消息总数，即队列偏移量>
      */
-    private ConcurrentMap<String/* topic-queue-id */, Long/* offset */> lmqTopicQueueTable = new ConcurrentHashMap<>(1024);
+    private ConcurrentMap<String, Long> lmqTopicQueueTable = new ConcurrentHashMap<>(1024);
 
     public long getQueueOffset(String topicQueueKey) {
+        /**
+         * 获取指定主题队列的消息总数，即队列偏移量
+         */
         return ConcurrentHashMapUtils.computeIfAbsent(this.topicQueueTable, topicQueueKey, k -> 0L);
     }
 
@@ -52,7 +64,13 @@ public class QueueOffsetOperator {
     }
 
     public void increaseQueueOffset(String topicQueueKey, short messageNum) {
+        /**
+         * 获取当前topic-queueId对应的消息总数，即队列偏移量
+         */
         Long queueOffset = ConcurrentHashMapUtils.computeIfAbsent(this.topicQueueTable, topicQueueKey, k -> 0L);
+        /**
+         * 增加队列中消息总数，即队列偏移量
+         */
         topicQueueTable.put(topicQueueKey, queueOffset + messageNum);
     }
 

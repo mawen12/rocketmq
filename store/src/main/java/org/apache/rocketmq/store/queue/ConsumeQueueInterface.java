@@ -174,7 +174,8 @@ public interface ConsumeQueueInterface extends FileQueueLifeCycle {
     void putMessagePositionInfoWrapper(DispatchRequest request);
 
     /**
-     * Assign queue offset.
+     * 为指定消息分配队列偏移量
+     *
      * @param queueOffsetAssigner the delegated queue offset assigner
      * @param msg message itself
      * @throws RocksDBException only in rocksdb mode

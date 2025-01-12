@@ -25,7 +25,13 @@ import org.apache.rocketmq.common.attribute.TopicMessageType;
 
 import static com.google.common.collect.Sets.newHashSet;
 
+/**
+ * 主题属性
+ */
 public class TopicAttributes {
+    /**
+     * 队列类型配置，默认为SimpleCQ
+     */
     public static final EnumAttribute QUEUE_TYPE_ATTRIBUTE = new EnumAttribute(
         "queue.type",
         false,

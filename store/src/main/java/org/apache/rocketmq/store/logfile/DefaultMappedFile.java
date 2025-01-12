@@ -74,21 +74,48 @@ public class DefaultMappedFile extends AbstractMappedFile {
     protected static final AtomicIntegerFieldUpdater<DefaultMappedFile> COMMITTED_POSITION_UPDATER;
     protected static final AtomicIntegerFieldUpdater<DefaultMappedFile> FLUSHED_POSITION_UPDATER;
 
+    /**
+     * 文件写入位置，当该值与{@link #fileSize}相等时，代表文件已经满了
+     */
     protected volatile int wrotePosition;
+    /**
+     * 文件提交位置
+     */
     protected volatile int committedPosition;
+    /**
+     * 文件刷新位置
+     */
     protected volatile int flushedPosition;
+    /**
+     * 文件大小
+     */
     protected int fileSize;
+    /**
+     * 基于{@link #file}的文件通道
+     */
     protected FileChannel fileChannel;
     /**
      * Message will put to here first, and then reput to FileChannel if writeBuffer is not null.
      */
     protected ByteBuffer writeBuffer = null;
     protected TransientStorePool transientStorePool = null;
+    /**
+     * 文件名称
+     */
     protected String fileName;
+    /**
+     * 文件起始偏移量
+     */
     protected long fileFromOffset;
+    /**
+     * 底层的文件
+     */
     protected File file;
     protected MappedByteBuffer mappedByteBuffer;
     protected volatile long storeTimestamp = 0;
+    /**
+     * 是否为队列中的第一个文件的标识
+     */
     protected boolean firstCreateInQueue = false;
     private long lastFlushTime = -1L;
 
@@ -255,9 +282,16 @@ public class DefaultMappedFile extends AbstractMappedFile {
         return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
     }
 
+    /**
+     * 将消息写入到物理文件上
+     *
+     * @param msg a message to append
+     * @param cb the specific call back to execute the real append action
+     * @param putMessageContext
+     * @return
+     */
     @Override
-    public AppendMessageResult appendMessage(final MessageExtBrokerInner msg, final AppendMessageCallback cb,
-        PutMessageContext putMessageContext) {
+    public AppendMessageResult appendMessage(final MessageExtBrokerInner msg, final AppendMessageCallback cb, PutMessageContext putMessageContext) {
         return appendMessagesInner(msg, cb, putMessageContext);
     }
 
@@ -267,29 +301,48 @@ public class DefaultMappedFile extends AbstractMappedFile {
         return appendMessagesInner(messageExtBatch, cb, putMessageContext);
     }
 
-    public AppendMessageResult appendMessagesInner(final MessageExt messageExt, final AppendMessageCallback cb,
-        PutMessageContext putMessageContext) {
+    public AppendMessageResult appendMessagesInner(final MessageExt messageExt, final AppendMessageCallback cb, PutMessageContext putMessageContext) {
         assert messageExt != null;
         assert cb != null;
 
+        /**
+         * 获取当前文件写入位置
+         */
         int currentPos = WROTE_POSITION_UPDATER.get(this);
 
+        /**
+         * 检查文件位置是否小于文件大小，超过代表无法写入
+         */
         if (currentPos < this.fileSize) {
+            /**
+             * 获取保存消息的字节缓冲区
+             */
             ByteBuffer byteBuffer = appendMessageBuffer().slice();
+            /**
+             * 定位到可写位置
+             */
             byteBuffer.position(currentPos);
             AppendMessageResult result;
             if (messageExt instanceof MessageExtBatch && !((MessageExtBatch) messageExt).isInnerBatch()) {
-                // traditional batch message
-                result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos,
-                    (MessageExtBatch) messageExt, putMessageContext);
+                /**
+                 * 传统批次消息
+                 */
+                result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, (MessageExtBatch) messageExt, putMessageContext);
             } else if (messageExt instanceof MessageExtBrokerInner) {
-                // traditional single message or newly introduced inner-batch message
-                result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos,
-                    (MessageExtBrokerInner) messageExt, putMessageContext);
+                /**
+                 * 支持传统的单个消息或新引入到的内部批次消息
+                 */
+                result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, (MessageExtBrokerInner) messageExt, putMessageContext);
             } else {
                 return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
             }
+            /**
+             * 更新写入位置
+             */
             WROTE_POSITION_UPDATER.addAndGet(this, result.getWroteBytes());
+            /**
+             * 更新最新的消息存储时间
+             */
             this.storeTimestamp = result.getStoreTimestamp();
             return result;
         }
@@ -494,6 +547,11 @@ public class DefaultMappedFile extends AbstractMappedFile {
         FLUSHED_POSITION_UPDATER.set(this, pos);
     }
 
+    /**
+     * 检查文件是否已经满了，当满了之后就不可写入了
+     *
+     * @return
+     */
     @Override
     public boolean isFull() {
         return this.fileSize == WROTE_POSITION_UPDATER.get(this);

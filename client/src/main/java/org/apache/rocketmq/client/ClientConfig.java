@@ -166,6 +166,12 @@ public class ClientConfig {
         }
     }
 
+    /**
+     * 对主题进行格式调整，新的主题格式为[%RETRY%|%DLQ%]namespace%resource
+     *
+     * @param resource
+     * @return
+     */
     @Deprecated
     public String withNamespace(String resource) {
         return NamespaceUtil.wrapNamespace(this.getNamespace(), resource);

@@ -19,12 +19,22 @@ package org.apache.rocketmq.client.lock;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * 基于CAS的读写锁
+ */
 public class ReadWriteCASLock {
     //true : can lock ; false : not lock
     private final AtomicBoolean writeLock = new AtomicBoolean(true);
 
     private final AtomicInteger readLock = new AtomicInteger(0);
 
+    /**
+     * 申请写锁，申请成功必须满足以下两个：
+     * <ul>
+     *     <li>1.writeLock(true -> false)</li>
+     *     <li>2.readLock == 0</li>
+     * </ul>
+     */
     public void acquireWriteLock() {
         boolean isLock = false;
         do {
@@ -36,10 +46,20 @@ public class ReadWriteCASLock {
         } while (!isLock);
     }
 
+    /**
+     * 释放写锁，writeLock(false -> true)
+     */
     public void releaseWriteLock() {
         this.writeLock.compareAndSet(false, true);
     }
 
+    /**
+     * 申请读锁，申请成功仅需满足一个：
+     * <ul>
+     *     <li>1.writeLock == true</li>
+     * </ul>
+     * 申请成功之后，readLock+1
+     */
     public void acquireReadLock() {
         boolean isLock = false;
         do {
@@ -48,14 +68,27 @@ public class ReadWriteCASLock {
         readLock.getAndIncrement();
     }
 
+    /**
+     * 释放读锁，readLock-1
+     */
     public void releaseReadLock() {
         this.readLock.getAndDecrement();
     }
 
+    /**
+     * 是否支持写锁，必须同时满足以下条件，writeLock=true且readLock=0
+     *
+     * @return
+     */
     public boolean getWriteLock() {
         return this.writeLock.get() && this.readLock.get() == 0;
     }
 
+    /**
+     * 是否支持读锁，仅需满足writeLock=true
+     *
+     * @return
+     */
     public boolean getReadLock() {
         return this.writeLock.get();
     }

@@ -41,8 +41,16 @@ public class MappedFileQueue implements Swappable {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private static final Logger LOG_ERROR = LoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
+    /**
+     * 该文件的存储路径，默认为{@code ${user.home}/store/commitLog}
+     */
     protected final String storePath;
 
+    /**
+     * 物理存储消息的队列文件大小，默认为1G
+     *
+     * @see org.apache.rocketmq.store.config.MessageStoreConfig#mappedFileSizeCommitLog}
+     */
     protected final int mappedFileSize;
 
     protected final CopyOnWriteArrayList<MappedFile> mappedFiles = new CopyOnWriteArrayList<>();
@@ -54,8 +62,7 @@ public class MappedFileQueue implements Swappable {
 
     protected volatile long storeTimestamp = 0;
 
-    public MappedFileQueue(final String storePath, int mappedFileSize,
-        AllocateMappedFileService allocateMappedFileService) {
+    public MappedFileQueue(final String storePath, int mappedFileSize, AllocateMappedFileService allocateMappedFileService) {
         this.storePath = storePath;
         this.mappedFileSize = mappedFileSize;
         this.allocateMappedFileService = allocateMappedFileService;
@@ -298,17 +305,35 @@ public class MappedFileQueue implements Swappable {
 
     public MappedFile getLastMappedFile(final long startOffset, boolean needCreate) {
         long createOffset = -1;
+        /**
+         * 获取映射文件列表最后一个文件
+         */
         MappedFile mappedFileLast = getLastMappedFile();
 
+        /**
+         * 如果最后的文件为空，则代表该队列的物理文件还未被创建
+         */
         if (mappedFileLast == null) {
+            /**
+             * 重新计算开始偏移量，即开始位置-(开始位置%整个文件大小)，如果开始偏移量小于文件整体大小，则重置为0；如果大于文件整体大小，则就是新文件的初始大小
+             */
             createOffset = startOffset - (startOffset % this.mappedFileSize);
         }
 
+        /**
+         * 如果文件存在，或者文件已经满了
+         */
         if (mappedFileLast != null && mappedFileLast.isFull()) {
+            /**
+             * 计算下一个文件的初始偏移量
+             */
             createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
         }
 
         if (createOffset != -1 && needCreate) {
+            /**
+             * 使用createOffset作为文件名创建一个新的映射文件
+             */
             return tryCreateMappedFile(createOffset);
         }
 
@@ -342,30 +367,55 @@ public class MappedFileQueue implements Swappable {
     }
 
     public MappedFile tryCreateMappedFile(long createOffset) {
+        /**
+         * 计算下一个待创建的文件路径：{@code ${user.home}/store/<20位的offset>}
+         */
         String nextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset);
-        String nextNextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset
-                + this.mappedFileSize);
+        /**
+         * 计算下下一个待创建的文件路径：{@code ${user.home}/store/<20位的offset+1G>}
+         */
+        String nextNextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
+        /**
+         * 同时创建下一个和下下一个文件，在创建好下一个文件时，立即返回，无需等待下下一个文件的创建结果
+         */
         return doCreateMappedFile(nextFilePath, nextNextFilePath);
     }
 
     protected MappedFile doCreateMappedFile(String nextFilePath, String nextNextFilePath) {
         MappedFile mappedFile = null;
 
+        /**
+         * 检查分配映射文件服务是否为空
+         */
         if (this.allocateMappedFileService != null) {
-            mappedFile = this.allocateMappedFileService.putRequestAndReturnMappedFile(nextFilePath,
-                    nextNextFilePath, this.mappedFileSize);
+            /**
+             * 使用分配映射文件服务创建指定大小的文件，同时创建下一个和下下一个，在创建好下一个时，直接返回，无序等待下下一个文件创建结果
+             */
+            mappedFile = this.allocateMappedFileService.putRequestAndReturnMappedFile(nextFilePath, nextNextFilePath, this.mappedFileSize);
         } else {
             try {
+                /**
+                 * 使用默认的方式创建指定大小的文件
+                 */
                 mappedFile = new DefaultMappedFile(nextFilePath, this.mappedFileSize);
             } catch (IOException e) {
                 log.error("create mappedFile exception", e);
             }
         }
 
+        /**
+         * 检查文件是否创建成功
+         */
         if (mappedFile != null) {
+            /**
+             * 如果当前文件列表为空，代表该文件就是第一个
+             */
             if (this.mappedFiles.isEmpty()) {
                 mappedFile.setFirstCreateInQueue(true);
             }
+            /**
+             * 追加到文件列表末尾
+             */
             this.mappedFiles.add(mappedFile);
         }
 
@@ -378,6 +428,11 @@ public class MappedFileQueue implements Swappable {
 
     public MappedFile getLastMappedFile() {
         MappedFile mappedFileLast = null;
+        /**
+         * 如果该队列的映射文件不能为空，则获取最后一个
+         *
+         * TODO by mawen 为什么使用while?
+         */
         while (!this.mappedFiles.isEmpty()) {
             try {
                 mappedFileLast = this.mappedFiles.get(this.mappedFiles.size() - 1);

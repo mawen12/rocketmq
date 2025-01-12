@@ -41,6 +41,9 @@ import org.apache.rocketmq.store.queue.MultiDispatchUtils;
 import org.apache.rocketmq.store.queue.QueueOffsetOperator;
 import org.apache.rocketmq.store.queue.ReferredIterator;
 
+/**
+ * 默认的消费队列实现，其支持{@link CQType#SimpleCQ}
+ */
 public class ConsumeQueue implements ConsumeQueueInterface, FileQueueLifeCycle {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
@@ -63,10 +66,19 @@ public class ConsumeQueue implements ConsumeQueueInterface, FileQueueLifeCycle {
     private final MessageStore messageStore;
 
     private final MappedFileQueue mappedFileQueue;
+    /**
+     * 主题
+     */
     private final String topic;
+    /**
+     * 消息队列ID
+     */
     private final int queueId;
     private final ByteBuffer byteBufferIndex;
 
+    /**
+     * 文件的存储路径，默认为{@code ${user.home}/store/consumequeue}
+     */
     private final String storePath;
     private final int mappedFileSize;
     private long maxPhysicOffset = -1;
@@ -772,15 +784,29 @@ public class ConsumeQueue implements ConsumeQueueInterface, FileQueueLifeCycle {
 
     @Override
     public void assignQueueOffset(QueueOffsetOperator queueOffsetOperator, MessageExtBrokerInner msg) {
+        /**
+         * 获取topic-queueId
+         */
         String topicQueueKey = getTopic() + "-" + getQueueId();
+        /**
+         * 获取该key的队列偏移量
+         */
         long queueOffset = queueOffsetOperator.getQueueOffset(topicQueueKey);
+        /**
+         * 回写队列偏移量
+         */
         msg.setQueueOffset(queueOffset);
     }
 
     @Override
-    public void increaseQueueOffset(QueueOffsetOperator queueOffsetOperator, MessageExtBrokerInner msg,
-        short messageNum) {
+    public void increaseQueueOffset(QueueOffsetOperator queueOffsetOperator, MessageExtBrokerInner msg, short messageNum) {
+        /**
+         * 获取topic-queueId
+         */
         String topicQueueKey = getTopic() + "-" + getQueueId();
+        /**
+         * 增加该队列中消息总数，即队列偏移量
+         */
         queueOffsetOperator.increaseQueueOffset(topicQueueKey, messageNum);
     }
 

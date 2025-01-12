@@ -22,6 +22,8 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Iterator;
+
+import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.message.MessageExtBatch;
 import org.apache.rocketmq.common.message.MessageExtBrokerInner;
 import org.apache.rocketmq.store.AppendMessageCallback;
@@ -32,63 +34,55 @@ import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.apache.rocketmq.store.TransientStorePool;
 import org.apache.rocketmq.store.config.FlushDiskType;
 
+/**
+ * 映射文件，用于存储消息的物理文件
+ */
 public interface MappedFile {
     /**
-     * Returns the file name of the {@code MappedFile}.
-     *
-     * @return the file name
+     * @return 返回文件名称，其同时作为全局的偏移量
      */
     String getFileName();
 
     /**
-     * Change the file name of the {@code MappedFile}.
+     * 重命名文件名称
      *
      * @param fileName the new file name
      */
     boolean renameTo(String fileName);
 
     /**
-     * Returns the file size of the {@code MappedFile}.
-     *
-     * @return the file size
+     * @return 返回文件大小
      */
     int getFileSize();
 
     /**
-     * Returns the {@code FileChannel} behind the {@code MappedFile}.
-     *
-     * @return the file channel
+     * @return 返回基于文件的{@link FileChannel}
      */
     FileChannel getFileChannel();
 
     /**
-     * Returns true if this {@code MappedFile} is full and no new messages can be added.
-     *
-     * @return true if the file is full
+     * @return 返回文件是否已经满了，满了就无法再写入消息
      */
     boolean isFull();
 
     /**
-     * Returns true if this {@code MappedFile} is available.
-     * <p>
-     * The mapped file will be not available if it's shutdown or destroyed.
-     *
-     * @return true if the file is available
+     * @return 返回文件是否可用，如果该文件被停止或者摧毁，代表不可用
      */
     boolean isAvailable();
 
     /**
-     * Appends a message object to the current {@code MappedFile} with a specific call back.
+     * 向文件末尾追加消息，执行完成后触发回调
      *
      * @param message a message to append
      * @param messageCallback the specific call back to execute the real append action
      * @param putMessageContext
      * @return the append result
      */
+    @ImportantPoint("将消息写入到物理文件")
     AppendMessageResult appendMessage(MessageExtBrokerInner message, AppendMessageCallback messageCallback, PutMessageContext putMessageContext);
 
     /**
-     * Appends a batch message object to the current {@code MappedFile} with a specific call back.
+     * 向文件末尾追加一批消息，执行完成后触发回调
      *
      * @param message a message to append
      * @param messageCallback the specific call back to execute the real append action
@@ -97,11 +91,17 @@ public interface MappedFile {
      */
     AppendMessageResult appendMessages(MessageExtBatch message, AppendMessageCallback messageCallback, PutMessageContext putMessageContext);
 
+    /**
+     * 向文件末尾追加代表消息的字节缓冲，执行完成后触发回调
+     *
+     * @param byteBufferMsg
+     * @param cb
+     * @return
+     */
     AppendMessageResult appendMessage(final ByteBuffer byteBufferMsg, final CompactionAppendMsgCallback cb);
 
     /**
-     * Appends a raw message data represents by a byte array to the current {@code MappedFile}.
-     * Using mappedByteBuffer
+     * 向文件末尾追加代表消息的字节数组，
      *
      * @param data the byte array to append
      * @return true if success; false otherwise.
@@ -110,8 +110,7 @@ public interface MappedFile {
 
 
     /**
-     * Appends a raw message data represents by a byte array to the current {@code MappedFile}.
-     * Using fileChannel
+     * 向文件末尾使用{@link FileChannel}追加代表消息的字节数组，
      *
      * @param data the byte array to append
      * @return true if success; false otherwise.
@@ -119,7 +118,7 @@ public interface MappedFile {
     boolean appendMessageUsingFileChannel(byte[] data);
 
     /**
-     * Appends a raw message data represents by a byte array to the current {@code MappedFile}.
+     * 向文件末尾追加代表消息的字节缓冲区
      *
      * @param data the byte buffer to append
      * @return true if success; false otherwise.
@@ -127,8 +126,7 @@ public interface MappedFile {
     boolean appendMessage(ByteBuffer data);
 
     /**
-     * Appends a raw message data represents by a byte array to the current {@code MappedFile},
-     * starting at the given offset in the array.
+     * 向文件末尾追加代表消息的指定区域的字节数组
      *
      * @param data the byte array to append
      * @param offset the offset within the array of the first byte to be read
@@ -138,14 +136,14 @@ public interface MappedFile {
     boolean appendMessage(byte[] data, int offset, int length);
 
     /**
-     * Returns the global offset of the current {code MappedFile}, it's a long value of the file name.
+     * 返回当前文件全局偏移量，即获取其文件名称
      *
      * @return the offset of this file
      */
     long getFileFromOffset();
 
     /**
-     * Flushes the data in cache to disk immediately.
+     * 立刻将缓存中的数据刷新到磁盘
      *
      * @param flushLeastPages the least pages to flush
      * @return the flushed position after the method call
@@ -153,7 +151,7 @@ public interface MappedFile {
     int flush(int flushLeastPages);
 
     /**
-     * Flushes the data in the secondary cache to page cache or disk immediately.
+     * 立刻将二级缓存中的数据刷新到页缓存或磁盘
      *
      * @param commitLeastPages the least pages to commit
      * @return the committed position after the method call
@@ -161,12 +159,9 @@ public interface MappedFile {
     int commit(int commitLeastPages);
 
     /**
-     * Selects a slice of the mapped byte buffer's sub-region behind the mapped file,
-     * starting at the given position.
-     *
      * @param pos the given position
      * @param size the size of the returned sub-region
-     * @return a {@code SelectMappedBufferResult} instance contains the selected slice
+     * @return 返回当前文件中指定区域的MappedBuffer
      */
     SelectMappedBufferResult selectMappedBuffer(int pos, int size);
 
@@ -175,7 +170,7 @@ public interface MappedFile {
      * starting at the given position.
      *
      * @param pos the given position
-     * @return a {@code SelectMappedBufferResult} instance contains the selected slice
+     * @return
      */
     SelectMappedBufferResult selectMappedBuffer(int pos);
 

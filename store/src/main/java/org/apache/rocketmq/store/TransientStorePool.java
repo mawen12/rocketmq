@@ -27,12 +27,27 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
+/**
+ * 临时存储池
+ */
 public class TransientStorePool {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * 缓存池大小
+     */
     private final int poolSize;
+    /**
+     * 文件大小
+     */
     private final int fileSize;
+    /**
+     * 可用字节缓存的队列
+     */
     private final Deque<ByteBuffer> availableBuffers;
+    /**
+     * 是否实时提交，默认为实时提交
+     */
     private volatile boolean isRealCommit = true;
 
     public TransientStorePool(final int poolSize, final int fileSize) {
