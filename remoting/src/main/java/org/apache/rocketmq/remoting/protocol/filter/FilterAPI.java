@@ -24,22 +24,36 @@ import java.util.Arrays;
 
 public class FilterAPI {
 
+    /**
+     * @param topic 主题
+     * @param subString 消息过滤表达式
+     * @return 订阅数据
+     * @throws Exception
+     */
     public static SubscriptionData buildSubscriptionData(String topic, String subString) throws Exception {
         final SubscriptionData subscriptionData = new SubscriptionData();
         subscriptionData.setTopic(topic);
         subscriptionData.setSubString(subString);
 
+        // 如果未指定表达式，或者表达式为*，代表订阅主题内全部信息
         if (StringUtils.isEmpty(subString) || subString.equals(SubscriptionData.SUB_ALL)) {
             subscriptionData.setSubString(SubscriptionData.SUB_ALL);
             return subscriptionData;
         }
+
+        // 对表达式进行||拆分
         String[] tags = subString.split("\\|\\|");
         if (tags.length > 0) {
-            Arrays.stream(tags).map(String::trim).filter(tag -> !tag.isEmpty()).forEach(tag -> {
-                subscriptionData.getTagsSet().add(tag);
-                subscriptionData.getCodeSet().add(tag.hashCode());
-            });
+            Arrays.stream(tags).map(String::trim)
+                    // 过滤掉空标签
+                    .filter(tag -> !tag.isEmpty())
+                    // 写入标签和标签哈希值
+                    .forEach(tag -> {
+                        subscriptionData.getTagsSet().add(tag);
+                        subscriptionData.getCodeSet().add(tag.hashCode());
+                    });
         } else {
+            // 提供了非法的表达式，例如|
             throw new Exception("subString split error");
         }
 
@@ -55,7 +69,7 @@ public class FilterAPI {
     }
 
     public static SubscriptionData build(final String topic, final String subString,
-        final String type) throws Exception {
+                                         final String type) throws Exception {
         if (ExpressionType.TAG.equals(type) || type == null) {
             return buildSubscriptionData(topic, subString);
         }

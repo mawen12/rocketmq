@@ -40,16 +40,21 @@ import org.apache.rocketmq.remoting.protocol.DataVersion;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import org.apache.rocketmq.remoting.protocol.subscription.SubscriptionGroupConfig;
 
+/**
+ * 负责订阅分组的管理器，订阅分组的本地文件路径为ENV(user.home)/store/config/subscriptionGroup.json.
+ */
 public class SubscriptionGroupManager extends ConfigManager {
     protected static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
-    protected ConcurrentMap<String, SubscriptionGroupConfig> subscriptionGroupTable =
-        new ConcurrentHashMap<>(1024);
+    /**
+     * Map<消费者分组, 订阅分组配置>
+     */
+    protected ConcurrentMap<String, SubscriptionGroupConfig> subscriptionGroupTable = new ConcurrentHashMap<>(1024);
 
-    private ConcurrentMap<String, ConcurrentMap<String, Integer>> forbiddenTable =
-        new ConcurrentHashMap<>(4);
+    private ConcurrentMap<String, ConcurrentMap<String, Integer>> forbiddenTable = new ConcurrentHashMap<>(4);
 
     protected final DataVersion dataVersion = new DataVersion();
+
     protected transient BrokerController brokerController;
 
     public SubscriptionGroupManager() {
@@ -257,20 +262,35 @@ public class SubscriptionGroupManager extends ConfigManager {
         }
     }
 
+    /**
+     * 查找指定分组的订阅分组配置
+     *
+     * @param group
+     * @return
+     */
     public SubscriptionGroupConfig findSubscriptionGroupConfig(final String group) {
+        /**
+         * 获取指定分组的订阅分组配置
+         */
         SubscriptionGroupConfig subscriptionGroupConfig = getSubscriptionGroupConfig(group);
         if (null == subscriptionGroupConfig) {
+            // 该分组的配置上不存在，检查是否自动创建或者是否为系统消费者分组
             if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || MixAll.isSysConsumerGroup(group)) {
+                // 允许自动创建，但是分组的长度必须<=255，且不能包含非法字符
                 if (group.length() > Validators.CHARACTER_MAX_LENGTH || TopicValidator.isTopicOrGroupIllegal(group)) {
                     return null;
                 }
+                // 自动创建性的配置
                 subscriptionGroupConfig = new SubscriptionGroupConfig();
                 subscriptionGroupConfig.setGroupName(group);
+                // 写入到 {@link #subscriptionGroupTable}
                 SubscriptionGroupConfig preConfig = putSubscriptionGroupConfigIfAbsent(subscriptionGroupConfig);
                 if (null == preConfig) {
                     log.info("auto create a subscription group, {}", subscriptionGroupConfig.toString());
                 }
+                // 更新数据版本
                 updateDataVersion();
+                //
                 this.persist();
             }
         }
@@ -285,8 +305,8 @@ public class SubscriptionGroupManager extends ConfigManager {
 
     @Override
     public String configFilePath() {
-        return BrokerPathConfigHelper.getSubscriptionGroupPath(this.brokerController.getMessageStoreConfig()
-            .getStorePathRootDir());
+        //
+        return BrokerPathConfigHelper.getSubscriptionGroupPath(this.brokerController.getMessageStoreConfig().getStorePathRootDir());
     }
 
     @Override

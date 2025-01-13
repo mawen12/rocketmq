@@ -61,6 +61,9 @@ public class BrokerConfig extends BrokerIdentity {
     private boolean clusterTopicEnable = true;
 
     private boolean brokerTopicEnable = true;
+    /**
+     * 是否自动创建订阅分组，默认为true，代表会自动创建订阅分组
+     */
     @ImportantField
     private boolean autoCreateSubscriptionGroup = true;
     private String messageStorePlugIn = "";

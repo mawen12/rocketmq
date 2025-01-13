@@ -25,6 +25,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.HashMap;
 import org.apache.rocketmq.common.action.Action;
 import org.apache.rocketmq.common.action.RocketMQAction;
+import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.resource.ResourceType;
 import org.apache.rocketmq.common.resource.RocketMQResource;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
@@ -34,43 +35,83 @@ import org.apache.rocketmq.remoting.protocol.FastCodesHeader;
 import org.apache.rocketmq.remoting.protocol.RequestCode;
 import org.apache.rocketmq.remoting.rpc.TopicQueueRequestHeader;
 
+/**
+ * 拉消息请求头，从Client发送到Broker(MASTER|SLAVE)
+ *
+ * @see org.apache.rocketmq.client.impl.consumer.PullAPIWrapper#pullKernelImpl(MessageQueue, String, String, long, long, int, int, int, long, long, long, org.apache.rocketmq.client.impl.CommunicationMode, org.apache.rocketmq.client.consumer.PullCallback)
+ * @see org.apache.rocketmq.broker.processor.PullMessageProcessor
+ */
 @RocketMQAction(value = RequestCode.PULL_MESSAGE, action = Action.SUB)
 public class PullMessageRequestHeader extends TopicQueueRequestHeader implements FastCodesHeader {
-
+    /**
+     * 消费者分组
+     */
     @CFNotNull
     @RocketMQResource(ResourceType.GROUP)
     private String consumerGroup;
+    /**
+     * 主题
+     */
     @CFNotNull
     @RocketMQResource(ResourceType.TOPIC)
     private String topic;
+    /**
+     * 队列ID
+     */
     @CFNotNull
     private Integer queueId;
+    /**
+     * 队列偏移量
+     */
     @CFNotNull
     private Long queueOffset;
+    /**
+     * 最大消息数量
+     */
     @CFNotNull
     private Integer maxMsgNums;
+    /**
+     * 系统标识
+     */
     @CFNotNull
     private Integer sysFlag;
+    /**
+     * commitLog偏移量
+     */
     @CFNotNull
     private Long commitOffset;
+    /**
+     * 暂停超时时间，单位是毫秒
+     */
     @CFNotNull
     private Long suspendTimeoutMillis;
+    /**
+     * 订阅信息，即订阅表达式
+     */
     @CFNullable
     private String subscription;
+    /**
+     * 子版本
+     */
     @CFNotNull
     private Long subVersion;
+    /**
+     * 表达式类型
+     */
     private String expressionType;
-
+    /**
+     * 最大消息大小，单位是字节
+     */
     @CFNullable
     private Integer maxMsgBytes;
 
     /**
-     * mark the source of this pull request
+     * 标记该拉请求的来源
      */
     private Integer requestSource;
 
     /**
-     * the real clientId when request from proxy
+     * 来自代理请求时的真实客户端ID
      */
     private String proxyFrowardClientId;
 

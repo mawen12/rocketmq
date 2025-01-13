@@ -33,6 +33,7 @@ public class MessageExtBrokerInner extends MessageExt {
      * 消息属性字符串
      */
     private String propertiesString;
+
     private long tagsCode;
 
     /**

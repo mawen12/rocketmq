@@ -19,11 +19,23 @@ package org.apache.rocketmq.remoting.protocol.statictopic;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 
+/**
+ * 主题队列映射上下文
+ */
 public class TopicQueueMappingContext  {
+    /**
+     * 主题名称
+     */
     private String topic;
+    /**
+     * 消息队列Id
+     */
     private Integer globalId;
+
     private TopicQueueMappingDetail mappingDetail;
+
     private List<LogicQueueMappingItem> mappingItemList;
+
     private LogicQueueMappingItem leaderItem;
 
     private LogicQueueMappingItem currentItem;

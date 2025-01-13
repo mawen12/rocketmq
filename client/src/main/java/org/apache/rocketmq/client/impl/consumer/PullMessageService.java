@@ -28,13 +28,21 @@ import org.apache.rocketmq.common.utils.ThreadUtils;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * 从服务端拉取消息的服务，其作为{@link org.apache.rocketmq.client.consumer.DefaultMQPushConsumer}和{@link org.apache.rocketmq.client.consumer.DefaultLitePullConsumer}的底层实现。
+ */
 public class PullMessageService extends ServiceThread {
     private final Logger logger = LoggerFactory.getLogger(PullMessageService.class);
+    /**
+     * 保存请求消息的链表阻塞队列
+     */
     private final LinkedBlockingQueue<MessageRequest> messageRequestQueue = new LinkedBlockingQueue<>();
 
     private final MQClientInstance mQClientFactory;
-    private final ScheduledExecutorService scheduledExecutorService = Executors
-        .newSingleThreadScheduledExecutor(new ThreadFactoryImpl("PullMessageServiceScheduledThread"));
+    /**
+     * 单线程的调度服务，线程名称前缀为PullMessageServiceScheduledThread
+     */
+    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("PullMessageServiceScheduledThread"));
 
     public PullMessageService(MQClientInstance mQClientFactory) {
         this.mQClientFactory = mQClientFactory;
@@ -53,6 +61,11 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    /**
+     * 将任务保存到存储队列
+     *
+     * @param pullRequest
+     */
     public void executePullRequestImmediately(final PullRequest pullRequest) {
         try {
             this.messageRequestQueue.put(pullRequest);
@@ -128,7 +141,9 @@ public class PullMessageService extends ServiceThread {
 
         while (!this.isStopped()) {
             try {
+                // 从任务队列取出任务
                 MessageRequest messageRequest = this.messageRequestQueue.take();
+                // 根据消息请求模式，触发不同的方法
                 if (messageRequest.getMessageRequestMode() == MessageRequestMode.POP) {
                     this.popMessage((PopRequest) messageRequest);
                 } else {

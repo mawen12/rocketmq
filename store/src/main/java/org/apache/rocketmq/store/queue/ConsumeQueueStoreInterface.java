@@ -26,54 +26,63 @@ import org.apache.rocketmq.store.exception.ConsumeQueueException;
 import org.apache.rocketmq.store.exception.StoreException;
 import org.rocksdb.RocksDBException;
 
+/**
+ * 消费队列存储接口
+ */
 public interface ConsumeQueueStoreInterface {
 
     /**
-     * Start the consumeQueueStore
+     * 开启消费队列存储
      */
     void start();
 
     /**
-     * Load from file.
+     * 从本地文件加载消费队列内存，文件路径ENV(user.home)/store/consumerqueue
+     *
      * @return true if loaded successfully.
      */
     boolean load();
 
     /**
+     * 执行完{@link #load()}后销毁
      * load after destroy
      */
     boolean loadAfterDestroy();
 
     /**
-     * Recover from file.
+     * 从本地文件恢复消息队列存储
      */
     void recover();
 
     /**
-     * Recover concurrently from file.
+     * 从本地文件并发恢复
+     *
      * @return true if recovered successfully.
      */
     boolean recoverConcurrently();
 
     /**
-     * Shutdown the consumeQueueStore
+     * 停止消费存储队列
+     *
      * @return true if shutdown successfully.
      */
     boolean shutdown();
 
     /**
-     * destroy all consumeQueues
+     * 销毁所有的消费存储队列
      */
     void destroy();
 
     /**
-     * destroy the specific consumeQueue
+     * 销毁特定的消费存储队列
+     *
      * @throws RocksDBException only in rocksdb mode
      */
     void destroy(ConsumeQueueInterface consumeQueue) throws RocksDBException;
 
     /**
-     * Flush cache to file.
+     * 将内存中特定的消费队列刷入文件
+     *
      * @param consumeQueue the consumeQueue will be flushed
      * @param flushLeastPages  the minimum number of pages to be flushed
      * @return true if any data has been flushed.
@@ -81,25 +90,27 @@ public interface ConsumeQueueStoreInterface {
     boolean flush(ConsumeQueueInterface consumeQueue, int flushLeastPages);
 
     /**
-     * Flush all nested consume queues to disk
+     * 将所有内存中的消费队列刷入文件
      *
      * @throws StoreException if there is an error during flush
      */
     void flush() throws StoreException;
 
     /**
-     * clean expired data from minCommitLogOffset
+     * 清理以最小提交日志位置结束的过期文件
+     *
      * @param minCommitLogOffset Minimum commit log offset
      */
     void cleanExpired(long minCommitLogOffset);
 
     /**
-     * Check files.
+     * 检查本地文件
      */
     void checkSelf();
 
     /**
-     * Delete expired files ending at min commit log position.
+     * 删除以最小提交日志位置结束的过期文件
+     *
      * @param consumeQueue
      * @param minCommitLogOffset min commit log position
      * @return deleted file numbers.
@@ -107,21 +118,24 @@ public interface ConsumeQueueStoreInterface {
     int deleteExpiredFile(ConsumeQueueInterface consumeQueue, long minCommitLogOffset);
 
     /**
-     * Is the first file available?
+     * 指定消费队列的首个文件是否可用
+     *
      * @param consumeQueue
      * @return true if it's available
      */
     boolean isFirstFileAvailable(ConsumeQueueInterface consumeQueue);
 
     /**
-     * Does the first file exist?
+     * 指定消费队列的首个文件是否存在
+     *
      * @param consumeQueue
      * @return true if it exists
      */
     boolean isFirstFileExist(ConsumeQueueInterface consumeQueue);
 
     /**
-     * Roll to next file.
+     * 滚动到下一个文件
+     *
      * @param consumeQueue
      * @param offset next beginning offset
      * @return the beginning offset of the next file
@@ -129,7 +143,8 @@ public interface ConsumeQueueStoreInterface {
     long rollNextFile(ConsumeQueueInterface consumeQueue, final long offset);
 
     /**
-     * truncate dirty data
+     * 截断脏数据
+     *
      * @param offsetToTruncate
      * @throws RocksDBException only in rocksdb mode
      */
@@ -242,7 +257,7 @@ public interface ConsumeQueueStoreInterface {
     Long getMaxPhyOffsetInConsumeQueue(String topic, int queueId);
 
     /**
-     * get maxOffset of specific topic-queueId in topicQueue table
+     * 读取消费队列中指定topic-queueId的最大逻辑偏移量
      *
      * @param topic Topic name
      * @param queueId Queue identifier
@@ -252,14 +267,16 @@ public interface ConsumeQueueStoreInterface {
     Long getMaxOffset(String topic, int queueId) throws ConsumeQueueException;
 
     /**
-     * get max physic offset in consumeQueue
+     * 读取消费队列中最大逻辑偏移量
+     *
      * @return the max physic offset in consumeQueue
      * @throws RocksDBException only in rocksdb mode
      */
     long getMaxPhyOffsetInConsumeQueue() throws RocksDBException;
 
     /**
-     * get min logic offset of specific topic-queueId in consumeQueue
+     * 读取消费队列中指定topic-queueId的最小逻辑偏移量
+     *
      * @param topic
      * @param queueId
      * @return the min logic offset of specific topic-queueId in consumeQueue
@@ -268,7 +285,8 @@ public interface ConsumeQueueStoreInterface {
     long getMinOffsetInQueue(final String topic, final int queueId) throws RocksDBException;
 
     /**
-     * get max logic offset of specific topic-queueId in consumeQueue
+     * 读取消费队列中指定topic-queueId的最大逻辑偏移量
+     *
      * @param topic
      * @param queueId
      * @return the max logic offset of specific topic-queueId in consumeQueue
@@ -302,7 +320,8 @@ public interface ConsumeQueueStoreInterface {
     ConcurrentMap<Integer, ConsumeQueueInterface> findConsumeQueueMap(String topic);
 
     /**
-     * get the total size of all consumeQueue
+     * 读取内存中所有消费队列大小的综合
+     *
      * @return the total size of all consumeQueue
      */
     long getTotalSize();

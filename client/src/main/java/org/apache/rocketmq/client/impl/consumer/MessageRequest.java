@@ -18,6 +18,12 @@ package org.apache.rocketmq.client.impl.consumer;
 
 import org.apache.rocketmq.common.message.MessageRequestMode;
 
+/**
+ * 代表从Broker获取消息的请求
+ */
 public interface MessageRequest {
+    /**
+     * @return 返回当前消息请求模式
+     */
     MessageRequestMode getMessageRequestMode();
 }

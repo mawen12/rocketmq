@@ -59,13 +59,22 @@ import org.apache.rocketmq.tieredstore.metadata.entity.TopicMetadata;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * 负责主题配置的管理器，主题配置本地路径为ENV(user.home)/store/config/topics.json
+ */
 public class TopicConfigManager extends ConfigManager {
     protected static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long LOCK_TIMEOUT_MILLIS = 3000;
     private static final int SCHEDULE_TOPIC_QUEUE_NUM = 18;
 
     private transient final Lock topicConfigTableLock = new ReentrantLock();
+    /**
+     * Map<主题名称, 主题配置>
+     */
     protected ConcurrentMap<String, TopicConfig> topicConfigTable = new ConcurrentHashMap<>(1024);
+    /**
+     * 数据版本
+     */
     protected DataVersion dataVersion = new DataVersion();
     protected transient BrokerController brokerController;
 
@@ -440,39 +449,50 @@ public class TopicConfigManager extends ConfigManager {
         return getTopicConfig(topicConfig.getTopicName());
     }
 
-    public TopicConfig createTopicInSendMessageBackMethod(
-        final String topic,
-        final int clientDefaultTopicQueueNums,
-        final int perm,
-        final int topicSysFlag) {
+    public TopicConfig createTopicInSendMessageBackMethod(final String topic, final int clientDefaultTopicQueueNums, final int perm, final int topicSysFlag) {
+        // 创建无序的主题配置
         return createTopicInSendMessageBackMethod(topic, clientDefaultTopicQueueNums, perm, false, topicSysFlag);
     }
 
-    public TopicConfig createTopicInSendMessageBackMethod(
-        final String topic,
-        final int clientDefaultTopicQueueNums,
-        final int perm,
-        final boolean isOrder,
-        final int topicSysFlag) {
+    /**
+     * 创建主题，如果主题存在，则仅更新内存和磁盘文件；否则自动创建一个新的主题配置，写入内存和磁盘，并通知Namesrv
+     *
+     * @param topic
+     * @param clientDefaultTopicQueueNums
+     * @param perm
+     * @param isOrder
+     * @param topicSysFlag
+     * @return
+     */
+    public TopicConfig createTopicInSendMessageBackMethod(final String topic, final int clientDefaultTopicQueueNums, final int perm, final boolean isOrder, final int topicSysFlag) {
+        // 从内存中读取主题配置
         TopicConfig topicConfig = getTopicConfig(topic);
         if (topicConfig != null) {
+            // 内存中存在，根据是否有序，更新主题的顺序性
             if (isOrder != topicConfig.isOrder()) {
                 topicConfig.setOrder(isOrder);
+                // 主题的顺序属性发生变化，
                 this.updateTopicConfig(topicConfig);
             }
+            // 返回
             return topicConfig;
         }
 
+        // 内存中没有该主题，需要从头创建
         boolean createNew = false;
 
         try {
+            // 尝试或操作主题配置表的锁3s
             if (this.topicConfigTableLock.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
+                    // 二次检查
                     topicConfig = getTopicConfig(topic);
                     if (topicConfig != null) {
+                        // 主题已经存在了，直接返回
                         return topicConfig;
                     }
 
+                    // 创建新的主题
                     topicConfig = new TopicConfig(topic);
                     topicConfig.setReadQueueNums(clientDefaultTopicQueueNums);
                     topicConfig.setWriteQueueNums(clientDefaultTopicQueueNums);
@@ -481,9 +501,13 @@ public class TopicConfigManager extends ConfigManager {
                     topicConfig.setOrder(isOrder);
 
                     log.info("create new topic {}", topicConfig);
+                    // 写入到内存中
                     putTopicConfig(topicConfig);
+                    // 更新写入标识
                     createNew = true;
+                    // 更新数据版本
                     updateDataVersion();
+                    // 保存到磁盘本地
                     this.persist();
                 } finally {
                     this.topicConfigTableLock.unlock();
@@ -494,6 +518,7 @@ public class TopicConfigManager extends ConfigManager {
         }
 
         if (createNew) {
+            // 将主题注册到所有的Namesrv上
             registerBrokerData(topicConfig);
         }
 
@@ -585,33 +610,42 @@ public class TopicConfigManager extends ConfigManager {
         }
     }
 
+    /**
+     * 更新内存中的主题配置，如果之前存在，则进行合并操作，否则直接写入
+     *
+     * @param topicConfig
+     */
     protected void updateSingleTopicConfigWithoutPersist(final TopicConfig topicConfig) {
+        // 非空校验
         checkNotNull(topicConfig, "topicConfig shouldn't be null");
 
+        // 获取主题上的属性
         Map<String, String> newAttributes = request(topicConfig);
+        // 获取当前内存中的主题属性
         Map<String, String> currentAttributes = current(topicConfig.getTopicName());
 
-        Map<String, String> finalAttributes = AttributeUtil.alterCurrentAttributes(
-            this.topicConfigTable.get(topicConfig.getTopicName()) == null,
-            TopicAttributes.ALL,
-            ImmutableMap.copyOf(currentAttributes),
-            ImmutableMap.copyOf(newAttributes));
+        // 合并属性
+        Map<String, String> finalAttributes = AttributeUtil.alterCurrentAttributes(this.topicConfigTable.get(topicConfig.getTopicName()) == null, TopicAttributes.ALL, ImmutableMap.copyOf(currentAttributes), ImmutableMap.copyOf(newAttributes));
 
+        // 回写属性
         topicConfig.setAttributes(finalAttributes);
         updateTieredStoreTopicMetadata(topicConfig, newAttributes);
 
+        // 更新内存中的主题配置
         TopicConfig old = putTopicConfig(topicConfig);
         if (old != null) {
             log.info("update topic config, old:[{}] new:[{}]", old, topicConfig);
         } else {
             log.info("create new topic [{}]", topicConfig);
         }
-
+        // 更新数据版本
         updateDataVersion();
     }
 
     public void updateTopicConfig(final TopicConfig topicConfig) {
+        // 更新内存中的主题配置，不写入文件
         updateSingleTopicConfigWithoutPersist(topicConfig);
+        // 保存到
         this.persist(topicConfig.getTopicName(), topicConfig);
     }
 

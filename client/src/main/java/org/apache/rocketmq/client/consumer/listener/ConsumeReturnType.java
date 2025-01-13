@@ -17,25 +17,36 @@
 
 package org.apache.rocketmq.client.consumer.listener;
 
+import java.util.List;
+
+/**
+ * 消费返回类型，基于消费过程中超时、异常、失败、成功等场景的整体总结
+ */
 public enum ConsumeReturnType {
     /**
-     * consume return success
+     * 消费监听器返回消费成功
+     *
+     * @see MessageListenerConcurrently#consumeMessage(List, ConsumeConcurrentlyContext)
+     * @see ConsumeConcurrentlyStatus#CONSUME_SUCCESS
      */
     SUCCESS,
     /**
-     * consume timeout ,even if success
+     * 消费超时，无论消费是否成功，超时时间为{@link org.apache.rocketmq.client.consumer.DefaultMQPushConsumer#consumeTimeout}，单位为分钟
      */
     TIME_OUT,
     /**
-     * consume throw exception
+     * 消费过程中抛出异常
      */
     EXCEPTION,
     /**
-     * consume return null
+     * 消费结束返回null，并且未出现异常
      */
     RETURNNULL,
     /**
-     * consume return failed
+     * 消费失败，稍后进行重试
+     *
+     * @see MessageListenerConcurrently#consumeMessage(List, ConsumeConcurrentlyContext)
+     * @see ConsumeConcurrentlyStatus#RECONSUME_LATER
      */
     FAILED
 }

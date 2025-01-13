@@ -26,14 +26,22 @@ import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * MQ客户端管理器
+ */
 public class MQClientManager {
     private final static Logger log = LoggerFactory.getLogger(MQClientManager.class);
+
     private static MQClientManager instance = new MQClientManager();
+
     private AtomicInteger factoryIndexGenerator = new AtomicInteger();
-    private ConcurrentMap<String/* clientId */, MQClientInstance> factoryTable =
-        new ConcurrentHashMap<>();
-    private ConcurrentMap<String/* clientId */, ProduceAccumulator> accumulatorTable =
-        new ConcurrentHashMap<String, ProduceAccumulator>();
+
+    /**
+     * Map<客户端ID, MQ客户端实例>
+     */
+    private ConcurrentMap<String, MQClientInstance> factoryTable = new ConcurrentHashMap<>();
+
+    private ConcurrentMap<String/* clientId */, ProduceAccumulator> accumulatorTable = new ConcurrentHashMap<String, ProduceAccumulator>();
 
 
     private MQClientManager() {
@@ -51,9 +59,7 @@ public class MQClientManager {
         String clientId = clientConfig.buildMQClientId();
         MQClientInstance instance = this.factoryTable.get(clientId);
         if (null == instance) {
-            instance =
-                new MQClientInstance(clientConfig.cloneClientConfig(),
-                    this.factoryIndexGenerator.getAndIncrement(), clientId, rpcHook);
+            instance = new MQClientInstance(clientConfig.cloneClientConfig(), this.factoryIndexGenerator.getAndIncrement(), clientId, rpcHook);
             MQClientInstance prev = this.factoryTable.putIfAbsent(clientId, instance);
             if (prev != null) {
                 instance = prev;

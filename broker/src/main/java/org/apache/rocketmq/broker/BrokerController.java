@@ -188,6 +188,9 @@ public class BrokerController {
     private static final Logger LOG_WATER_MARK = LoggerFactory.getLogger(LoggerName.WATER_MARK_LOGGER_NAME);
     protected static final int HA_ADDRESS_MIN_LENGTH = 6;
 
+    /**
+     * Broker配置
+     */
     protected final BrokerConfig brokerConfig;
     private final NettyServerConfig nettyServerConfig;
     private final NettyClientConfig nettyClientConfig;
@@ -243,6 +246,9 @@ public class BrokerController {
     protected BrokerStatsManager brokerStatsManager;
     protected final List<SendMessageHook> sendMessageHookList = new ArrayList<>();
     protected final List<ConsumeMessageHook> consumeMessageHookList = new ArrayList<>();
+    /**
+     * 消息存储
+     */
     protected MessageStore messageStore;
     protected RemotingServer remotingServer;
     protected CountDownLatch remotingServerStartLatch;
@@ -253,6 +259,9 @@ public class BrokerController {
      */
     protected ConfigStorage configStorage;
     protected TopicConfigManager topicConfigManager;
+    /**
+     * 负责订阅分组的管理器
+     */
     protected SubscriptionGroupManager subscriptionGroupManager;
     protected TopicQueueMappingManager topicQueueMappingManager;
     protected ExecutorService sendMessageExecutor;

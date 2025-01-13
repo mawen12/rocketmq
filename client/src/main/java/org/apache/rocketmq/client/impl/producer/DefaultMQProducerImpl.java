@@ -71,6 +71,7 @@ import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.ServiceState;
 import org.apache.rocketmq.common.ThreadFactoryImpl;
 import org.apache.rocketmq.common.UtilAll;
+import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.help.FAQUrl;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageAccessor;
@@ -186,10 +187,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
          */
         this.asyncSenderThreadPoolQueue = new LinkedBlockingQueue<>(50000);
         /**
-         * 异步生产者执行器，处理器数量的初始线程，处理器数量的最大线程，线程存活时间为1min，使用{@link asyncSenderThreadPoolQueue}作为任务队列，线程名称前缀为AsyncSenderExecutor_
+         * 异步生产者执行器，处理器数量的初始线程，处理器数量的最大线程，线程存活时间为1min，使用{@link asyncSenderThreadPoolQueue}作为任务队列，线程名称前缀为AsyncSenderExecutor
          */
-        this.defaultAsyncSenderExecutor = new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors(), Runtime.getRuntime().availableProcessors(), 1000 * 60, TimeUnit.MILLISECONDS,
-                this.asyncSenderThreadPoolQueue, new ThreadFactoryImpl("AsyncSenderExecutor_"));
+        this.defaultAsyncSenderExecutor = new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors(), Runtime.getRuntime().availableProcessors(), 1000 * 60, TimeUnit.MILLISECONDS, this.asyncSenderThreadPoolQueue, new ThreadFactoryImpl("AsyncSenderExecutor_"));
 
         if (defaultMQProducer.getBackPressureForAsyncSendNum() > 10) {
             semaphoreAsyncSendNum = new Semaphore(Math.max(defaultMQProducer.getBackPressureForAsyncSendNum(), 10), true);
@@ -815,7 +815,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             executor.submit(runnable);
         } catch (RejectedExecutionException e) {
             /**
-             * 拒绝执行时
+             * 拒绝执行时，使用当前线程执行
              */
             if (isEnableBackpressureForAsyncMode) {
                 runnable.run();
@@ -903,6 +903,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     }
 
+    @ImportantPoint("客户端发送消息的方法，其中同步发送，可以有三次发送机会，异步发布仅有一次")
     private SendResult sendDefaultImpl(Message msg, final CommunicationMode communicationMode, final SendCallback sendCallback, final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         /**
          * 检查服务状态是运行中，否则报错
@@ -932,7 +933,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             Exception exception = null;
             SendResult sendResult = null;
             /**
-             * 如果是同步发送，重试次数为1+DEFAULT(2)，如果是异步，重试次数仅有1次
+             * 如果是同步发送，重试次数为1+DEFAULT(2)，如果是异步，重试次数也是3次，但是并非在次数控制，而是在底层的直接获取{@link DefaultMQProducer#getRetryTimesWhenSendAsyncFailed()}来设定次数
              */
             int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
@@ -1173,6 +1174,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
     }
 
+    @ImportantPoint("客户端通过RPC发送消息到Broker")
     private SendResult sendKernelImpl(final Message msg, final MessageQueue mq, final CommunicationMode communicationMode, final SendCallback sendCallback, final TopicPublishInfo topicPublishInfo, final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
         /**
@@ -1409,22 +1411,14 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         }
 
                         long costTimeAsync = System.currentTimeMillis() - beginStartTime;
+                        /**
+                         * 发送消息前的第二次超时时间检查点
+                         */
                         if (timeout < costTimeAsync) {
                             throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
                         }
-                        sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(
-                            brokerAddr,
-                            brokerName,
-                            tmpMessage,
-                            requestHeader,
-                            timeout - costTimeAsync,
-                            communicationMode,
-                            sendCallback,
-                            topicPublishInfo,
-                            this.mQClientFactory,
-                            this.defaultMQProducer.getRetryTimesWhenSendAsyncFailed(),
-                            context,
-                            this);
+                        sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(brokerAddr, brokerName, tmpMessage, requestHeader, timeout - costTimeAsync, communicationMode, sendCallback, topicPublishInfo,
+                            this.mQClientFactory, this.defaultMQProducer.getRetryTimesWhenSendAsyncFailed(), context, this);
                         break;
                     case ONEWAY:
                     /**

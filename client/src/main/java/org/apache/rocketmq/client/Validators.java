@@ -19,6 +19,7 @@ package org.apache.rocketmq.client;
 
 import java.io.File;
 import java.util.Properties;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
@@ -40,22 +41,22 @@ public class Validators {
     public static final int TOPIC_MAX_LENGTH = 127;
 
     /**
-     * Validate group
+     * 校验分组长度和字符
      */
     public static void checkGroup(String group) throws MQClientException {
+        // 分组非空
         if (UtilAll.isBlank(group)) {
             throw new MQClientException("the specified group is blank", null);
         }
 
+        // 分组长度小于255
         if (group.length() > CHARACTER_MAX_LENGTH) {
             throw new MQClientException("the specified group is longer than group max length 255.", null);
         }
 
-
+        // 分组字符合法
         if (isTopicOrGroupIllegal(group)) {
-            throw new MQClientException(String.format(
-                    "the specified group[%s] contains illegal characters, allowing only %s", group,
-                    "^[%|a-zA-Z0-9_-]+$"), null);
+            throw new MQClientException(String.format("the specified group[%s] contains illegal characters, allowing only %s", group, "^[%|a-zA-Z0-9_-]+$"), null);
         }
     }
 
@@ -156,16 +157,16 @@ public class Validators {
     public static void checkTopicConfig(final TopicConfig topicConfig) throws MQClientException {
         if (!PermName.isValid(topicConfig.getPerm())) {
             throw new MQClientException(ResponseCode.NO_PERMISSION,
-                String.format("topicPermission value: %s is invalid.", topicConfig.getPerm()));
+                    String.format("topicPermission value: %s is invalid.", topicConfig.getPerm()));
         }
     }
 
     public static void checkBrokerConfig(final Properties brokerConfig) throws MQClientException {
         // TODO: use MixAll.isPropertyValid() when jdk upgrade to 1.8
         if (brokerConfig.containsKey("brokerPermission")
-            && !PermName.isValid(brokerConfig.getProperty("brokerPermission"))) {
+                && !PermName.isValid(brokerConfig.getProperty("brokerPermission"))) {
             throw new MQClientException(ResponseCode.NO_PERMISSION,
-                String.format("brokerPermission value: %s is invalid.", brokerConfig.getProperty("brokerPermission")));
+                    String.format("brokerPermission value: %s is invalid.", brokerConfig.getProperty("brokerPermission")));
         }
     }
 }

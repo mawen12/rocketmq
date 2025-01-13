@@ -72,7 +72,7 @@ import org.rocksdb.RocksDBException;
 import sun.nio.ch.DirectBuffer;
 
 /**
- * Store all metadata downtime for recovery, data protection reliability
+ * 存储所有元数据以便停机恢复，确保数据的可靠性。
  */
 public class CommitLog implements Swappable {
     // Message's MAGIC CODE daa320a7
@@ -81,19 +81,20 @@ public class CommitLog implements Swappable {
     // End of file empty MAGIC CODE cbd43194
     public final static int BLANK_MAGIC_CODE = -875286124;
     /**
-     * CRC32 Format: [PROPERTY_CRC32 + NAME_VALUE_SEPARATOR + 10-digit fixed-length string + PROPERTY_SEPARATOR]
-     */
-    /**
      * CRC32保留长度为：20，CRC32格式为{@code __CRC32#(8) + NAME_VALUE_SEPARATOR(1) + fixed-length(10) + PROPERTY_SEPARATOR(2)}
      */
     public static final int CRC32_RESERVED_LEN = MessageConst.PROPERTY_CRC32.length() + 1 + 10 + 1;
+
     protected final MappedFileQueue mappedFileQueue;
+
     protected final DefaultMessageStore defaultMessageStore;
 
     private final FlushManager flushManager;
+
     private final ColdDataCheckService coldDataCheckService;
 
     private final AppendMessageCallback appendMessageCallback;
+
     private final ThreadLocal<PutMessageThreadLocal> putMessageThreadLocal;
 
     protected volatile long confirmOffset = -1L;
@@ -929,7 +930,6 @@ public class CommitLog implements Swappable {
     @ImportantPoint("写入消息到物理文件")
     @PerformancePoint("PutMessageLock锁定超过500ms，存在可能的性能问题")
     public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
-
         /**
          * 如果未开启复制，则设置存储时间戳
          */
@@ -939,10 +939,12 @@ public class CommitLog implements Swappable {
         /**
          * 设置消息体CRC
          */
-        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
-        if (enabledAppendPropCRC) {
-            // delete crc32 properties if exist
-            msg.deleteProperty(MessageConst.PROPERTY_CRC32);
+        {
+            msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+            if (enabledAppendPropCRC) {
+                // delete crc32 properties if exist
+                msg.deleteProperty(MessageConst.PROPERTY_CRC32);
+            }
         }
         // Back to Results
         AppendMessageResult result = null;
@@ -1538,8 +1540,11 @@ public class CommitLog implements Swappable {
         return -1;
     }
 
+
     public SelectMappedBufferResult getMessage(final long offset, final int size) {
+        // 从配置中读取映射文件大小
         int mappedFileSize = this.defaultMessageStore.getMessageStoreConfig().getMappedFileSizeCommitLog();
+        // 根据偏移量查找映射文件
         MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset, offset == 0);
         if (mappedFile != null) {
             int pos = (int) (offset % mappedFileSize);

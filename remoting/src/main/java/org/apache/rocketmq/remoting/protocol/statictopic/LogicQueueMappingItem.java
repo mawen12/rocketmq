@@ -20,10 +20,19 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+/**
+ * 逻辑队列映射元素
+ */
 public class LogicQueueMappingItem extends RemotingSerializable {
 
     private int gen; // immutable
+    /**
+     * 队列ID
+     */
     private int queueId; //, immutable
+    /**
+     * broker名称
+     */
     private String bname; //important, immutable
     private long logicOffset; // the start of the logic offset, important, can be changed by command only once
     private long startOffset; // the start of the physical offset, should always be 0, immutable

@@ -38,12 +38,21 @@ public class SubscriptionData implements Comparable<SubscriptionData> {
      * 订阅的主题
      */
     private String topic;
+    /**
+     * 过滤消息的表达式
+     */
     private String subString;
     /**
-     * 订阅的标签
+     * 表达式中的标签，通过|进行拆分而来
      */
     private Set<String> tagsSet = new HashSet<>();
+    /**
+     * 表达式中的标签哈希值
+     */
     private Set<Integer> codeSet = new HashSet<>();
+    /**
+     * 订阅数据的版本，在触发rebalance时，会更新该值
+     */
     private long subVersion = System.currentTimeMillis();
     /**
      * 表达式类型，默认为TAG

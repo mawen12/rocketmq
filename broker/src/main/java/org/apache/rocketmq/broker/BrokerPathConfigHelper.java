@@ -20,8 +20,10 @@ package org.apache.rocketmq.broker;
 import java.io.File;
 
 public class BrokerPathConfigHelper {
-    private static String brokerConfigPath = System.getProperty("user.home") + File.separator + "store"
-        + File.separator + "config" + File.separator + "broker.properties";
+    /**
+     * Broker配置文件路径，默认为ENV(user.home)/store/config/broker.properties
+     */
+    private static String brokerConfigPath = System.getProperty("user.home") + File.separator + "store" + File.separator + "config" + File.separator + "broker.properties";
 
     public static String getBrokerConfigPath() {
         return brokerConfigPath;
@@ -31,14 +33,32 @@ public class BrokerPathConfigHelper {
         brokerConfigPath = path;
     }
 
+    /**
+     * 所有的主题配置的文件路径，默认为ENV(user.home)/store/config/topics.json
+     *
+     * @param rootDir
+     * @return
+     */
     public static String getTopicConfigPath(final String rootDir) {
         return rootDir + File.separator + "config" + File.separator + "topics.json";
     }
 
+    /**
+     * 主题队列映射的文件路径，默认为ENV(user.home)/store/config/topicQueueMapping.json
+     *
+     * @param rootDir
+     * @return
+     */
     public static String getTopicQueueMappingPath(final String rootDir) {
         return rootDir + File.separator + "config" + File.separator + "topicQueueMapping.json";
     }
 
+    /**
+     * 默认的消费者偏移量的文件路径，默认为ENV(user.home)/store/config/consumerOffset.json
+     *
+     * @param rootDir
+     * @return
+     */
     public static String getConsumerOffsetPath(final String rootDir) {
         return rootDir + File.separator + "config" + File.separator + "consumerOffset.json";
     }
@@ -51,6 +71,12 @@ public class BrokerPathConfigHelper {
         return rootDir + File.separator + "config" + File.separator + "consumerOrderInfo.json";
     }
 
+    /**
+     * 所有的消费者订阅分组的文件路径，默认为ENV(user.home)/store/config/subscriptionGroup.json
+     *
+     * @param rootDir
+     * @return
+     */
     public static String getSubscriptionGroupPath(final String rootDir) {
         return rootDir + File.separator + "config" + File.separator + "subscriptionGroup.json";
     }

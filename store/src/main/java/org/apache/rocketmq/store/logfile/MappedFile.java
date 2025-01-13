@@ -36,7 +36,25 @@ import org.apache.rocketmq.store.config.FlushDiskType;
 
 /**
  * 映射文件，用于存储消息的物理文件
+ * <p>
+ * 映射文件设计规则：
+ * <ul>
+ *     <li>
+ *         文件大小：映射文件最大1G，在消息写入过程中，有可能出现文件不够存储消息的场景，这时候需要创建新的映射文件写入，原文件大小就在1G以内
+ *     </li>
+ *     <li>
+ *         文件名称：文件名称是一串20位的纯数字，文件名称是当前文件的名称+文件当前可写入的位置。
+ *         <ol>
+ *             1.比如队列中的第一条消息，文件名称为20位0，文件可写入的位置为0，则该消息的queueOffset为0
+ *             2.比如队列中的第N条消息，文件名称为20位n，文件可写入的位置位1，则该消息的queueOffset=20位n+1
+ *         </ol>
+ *     </li>
+ *     <li>
+ *         文件路径：默认为ENV(user.name)/store/commitlog/00000000000000000000
+ *     </li>
+ * </ul>
  */
+@ImportantPoint("代表存储消息的文件类")
 public interface MappedFile {
     /**
      * @return 返回文件名称，其同时作为全局的偏移量

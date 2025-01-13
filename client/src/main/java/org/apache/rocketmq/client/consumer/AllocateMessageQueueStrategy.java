@@ -17,31 +17,30 @@
 package org.apache.rocketmq.client.consumer;
 
 import java.util.List;
+
+import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
- * Strategy Algorithm for message allocating between consumers
+ * 用于在消费者之间分配消息队列的算法，因为在订阅时，仅指定了主题和消息过滤，并未指定消费者能监听主题下哪些队列，因此该方法决定了如何分配消息队列给消费者。
  */
+
+@ImportantPoint("决定了哪些队列中的消息被分配给消费者")
 public interface AllocateMessageQueueStrategy {
 
     /**
-     * Allocating by consumer id
+     * 根据消费者ID分配
      *
-     * @param consumerGroup current consumer group
-     * @param currentCID current consumer id
-     * @param mqAll message queue set in current topic
-     * @param cidAll consumer set in current consumer group
-     * @return The allocate result of given strategy
+     * @param consumerGroup 客户端的消费者分组
+     * @param currentCID 当前消费者ID
+     * @param mqAll 当前队列中的消费者队列集合
+     * @param cidAll 当前分组下的消费者集合
+     * @return 当前客户端
      */
-    List<MessageQueue> allocate(
-        final String consumerGroup,
-        final String currentCID,
-        final List<MessageQueue> mqAll,
-        final List<String> cidAll
-    );
+    List<MessageQueue> allocate(final String consumerGroup, final String currentCID, final List<MessageQueue> mqAll, final List<String> cidAll);
 
     /**
-     * Algorithm name
+     * 策略名称
      *
      * @return The strategy name
      */

@@ -18,6 +18,7 @@ package org.apache.rocketmq.client.consumer;
 
 import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.QueryResult;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.MessageListener;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerOrderly;
@@ -44,22 +45,17 @@ import org.apache.rocketmq.remoting.protocol.NamespaceUtil;
 import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
 /**
- * In most scenarios, this is the mostly recommended class to consume messages.
- * </p>
- * Technically speaking, this push client is virtually a wrapper of the underlying pull service. Specifically, on
- * arrival of messages pulled from brokers, it roughly invokes the registered callback handler to feed the messages.
- * </p>
- * See quickstart/Consumer in the example module for a typical usage.
- * </p>
- *
+ * 消费者消费消息入口类，这也是最常推荐使用的。
  * <p>
- * <strong>Thread Safety:</strong> After initialization, the instance can be regarded as thread-safe.
- * </p>
+ * Push客户端底层基于Pull服务，当消息从Broker拉取之后，通过调用注册的监听器回调来消费消息。
+ * <p>
+ * 线程安全类
  */
 public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsumer {
 
@@ -71,128 +67,88 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     protected final transient DefaultMQPushConsumerImpl defaultMQPushConsumerImpl;
 
     /**
-     * Consumers of the same role is required to have exactly same subscriptions and consumerGroup to correctly achieve
-     * load balance. It's required and needs to be globally unique.
-     * </p>
-     * See <a href="https://rocketmq.apache.org/docs/introduction/02concepts">here</a> for further discussion.
+     * 消费者组，相同订阅和相同消费者组内的消费者实现负载均衡
      */
     private String consumerGroup;
 
     /**
-     * Message model defines the way how messages are delivered to each consumer clients.
-     * </p>
-     * RocketMQ supports two message models: clustering and broadcasting. If clustering is set, consumer clients with
-     * the same {@link #consumerGroup} would only consume shards of the messages subscribed, which achieves load
-     * balances; Conversely, if the broadcasting is set, each consumer client will consume all subscribed messages
-     * separately.
-     * </p>
-     * This field defaults to clustering.
+     * 消息模式，默认为集群模式，即相同订阅和消费者组内的消费者瓜分消息；如果设置为广播模式，则每个消费者都消费一样的消息
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
     /**
-     * Consuming point on consumer booting.
-     * </p>
-     * There are three consuming points:
-     * <ul>
-     * <li>
-     * <code>CONSUME_FROM_LAST_OFFSET</code>: consumer clients pick up where it stopped previously.
-     * If it were a newly booting up consumer client, according aging of the consumer group, there are two
-     * cases:
-     * <ol>
-     * <li>
-     * if the consumer group is created so recently that the earliest message being subscribed has yet
-     * expired, which means the consumer group represents a lately launched business, consuming will
-     * start from the very beginning;
-     * </li>
-     * <li>
-     * if the earliest message being subscribed has expired, consuming will start from the latest
-     * messages, meaning messages born prior to the booting timestamp would be ignored.
-     * </li>
-     * </ol>
-     * </li>
-     * <li>
-     * <code>CONSUME_FROM_FIRST_OFFSET</code>: Consumer client will start from earliest messages available.
-     * </li>
-     * <li>
-     * <code>CONSUME_FROM_TIMESTAMP</code>: Consumer client will start from specified timestamp, which means
-     * messages born prior to {@link #consumeTimestamp} will be ignored
-     * </li>
-     * </ul>
+     * 消费引导时的时间点，默认为从上次消费停止的地方继续消费
      */
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
 
     /**
-     * Backtracking consumption time with second precision. Time format is
-     * 20131223171201<br>
-     * Implying Seventeen twelve and 01 seconds on December 23, 2013 year<br>
-     * Default backtracking consumption time Half an hour ago.
+     * 消费时间戳，当前时间往前30分钟，即在选择{@link ConsumeFromWhere#CONSUME_FROM_TIMESTAMP}时，使用该时间戳作为消费时间点。
      */
     private String consumeTimestamp = UtilAll.timeMillisToHumanString3(System.currentTimeMillis() - (1000 * 60 * 30));
 
     /**
-     * Queue allocation algorithm specifying how message queues are allocated to each consumer clients.
+     * 队列分配算法，指示消息队列如何分配给每个消费者客户端
      */
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy;
 
     /**
-     * Subscription relationship
+     * 保存了用户订阅时传递的主题和订阅表达式信息
+     * <ul>
+     *     <li>{@link org.apache.rocketmq.client.consumer.DefaultMQPushConsumer#subscribe(String, String)}</li>
+     *     <li>{@link org.apache.rocketmq.client.consumer.DefaultLitePullConsumer#subscribe(String, String)}</li>
+     * </ul>
      */
-    private Map<String /* topic */, String /* sub expression */> subscription = new HashMap<>();
+    private Map<String /* topic */, String /* 订阅表达式 */> subscription = new HashMap<>();
 
     /**
-     * Message listener
+     * 消费者监听器
      */
     private MessageListener messageListener;
 
     /**
-     * Listener to call if message queue assignment is changed.
+     * 消息队列监听器，当消息队列分配发生变化时，调用该监听器
      */
     private MessageQueueListener messageQueueListener;
 
     /**
-     * Offset Storage
+     * 队列偏移量存储
      */
     private OffsetStore offsetStore;
 
     /**
-     * Minimum consumer thread number
+     * 最小的消费者线程数量，默认为20，有效值为[1, 1000]
      */
     private int consumeThreadMin = 20;
 
     /**
-     * Max consumer thread number
+     * 最大的消费者线程数量，默认为20，有效值为[1, 1000]
      */
     private int consumeThreadMax = 20;
 
     /**
-     * Threshold for dynamic adjustment of the number of thread pool
+     * 动态调整线程池数量的阈值，默认为10w
      */
     private long adjustThreadPoolNumsThreshold = 100000;
 
     /**
-     * Concurrently max span offset.it has no effect on sequential consumption
+     * 并发消费时最大跨度偏移量，在顺序消费时没有影响，默认为2000
      */
     private int consumeConcurrentlyMaxSpan = 2000;
 
     /**
-     * Flow control threshold on queue level, each message queue will cache at most 1000 messages by default,
-     * Consider the {@code pullBatchSize}, the instantaneous value may exceed the limit
+     * 拉队列阈值。默认为1000。消息队列级别的流控，每个消息队列默认缓存最多1000条消息。考虑{@link #pullBatchSize}，瞬时值可能超过限制。有效范围[1, 65535]
      */
     private int pullThresholdForQueue = 1000;
 
     /**
-     * Flow control threshold on queue level, means max num of messages waiting to ack.
-     * in contrast with pull threshold, once a message is popped, it's considered the beginning of consumption.
+     * 最大等待ACK的消息数量，默认为96.消息队列级别的流控，与{@link #pullThresholdForQueue}相反，一旦消息被弹出，就被认为是消费的开始
      */
     private int popThresholdForQueue = 96;
 
     /**
-     * Limit the cached message size on queue level, each message queue will cache at most 100 MiB messages by default,
-     * Consider the {@code pullBatchSize}, the instantaneous value may exceed the limit
-     *
+     * 限制队列级别缓存的消息大小，每个消息队列默认缓存至多100M，考虑到{@link #pullBatchSize}，瞬时值可能超过限制。
      * <p>
-     * The size(MB) of a message only measured by message body, so it's not accurate
+     * 消息大小仅通过消息体来衡量，因此不准确
      */
     private int pullThresholdSizeForQueue = 100;
 
@@ -204,32 +160,32 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * <p>
      * For example, if the value of pullThresholdForTopic is 1000 and 10 message queues are assigned to this consumer,
      * then pullThresholdForQueue will be set to 100
+     *
+     * 拉队列阈值。默认为-1，即不限制。主题队列级别的流控，当设置了该值且不为-1，将覆盖{@link #pullThresholdForQueue}。有效范围[1, 6553500]
+     * <p>
+     * 例如将该值设置为1000，主题下有10个消息队列被分配到该消费者，那么{@link #pullThresholdForQueue}=100
      */
     private int pullThresholdForTopic = -1;
 
     /**
-     * Limit the cached message size on topic level, default value is -1 MiB(Unlimited)
+     * 限制主题级别缓存的消息大小，默认为-1（不限制）。当设置了该值且不为-1时，将覆盖{@link #pullThresholdSizeForQueue}。有效范围[1, 102400]，单位为MB。
      * <p>
-     * The value of {@code pullThresholdSizeForQueue} will be overwritten and calculated based on
-     * {@code pullThresholdSizeForTopic} if it isn't unlimited
-     * <p>
-     * For example, if the value of pullThresholdSizeForTopic is 1000 MiB and 10 message queues are
-     * assigned to this consumer, then pullThresholdSizeForQueue will be set to 100 MiB
+     * 例如将该值设置为1000，主题下有10个消息队列被分配到该消息者，那么{@link #pullThresholdSizeForQueue}=100
      */
     private int pullThresholdSizeForTopic = -1;
 
     /**
-     * Message pull Interval
+     * 消息拉取间隔，默认为0
      */
     private long pullInterval = 0;
 
     /**
-     * Batch consumption size
+     * 批次消息的最大消息数，默认为1，即{@link MessageListenerConcurrently#consumeMessage(List, ConsumeConcurrentlyContext)}，第一个参数返回的消息数目为1。有效范围[1, 1024]
      */
     private int consumeMessageBatchMaxSize = 1;
 
     /**
-     * Batch pull size
+     * 批次拉取的消息数，默认为32。
      */
     private int pullBatchSize = 32;
 
@@ -259,17 +215,17 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private long suspendCurrentQueueTimeMillis = 1000;
 
     /**
-     * Maximum amount of time in minutes a message may block the consuming thread.
+     * 消息可能阻塞使用线程的最大时间，单位为minute，默认为15m
      */
     private long consumeTimeout = 15;
 
     /**
-     * Maximum amount of invisible time in millisecond of a message, rang is [5000, 300000]
+     * 消息最大不可见时间，单位为毫秒，默认为60s，有效范围为[5000, 300000]
      */
     private long popInvisibleTime = 60000;
 
     /**
-     * Batch pop size. range is [1, 32]
+     * 批次弹出大小，默认为32，有效范围为[1, 32]
      */
     private int popBatchNums = 32;
 
@@ -330,8 +286,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * @param enableMsgTrace       Switch flag instance for message trace.
      * @param customizedTraceTopic The name value of message trace topic.If you don't config,you can use the default trace topic name.
      */
-    public DefaultMQPushConsumer(final String consumerGroup, boolean enableMsgTrace,
-        final String customizedTraceTopic) {
+    public DefaultMQPushConsumer(final String consumerGroup, boolean enableMsgTrace, final String customizedTraceTopic) {
         this(consumerGroup, null, new AllocateMessageQueueAveragely(), enableMsgTrace, customizedTraceTopic);
     }
 
@@ -342,8 +297,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * @param rpcHook                      RPC hook to execute before each remoting command.
      * @param allocateMessageQueueStrategy Message queue allocating algorithm.
      */
-    public DefaultMQPushConsumer(final String consumerGroup, RPCHook rpcHook,
-        AllocateMessageQueueStrategy allocateMessageQueueStrategy) {
+    public DefaultMQPushConsumer(final String consumerGroup, RPCHook rpcHook, AllocateMessageQueueStrategy allocateMessageQueueStrategy) {
         this(consumerGroup, rpcHook, allocateMessageQueueStrategy, false, null);
     }
 
@@ -356,9 +310,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * @param enableMsgTrace               Switch flag instance for message trace.
      * @param customizedTraceTopic         The name value of message trace topic.If you don't config,you can use the default trace topic name.
      */
-    public DefaultMQPushConsumer(final String consumerGroup, RPCHook rpcHook,
-        AllocateMessageQueueStrategy allocateMessageQueueStrategy, boolean enableMsgTrace,
-        final String customizedTraceTopic) {
+    public DefaultMQPushConsumer(final String consumerGroup, RPCHook rpcHook, AllocateMessageQueueStrategy allocateMessageQueueStrategy, boolean enableMsgTrace, final String customizedTraceTopic) {
         this.consumerGroup = consumerGroup;
         this.rpcHook = rpcHook;
         this.allocateMessageQueueStrategy = allocateMessageQueueStrategy;
@@ -726,19 +678,26 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      */
     @Override
     public void start() throws MQClientException {
+        // 设置消费者组，格式为[%RETRY%|%DLQ%]namespace%consumerGroup
         setConsumerGroup(NamespaceUtil.wrapNamespace(this.getNamespace(), this.consumerGroup));
+        // 启动内部MQ消费者
         this.defaultMQPushConsumerImpl.start();
         if (enableTrace) {
             try {
+                // 基于消费者组、主题构造异步追踪器
                 AsyncTraceDispatcher dispatcher = new AsyncTraceDispatcher(consumerGroup, TraceDispatcher.Type.CONSUME, getTraceMsgBatchNum(), traceTopic, rpcHook);
+                // 设置目标消费者为PushConsumer
                 dispatcher.setHostConsumer(this.defaultMQPushConsumerImpl);
+                // 设置命名空间
                 dispatcher.setNamespaceV2(namespaceV2);
                 traceDispatcher = dispatcher;
+                // 注册消费消息回调
                 this.defaultMQPushConsumerImpl.registerConsumeMessageHook(new ConsumeMessageTraceHookImpl(traceDispatcher));
             } catch (Throwable e) {
                 log.error("system mqtrace hook init failed ,maybe can't send msg trace data");
             }
         }
+        // 如果设置了开启消息追踪，则启动该追踪器
         if (null != traceDispatcher) {
             if (traceDispatcher instanceof AsyncTraceDispatcher) {
                 ((AsyncTraceDispatcher) traceDispatcher).getTraceProducer().setUseTLS(isUseTLS());
@@ -770,13 +729,16 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     }
 
     /**
-     * Register a callback to execute on message arrival for concurrent consuming.
+     * 注册一个回调函数，在消息到达时执行，以实现并发消费
      *
      * @param messageListener message handling callback.
      */
     @Override
     public void registerMessageListener(MessageListenerConcurrently messageListener) {
         this.messageListener = messageListener;
+        /**
+         * 注册到底层实现上
+         */
         this.defaultMQPushConsumerImpl.registerMessageListener(messageListener);
     }
 

@@ -34,31 +34,53 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.remoting.protocol.body.ProcessQueueInfo;
 
 /**
- * Queue consumption snapshot
+ * 队列消费快照
  */
 public class ProcessQueue {
-    public final static long REBALANCE_LOCK_MAX_LIVE_TIME =
-        Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockMaxLiveTime", "30000"));
+    public final static long REBALANCE_LOCK_MAX_LIVE_TIME = Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockMaxLiveTime", "30000"));
+
     public final static long REBALANCE_LOCK_INTERVAL = Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockInterval", "20000"));
+
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
+
     private final Logger log = LoggerFactory.getLogger(ProcessQueue.class);
+
     private final ReadWriteLock treeMapLock = new ReentrantReadWriteLock();
-    private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<>();
+
+    private final TreeMap<Long/* 消息的队列偏移量 */, MessageExt/* 消息 */> msgTreeMap = new TreeMap<>();
+
+    /**
+     * {@link #msgTreeMap}中消息总数
+     */
     private final AtomicLong msgCount = new AtomicLong();
+
+    /**
+     * {@link #msgTreeMap}中消息体累计大小
+     */
     private final AtomicLong msgSize = new AtomicLong();
+
     private final ReadWriteLock consumeLock = new ReentrantReadWriteLock();
     /**
      * A subset of msgTreeMap, will only be used when orderly consume
      */
     private final TreeMap<Long, MessageExt> consumingMsgOrderlyTreeMap = new TreeMap<>();
+
     private final AtomicLong tryUnlockTimes = new AtomicLong(0);
+
     private volatile long queueOffsetMax = 0L;
+
     private volatile boolean dropped = false;
+
     private volatile long lastPullTimestamp = System.currentTimeMillis();
+
     private volatile long lastConsumeTimestamp = System.currentTimeMillis();
+
     private volatile boolean locked = false;
+
     private volatile long lastLockTimestamp = System.currentTimeMillis();
+
     private volatile boolean consuming = false;
+
     private volatile long msgAccCnt = 0;
 
     public boolean isLockExpired() {
@@ -126,38 +148,58 @@ public class ProcessQueue {
         }
     }
 
+    /**
+     * 写入消息
+     *
+     * @param msgs
+     * @return
+     */
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
         try {
+            // 申请写锁除非当前线程被打断
             this.treeMapLock.writeLock().lockInterruptibly();
             try {
                 int validMsgCnt = 0;
                 for (MessageExt msg : msgs) {
+                    // 向消息树哈希表写入消息
                     MessageExt old = msgTreeMap.put(msg.getQueueOffset(), msg);
+                    // 如果之前存在该消息，则需要更新队列偏移量和消息体总数
                     if (null == old) {
+                        // 之前不存在消息，增加合法消息数
                         validMsgCnt++;
+                        // 设置队列偏移量最大值
                         this.queueOffsetMax = msg.getQueueOffset();
+                        // 增加消息体总体大小
                         msgSize.addAndGet(null == msg.getBody() ? 0 : msg.getBody().length);
                     }
                 }
+                // 更新消息总数
                 msgCount.addAndGet(validMsgCnt);
 
+                // 如果可消费的消息不为空，并且没有在消费中，则设置为发送至消费者，并更新为消费中
                 if (!msgTreeMap.isEmpty() && !this.consuming) {
                     dispatchToConsume = true;
                     this.consuming = true;
                 }
 
+                // 如果消息不为空，
                 if (!msgs.isEmpty()) {
+                    // 读取最后一条消息
                     MessageExt messageExt = msgs.get(msgs.size() - 1);
+                    // 获取消息属性MAX_OFFSET
                     String property = messageExt.getProperty(MessageConst.PROPERTY_MAX_OFFSET);
                     if (property != null) {
+                        // 属性不为空，计算其和队列偏移量的差值
                         long accTotal = Long.parseLong(property) - messageExt.getQueueOffset();
                         if (accTotal > 0) {
+                            // ？？？
                             this.msgAccCnt = accTotal;
                         }
                     }
                 }
             } finally {
+                // 解锁
                 this.treeMapLock.writeLock().unlock();
             }
         } catch (InterruptedException e) {

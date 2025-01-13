@@ -39,20 +39,30 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.remoting.protocol.DataVersion;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+/**
+ * 消费者偏移量管理器，消费偏移量本地文件路径为ENV(user.home)/store/config/consumerOffset.json
+ */
 public class ConsumerOffsetManager extends ConfigManager {
     protected static final Logger LOG = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
+    /**
+     * 主题和分组的分隔符
+     */
     public static final String TOPIC_GROUP_SEPARATOR = "@";
 
     protected DataVersion dataVersion = new DataVersion();
 
-    protected ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable =
-        new ConcurrentHashMap<>(512);
+    /**
+     * Map<topic@group, Map<queueId, 偏移量>>
+     * 保存了所有主题分组下的所有队列的偏移量
+     */
+    protected ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable = new ConcurrentHashMap<>(512);
 
-    private final ConcurrentMap<String, ConcurrentMap<Integer, Long>> resetOffsetTable =
-        new ConcurrentHashMap<>(512);
+    /**
+     * Map<topic@group, Map<queueId, 偏移量>>
+     */
+    private final ConcurrentMap<String, ConcurrentMap<Integer, Long>> resetOffsetTable = new ConcurrentHashMap<>(512);
 
-    private final ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> pullOffsetTable =
-        new ConcurrentHashMap<>(512);
+    private final ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> pullOffsetTable = new ConcurrentHashMap<>(512);
 
     protected transient BrokerController brokerController;
 
@@ -286,6 +296,11 @@ public class ConsumerOffsetManager extends ConfigManager {
         return this.encode(false);
     }
 
+    /**
+     * 读取保存消费者偏移的文件，默认地址为ENV(user.home)/store/config/consumerOffset.json
+     *
+     * @return
+     */
     @Override
     public String configFilePath() {
         return BrokerPathConfigHelper.getConsumerOffsetPath(this.brokerController.getMessageStoreConfig().getStorePathRootDir());
@@ -354,7 +369,7 @@ public class ConsumerOffsetManager extends ConfigManager {
     }
 
     public Map<Integer, Long> queryOffset(final String group, final String topic) {
-        // topic@group
+        // 构造key，格式为topic@group
         String key = topic + TOPIC_GROUP_SEPARATOR + group;
         return this.offsetTable.get(key);
     }
@@ -377,11 +392,15 @@ public class ConsumerOffsetManager extends ConfigManager {
     public boolean loadDataVersion() {
         String fileName = null;
         try {
+            // 获取本地保存消费者偏移量的文件
             fileName = this.configFilePath();
+            // 提取文件中内容
             String jsonString = MixAll.file2String(fileName);
             if (jsonString != null) {
+                // 对文件内容反序列化
                 ConsumerOffsetManager obj = RemotingSerializable.fromJson(jsonString, ConsumerOffsetManager.class);
                 if (obj != null) {
+                    // 更新dataVersion
                     this.dataVersion = obj.dataVersion;
                 }
                 LOG.info("load consumer offset dataVersion success,{},{} ", fileName, jsonString);

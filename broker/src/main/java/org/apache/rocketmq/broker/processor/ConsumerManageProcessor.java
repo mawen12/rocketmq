@@ -47,6 +47,9 @@ import org.apache.rocketmq.remoting.rpc.RpcResponse;
 
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.buildErrorResponse;
 
+/**
+ * 处理消费者相关请求的处理类
+ */
 public class ConsumerManageProcessor implements NettyRequestProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
@@ -64,6 +67,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
             case RequestCode.UPDATE_CONSUMER_OFFSET:
                 return this.updateConsumerOffset(ctx, request);
             case RequestCode.QUERY_CONSUMER_OFFSET:
+                // 查询消费者偏移量
                 return this.queryConsumerOffset(ctx, request);
             default:
                 break;
@@ -207,9 +211,9 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    public RemotingCommand rewriteRequestForStaticTopic(QueryConsumerOffsetRequestHeader requestHeader,
-        TopicQueueMappingContext mappingContext) {
+    public RemotingCommand rewriteRequestForStaticTopic(QueryConsumerOffsetRequestHeader requestHeader, TopicQueueMappingContext mappingContext) {
         try {
+            // 只有静态主题才会存在映射细节
             if (mappingContext.getMappingDetail() == null) {
                 return null;
             }
@@ -302,25 +306,23 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         }
     }
 
-    private RemotingCommand queryConsumerOffset(ChannelHandlerContext ctx, RemotingCommand request)
-        throws RemotingCommandException {
-        final RemotingCommand response =
-            RemotingCommand.createResponseCommand(QueryConsumerOffsetResponseHeader.class);
-        final QueryConsumerOffsetResponseHeader responseHeader =
-            (QueryConsumerOffsetResponseHeader) response.readCustomHeader();
-        final QueryConsumerOffsetRequestHeader requestHeader =
-            (QueryConsumerOffsetRequestHeader) request
-                .decodeCommandCustomHeader(QueryConsumerOffsetRequestHeader.class);
+    private RemotingCommand queryConsumerOffset(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
+        // 构造响应
+        final RemotingCommand response = RemotingCommand.createResponseCommand(QueryConsumerOffsetResponseHeader.class);
+        final QueryConsumerOffsetResponseHeader responseHeader = (QueryConsumerOffsetResponseHeader) response.readCustomHeader();
+        // 解析请求头
+        final QueryConsumerOffsetRequestHeader requestHeader = request.decodeCommandCustomHeader(QueryConsumerOffsetRequestHeader.class);
 
+        // 根据主题和队列ID获取主题队列映射上下文
         TopicQueueMappingContext mappingContext = this.brokerController.getTopicQueueMappingManager().buildTopicQueueMappingContext(requestHeader);
+        //
         RemotingCommand rewriteResult = rewriteRequestForStaticTopic(requestHeader, mappingContext);
         if (rewriteResult != null) {
             return rewriteResult;
         }
 
-        long offset =
-            this.brokerController.getConsumerOffsetManager().queryOffset(
-                requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
+        // 查询该消费者组下、该主题和指定队列的消费偏移量
+        long offset = this.brokerController.getConsumerOffsetManager().queryOffset(requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
 
         if (offset >= 0) {
             responseHeader.setOffset(offset);

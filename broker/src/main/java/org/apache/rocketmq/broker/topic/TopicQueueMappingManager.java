@@ -43,7 +43,7 @@ import org.apache.rocketmq.remoting.rpc.TopicRequestHeader;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.buildErrorResponse;
 
 /**
- * 用于管理主题和队列映射
+ * 用于管理主题和队列映射，主题队列映射文件路径为ENV(user.home)/store/config/topicQueueMapping.json
  */
 public class TopicQueueMappingManager extends ConfigManager {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -57,7 +57,7 @@ public class TopicQueueMappingManager extends ConfigManager {
     /**
      * Map<主题, 主题队列详细信息>
      */
-    private final ConcurrentMap<String, TopicQueueMappingDetail> topicQueueMappingTable = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String/*主题*/, TopicQueueMappingDetail/*主题队列映射详情*/> topicQueueMappingTable = new ConcurrentHashMap<>();
 
 
     public TopicQueueMappingManager(BrokerController brokerController) {
@@ -165,8 +165,7 @@ public class TopicQueueMappingManager extends ConfigManager {
 
     @Override
     public String configFilePath() {
-        return BrokerPathConfigHelper.getTopicQueueMappingPath(this.brokerController.getMessageStoreConfig()
-            .getStorePathRootDir());
+        return BrokerPathConfigHelper.getTopicQueueMappingPath(this.brokerController.getMessageStoreConfig().getStorePathRootDir());
     }
 
     @Override
@@ -211,7 +210,7 @@ public class TopicQueueMappingManager extends ConfigManager {
          */
         String topic = requestHeader.getTopic();
         /**
-         * 获取Cient计算好的队列ID
+         * 获取Client计算好的队列ID
          */
         Integer globalId = null;
         if (requestHeader instanceof TopicQueueRequestHeader) {

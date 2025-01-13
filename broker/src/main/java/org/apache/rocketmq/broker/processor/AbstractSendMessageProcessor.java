@@ -18,12 +18,14 @@ package org.apache.rocketmq.broker.processor;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.opentelemetry.api.common.Attributes;
+
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.metrics.BrokerMetricsManager;
 import org.apache.rocketmq.broker.mqtrace.ConsumeMessageContext;
@@ -89,151 +91,183 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         this.consumeMessageHookList = consumeMessageHookList;
     }
 
-    protected RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand request)
-        throws RemotingCommandException {
+    protected RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        final ConsumerSendMsgBackRequestHeader requestHeader =
-            (ConsumerSendMsgBackRequestHeader) request.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
+        // 反序列化请求头
+        final ConsumerSendMsgBackRequestHeader requestHeader = request.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
 
-        // The send back requests sent to SlaveBroker will be forwarded to the master broker beside
+        // 发送回的请求如果到达了Slave，则会被转发到Master
         final BrokerController masterBroker = this.brokerController.peekMasterBroker();
         if (null == masterBroker) {
+            // 在集群内没有找到Master节点，应该报错，因为Slave本身无法执行写操作
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("no master available along with " + brokerController.getBrokerConfig().getBrokerIP1());
             return response;
         }
 
-        // The broker that received the request.
-        // It may be a master broker or a slave broker
+        // 接受请求的主机，可能是MASTER或者SLAVE
         final BrokerController currentBroker = this.brokerController;
-
-        SubscriptionGroupConfig subscriptionGroupConfig =
-            masterBroker.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getGroup());
+        // 查询内存中的订阅分组配置，如果不存在，则进行自动创建，如果无法创建，返回null
+        SubscriptionGroupConfig subscriptionGroupConfig = masterBroker.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getGroup());
         if (null == subscriptionGroupConfig) {
+            // 配置不存在，抛出配置分组不存在的异常
             response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
-            response.setRemark("subscription group not exist, " + requestHeader.getGroup() + " "
-                + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
+            response.setRemark("subscription group not exist, " + requestHeader.getGroup() + " " + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
             return response;
         }
 
+        // 从MASTER上获取Broker配置
         BrokerConfig masterBrokerConfig = masterBroker.getBrokerConfig();
         if (!PermName.isWriteable(masterBrokerConfig.getBrokerPermission())) {
+            // 该MASTER没有写权限，抛出没有权限异常
             response.setCode(ResponseCode.NO_PERMISSION);
             response.setRemark("the broker[" + masterBrokerConfig.getBrokerIP1() + "] sending message is forbidden");
             return response;
         }
 
         if (subscriptionGroupConfig.getRetryQueueNums() <= 0) {
+            // 该分组的重试队列队列<=0，代表没有重试次数了，直接返回成功
             response.setCode(ResponseCode.SUCCESS);
             response.setRemark(null);
             return response;
         }
 
+        // 使用当前分组构造一个新主题，%RETRY%consumerGroup
         String newTopic = MixAll.getRetryTopic(requestHeader.getGroup());
+        // 根据重试队列数量随机选择一个重试队列ID
         int queueIdInt = this.random.nextInt(subscriptionGroupConfig.getRetryQueueNums());
 
+        // 主题系统标识
         int topicSysFlag = 0;
         if (requestHeader.isUnitMode()) {
             topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
         }
 
-        // Create retry topic to master broker
-        TopicConfig topicConfig = masterBroker.getTopicConfigManager().createTopicInSendMessageBackMethod(
-            newTopic,
-            subscriptionGroupConfig.getRetryQueueNums(),
-            PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
+        // 创建重试主题的配置
+        TopicConfig topicConfig = masterBroker.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, subscriptionGroupConfig.getRetryQueueNums(), PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
         if (null == topicConfig) {
+            // 主题无法创建，例如锁超时，返回系统错误
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("topic[" + newTopic + "] not exist");
             return response;
         }
 
         if (!PermName.isWriteable(topicConfig.getPerm())) {
+            // 该主题没有写权限，抛出没有权限异常
             response.setCode(ResponseCode.NO_PERMISSION);
             response.setRemark(String.format("the topic[%s] sending message is forbidden", newTopic));
             return response;
         }
 
-        // Look message from the origin message store
+        // 从原存储中读取该偏移量的消息
         MessageExt msgExt = currentBroker.getMessageStore().lookMessageByOffset(requestHeader.getOffset());
         if (null == msgExt) {
+            // 原存储中消息不存在，可能已经被删除了，返回系统错误
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("look message by offset failed, " + requestHeader.getOffset());
             return response;
         }
 
+        // 获取消息属性RETRY_TOPIC，即重试主题
         final String retryTopic = msgExt.getProperty(MessageConst.PROPERTY_RETRY_TOPIC);
         if (null == retryTopic) {
+            // 未指定，则采用当前主题作为重试主题
             MessageAccessor.putProperty(msgExt, MessageConst.PROPERTY_RETRY_TOPIC, msgExt.getTopic());
         }
+        // 消息无序等待存储OK
         msgExt.setWaitStoreMsgOK(false);
-
+        // 读取消息延迟级别
         int delayLevel = requestHeader.getDelayLevel();
 
+        // 读取订阅分组配置的最大重试次数
         int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
         if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
+            // 客户端版本>=3.9，从客户端请求头读取最大消费次数
             Integer times = requestHeader.getMaxReconsumeTimes();
             if (times != null) {
+                // 订阅分组配置中未提供最大消费次数，使用请求头传递的
                 maxReconsumeTimes = times;
             }
         }
 
+        // 默认非延迟消息
         boolean isDLQ = false;
-        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes
-            || delayLevel < 0) {
-
+        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes || delayLevel < 0) {
+            // 当重新消费次数达到最大消费次数，或者没有指定延迟登记，该消息被视作延迟消息
+            // 以消费分组、原始主题、是否系统主题构造属性
             Attributes attributes = BrokerMetricsManager.newAttributesBuilder()
-                .put(LABEL_CONSUMER_GROUP, requestHeader.getGroup())
-                .put(LABEL_TOPIC, requestHeader.getOriginTopic())
-                .put(LABEL_IS_SYSTEM, BrokerMetricsManager.isSystem(requestHeader.getOriginTopic(), requestHeader.getGroup()))
-                .build();
+                    .put(LABEL_CONSUMER_GROUP, requestHeader.getGroup())
+                    .put(LABEL_TOPIC, requestHeader.getOriginTopic())
+                    .put(LABEL_IS_SYSTEM, BrokerMetricsManager.isSystem(requestHeader.getOriginTopic(), requestHeader.getGroup()))
+                    .build();
+            // 增加发送延迟队列消息的指标
             BrokerMetricsManager.sendToDlqMessages.add(1, attributes);
-
+            // 该消息被视作延迟消息
             isDLQ = true;
+            // 使用当前分组构造一个新主题，%DLQ%consumerGroup
             newTopic = MixAll.getDLQTopic(requestHeader.getGroup());
+            // 默认取第0个队列
             queueIdInt = randomQueueId(DLQ_NUMS_PER_GROUP);
 
-            // Create DLQ topic to master broker
-            topicConfig = masterBroker.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
-                DLQ_NUMS_PER_GROUP,
-                PermName.PERM_WRITE | PermName.PERM_READ, 0);
+            // 在MASTER上创建DLQ主题
+            topicConfig = masterBroker.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, DLQ_NUMS_PER_GROUP, PermName.PERM_WRITE | PermName.PERM_READ, 0);
 
             if (null == topicConfig) {
+                // 创建结果为空，返回系统错误异常
                 response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("topic[" + newTopic + "] not exist");
                 return response;
             }
+            // 设置延迟时间登记为0
             msgExt.setDelayTimeLevel(0);
         } else {
+            // 尚未达到重试上限且延迟级别>=0
             if (0 == delayLevel) {
+                // 如果延迟级别为0，则更新为3+重新消费次数
                 delayLevel = 3 + msgExt.getReconsumeTimes();
             }
 
+            // 更新延迟级别
             msgExt.setDelayTimeLevel(delayLevel);
         }
 
+        // 构造消息
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
+        // 写入主题
         msgInner.setTopic(newTopic);
+        // 写入消息体
         msgInner.setBody(msgExt.getBody());
+        // 写入消息标识
         msgInner.setFlag(msgExt.getFlag());
+        // 写入消息属性
         MessageAccessor.setProperties(msgInner, msgExt.getProperties());
+        // 写入消息属性字符串
         msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgExt.getProperties()));
+        // 写入标签代码
         msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(null, msgExt.getTags()));
 
+        // 写入队列ID
         msgInner.setQueueId(queueIdInt);
+        // 写入系统标识
         msgInner.setSysFlag(msgExt.getSysFlag());
+        // 写入消息的存储时间
         msgInner.setBornTimestamp(msgExt.getBornTimestamp());
+        // 写入消息的发送主机
         msgInner.setBornHost(msgExt.getBornHost());
+        // 写入消息的存储主机
         msgInner.setStoreHost(this.getStoreHost());
+        // 更新消息最大重试次数+1
         msgInner.setReconsumeTimes(msgExt.getReconsumeTimes() + 1);
-
+        // 获取消息ID
         String originMsgId = MessageAccessor.getOriginMessageId(msgExt);
+        // 写入消息ID
         MessageAccessor.setOriginMessageId(msgInner, UtilAll.isBlank(originMsgId) ? msgExt.getMsgId() : originMsgId);
+        // TODO by mawen，之前代码已经设置过了
         msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgExt.getProperties()));
 
         boolean succeeded = false;
 
-        // Put retry topic to master message store
+        // 将重试主题存储到MASTER的消息存储中
         PutMessageResult putMessageResult = masterBroker.getMessageStore().putMessage(msgInner);
         if (putMessageResult != null) {
             String commercialOwner = request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER);
@@ -255,21 +289,21 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
                     if (isDLQ) {
                         masterBroker.getBrokerStatsManager().incDLQStatValue(
-                            BrokerStatsManager.SNDBCK2DLQ_TIMES,
-                            commercialOwner,
-                            requestHeader.getGroup(),
-                            requestHeader.getOriginTopic(),
-                            BrokerStatsManager.StatsType.SEND_BACK_TO_DLQ.name(),
-                            1);
+                                BrokerStatsManager.SNDBCK2DLQ_TIMES,
+                                commercialOwner,
+                                requestHeader.getGroup(),
+                                requestHeader.getOriginTopic(),
+                                BrokerStatsManager.StatsType.SEND_BACK_TO_DLQ.name(),
+                                1);
 
                         String uniqKey = msgInner.getProperties().get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
                         DLQ_LOG.info("send msg to DLQ {}, owner={}, originalTopic={}, consumerId={}, msgUniqKey={}, storeTimestamp={}",
-                            newTopic,
-                            commercialOwner,
-                            requestHeader.getOriginTopic(),
-                            requestHeader.getGroup(),
-                            uniqKey,
-                            putMessageResult.getAppendMessageResult().getStoreTimestamp());
+                                newTopic,
+                                commercialOwner,
+                                requestHeader.getOriginTopic(),
+                                requestHeader.getGroup(),
+                                uniqKey,
+                                putMessageResult.getAppendMessageResult().getStoreTimestamp());
                     }
 
                     response.setCode(ResponseCode.SUCCESS);
@@ -290,12 +324,12 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 String owner = request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER);
                 String uniqKey = msgInner.getProperties().get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
                 DLQ_LOG.info("failed to send msg to DLQ {}, owner={}, originalTopic={}, consumerId={}, msgUniqKey={}, result={}",
-                    newTopic,
-                    owner,
-                    requestHeader.getOriginTopic(),
-                    requestHeader.getGroup(),
-                    uniqKey,
-                    "null");
+                        newTopic,
+                        owner,
+                        requestHeader.getOriginTopic(),
+                        requestHeader.getGroup(),
+                        uniqKey,
+                        "null");
             }
 
             response.setCode(ResponseCode.SYSTEM_ERROR);
@@ -453,7 +487,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
     }
 
     protected MessageExtBrokerInner buildInnerMsg(final ChannelHandlerContext ctx,
-        final SendMessageRequestHeader requestHeader, final byte[] body, TopicConfig topicConfig) {
+                                                  final SendMessageRequestHeader requestHeader, final byte[] body, TopicConfig topicConfig) {
         int queueIdInt = requestHeader.getQueueId();
         if (queueIdInt < 0) {
             queueIdInt = randomQueueId(topicConfig.getWriteQueueNums());
@@ -469,10 +503,10 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         msgInner.setBody(body);
         msgInner.setFlag(requestHeader.getFlag());
         MessageAccessor.setProperties(msgInner,
-            MessageDecoder.string2messageProperties(requestHeader.getProperties()));
+                MessageDecoder.string2messageProperties(requestHeader.getProperties()));
         msgInner.setPropertiesString(requestHeader.getProperties());
         msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(topicConfig.getTopicFilterType(),
-            msgInner.getTags()));
+                msgInner.getTags()));
 
         msgInner.setQueueId(queueIdInt);
         msgInner.setSysFlag(sysFlag);
@@ -480,7 +514,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         msgInner.setBornHost(ctx.channel().remoteAddress());
         msgInner.setStoreHost(this.getStoreHost());
         msgInner.setReconsumeTimes(requestHeader.getReconsumeTimes() == null ? 0 : requestHeader
-            .getReconsumeTimes());
+                .getReconsumeTimes());
         return msgInner;
     }
 
@@ -489,26 +523,26 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
     }
 
     protected RemotingCommand msgContentCheck(final ChannelHandlerContext ctx,
-        final SendMessageRequestHeader requestHeader, RemotingCommand request,
-        final RemotingCommand response) {
+                                              final SendMessageRequestHeader requestHeader, RemotingCommand request,
+                                              final RemotingCommand response) {
         String topic = requestHeader.getTopic();
         if (topic.length() > Byte.MAX_VALUE) {
             LOGGER.warn("msgContentCheck: message topic length is too long, topic={}, topic length={}, threshold={}",
-                topic, topic.length(), Byte.MAX_VALUE);
+                    topic, topic.length(), Byte.MAX_VALUE);
             response.setCode(ResponseCode.MESSAGE_ILLEGAL);
             return response;
         }
         if (requestHeader.getProperties() != null && requestHeader.getProperties().length() > Short.MAX_VALUE) {
             LOGGER.warn(
-                "msgContentCheck: message properties length is too long, topic={}, properties length={}, threshold={}",
-                topic, requestHeader.getProperties().length(), Short.MAX_VALUE);
+                    "msgContentCheck: message properties length is too long, topic={}, properties length={}, threshold={}",
+                    topic, requestHeader.getProperties().length(), Short.MAX_VALUE);
             response.setCode(ResponseCode.MESSAGE_ILLEGAL);
             return response;
         }
         if (request.getBody().length > DBMsgConstants.MAX_BODY_SIZE) {
             LOGGER.warn(
-                "msgContentCheck: message body size exceeds the threshold, topic={}, body size={}, threshold={}bytes",
-                topic, request.getBody().length, DBMsgConstants.MAX_BODY_SIZE);
+                    "msgContentCheck: message body size exceeds the threshold, topic={}, body size={}, threshold={}bytes",
+                    topic, request.getBody().length, DBMsgConstants.MAX_BODY_SIZE);
             response.setRemark("msg body must be less 64KB");
             response.setCode(ResponseCode.MESSAGE_ILLEGAL);
             return response;
@@ -615,7 +649,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
     }
 
     protected void doResponse(ChannelHandlerContext ctx, RemotingCommand request,
-        final RemotingCommand response) {
+                              final RemotingCommand response) {
         NettyRemotingAbstract.writeResponse(ctx.channel(), request, response);
     }
 
@@ -650,7 +684,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 try {
                     if (response != null) {
                         final SendMessageResponseHeader responseHeader =
-                            (SendMessageResponseHeader) response.readCustomHeader();
+                                (SendMessageResponseHeader) response.readCustomHeader();
                         context.setMsgId(responseHeader.getMsgId());
                         context.setQueueId(responseHeader.getQueueId());
                         context.setQueueOffset(responseHeader.getQueueOffset());

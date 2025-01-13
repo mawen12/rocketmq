@@ -19,11 +19,29 @@ package org.apache.rocketmq.client.impl.consumer;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.message.MessageRequestMode;
 
+/**
+ * 代表以拉的方式从Broker获取消息的请求
+ */
 public class PullRequest implements MessageRequest {
+    /**
+     * 消费者分组
+     */
     private String consumerGroup;
+    /**
+     * 消息队列
+     */
     private MessageQueue messageQueue;
+    /**
+     * 处理队列
+     */
     private ProcessQueue processQueue;
+    /**
+     * 下一个偏移量
+     */
     private long nextOffset;
+    /**
+     * 之前是否已经锁定，默认不说定
+     */
     private boolean previouslyLocked = false;
 
     public boolean isPreviouslyLocked() {
@@ -91,8 +109,7 @@ public class PullRequest implements MessageRequest {
 
     @Override
     public String toString() {
-        return "PullRequest [consumerGroup=" + consumerGroup + ", messageQueue=" + messageQueue
-            + ", nextOffset=" + nextOffset + "]";
+        return "PullRequest [consumerGroup=" + consumerGroup + ", messageQueue=" + messageQueue + ", nextOffset=" + nextOffset + "]";
     }
 
     public ProcessQueue getProcessQueue() {

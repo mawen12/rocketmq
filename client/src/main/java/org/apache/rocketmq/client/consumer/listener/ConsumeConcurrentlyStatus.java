@@ -16,13 +16,16 @@
  */
 package org.apache.rocketmq.client.consumer.listener;
 
+/**
+ * 并发消费状态，用户注册的并发消费监听器处理完所返回的值
+ */
 public enum ConsumeConcurrentlyStatus {
     /**
-     * Success consumption
+     * 消费成功
      */
     CONSUME_SUCCESS,
     /**
-     * Failure consumption,later try to consume
+     * 消费失败，稍后会重新尝试消费
      */
     RECONSUME_LATER;
 }

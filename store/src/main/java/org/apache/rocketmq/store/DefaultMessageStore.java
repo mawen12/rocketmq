@@ -116,16 +116,29 @@ import org.apache.rocketmq.store.timer.TimerMessageStore;
 import org.apache.rocketmq.store.util.PerfCounter;
 import org.rocksdb.RocksDBException;
 
+/**
+ * 默认的{@link MessageStore}实现
+ */
 public class DefaultMessageStore implements MessageStore {
+
     protected static final Logger LOGGER = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     protected static final Logger ERROR_LOG = LoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
     public final PerfCounter.Ticks perfs = new PerfCounter.Ticks(LOGGER);
 
+    /**
+     * 消息存储相关配置
+     */
     private final MessageStoreConfig messageStoreConfig;
-    // CommitLog
+
+    /**
+     * 提交日志，存储消息的实际对象
+     */
     protected final CommitLog commitLog;
 
+    /**
+     * 消费队列存储接口
+     */
     protected final ConsumeQueueStoreInterface consumeQueueStore;
 
     private final FlushConsumeQueueService flushConsumeQueueService;
@@ -576,30 +589,40 @@ public class DefaultMessageStore implements MessageStore {
         return commitLogSize + consumeQueueSize + indexFileSize;
     }
 
+    /**
+     * 异步将消息存储到Broker
+     *
+     * @param msg MessageInstance to store
+     * @return
+     */
     @Override
     public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
         /**
          * 触发写入消息之前的生命周期函数，并进行回调
          */
-        for (PutMessageHook putMessageHook : putMessageHookList) {
-            PutMessageResult handleResult = putMessageHook.executeBeforePutMessage(msg);
-            if (handleResult != null) {
-                return CompletableFuture.completedFuture(handleResult);
+        {
+            for (PutMessageHook putMessageHook : putMessageHookList) {
+                PutMessageResult handleResult = putMessageHook.executeBeforePutMessage(msg);
+                if (handleResult != null) {
+                    return CompletableFuture.completedFuture(handleResult);
+                }
             }
         }
 
         /**
          * 校验消息属性
          */
-        if (msg.getProperties().containsKey(MessageConst.PROPERTY_INNER_NUM) && !MessageSysFlag.check(msg.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)) {
-            LOGGER.warn("[BUG]The message had property {} but is not an inner batch", MessageConst.PROPERTY_INNER_NUM);
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
-        }
-        if (MessageSysFlag.check(msg.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)) {
-            Optional<TopicConfig> topicConfig = this.getTopicConfig(msg.getTopic());
-            if (!QueueTypeUtils.isBatchCq(topicConfig)) {
-                LOGGER.error("[BUG]The message is an inner batch but cq type is not batch cq");
+        {
+            if (msg.getProperties().containsKey(MessageConst.PROPERTY_INNER_NUM) && !MessageSysFlag.check(msg.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)) {
+                LOGGER.warn("[BUG]The message had property {} but is not an inner batch", MessageConst.PROPERTY_INNER_NUM);
                 return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
+            }
+            if (MessageSysFlag.check(msg.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)) {
+                Optional<TopicConfig> topicConfig = this.getTopicConfig(msg.getTopic());
+                if (!QueueTypeUtils.isBatchCq(topicConfig)) {
+                    LOGGER.error("[BUG]The message is an inner batch but cq type is not batch cq");
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
+                }
             }
         }
 

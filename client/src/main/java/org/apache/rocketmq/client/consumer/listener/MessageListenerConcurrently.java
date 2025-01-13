@@ -21,15 +21,14 @@ import org.apache.rocketmq.common.message.MessageExt;
 
 /**
  * A MessageListenerConcurrently object is used to receive asynchronously delivered messages concurrently
+ * 用于并发消费异步分发的消息
  */
 public interface MessageListenerConcurrently extends MessageListener {
     /**
-     * It is not recommend to throw exception,rather than returning ConsumeConcurrentlyStatus.RECONSUME_LATER if
-     * consumption failure
+     * 消费失败时不推荐抛出异常，而是返回{@link ConsumeConcurrentlyStatus#RECONSUME_LATER}
      *
      * @param msgs msgs.size() >= 1<br> DefaultMQPushConsumer.consumeMessageBatchMaxSize=1,you can modify here
      * @return The consume status
      */
-    ConsumeConcurrentlyStatus consumeMessage(final List<MessageExt> msgs,
-        final ConsumeConcurrentlyContext context);
+    ConsumeConcurrentlyStatus consumeMessage(final List<MessageExt> msgs, final ConsumeConcurrentlyContext context);
 }

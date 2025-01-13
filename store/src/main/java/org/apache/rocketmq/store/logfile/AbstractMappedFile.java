@@ -18,5 +18,8 @@ package org.apache.rocketmq.store.logfile;
 
 import org.apache.rocketmq.store.ReferenceResource;
 
+/**
+ * 标识映射文件为引用资源的抽象类
+ */
 public abstract class AbstractMappedFile extends ReferenceResource implements MappedFile {
 }

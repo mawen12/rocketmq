@@ -20,7 +20,7 @@ import java.util.Set;
 import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
- * A MessageQueueListener is implemented by the application and may be specified when a message queue changed
+ * 当消息队列发生变化时，发出提醒的监听器
  */
 public interface MessageQueueListener {
     /**

@@ -22,23 +22,28 @@ import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.exception.RemotingException;
+import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
 
 /**
- * Offset store interface
+ * 消费偏移量存储接口，即保存了消费者消费进度的存储
+ * <ul>
+ *     <li>{@link MessageModel#CLUSTERING}：{@link RemoteBrokerOffsetStore}</li>
+ *     <li>{@link MessageModel#BROADCASTING}：{@link LocalFileOffsetStore}</li>
+ * </ul>
  */
 public interface OffsetStore {
     /**
-     * Load
+     * 加载偏移量
      */
     void load() throws MQClientException;
 
     /**
-     * Update the offset,store it in memory
+     * 更新消息队列的消费偏移量，存储在内存中
      */
     void updateOffset(final MessageQueue mq, final long offset, final boolean increaseOnly);
 
     /**
-     * Update and freeze the message queue to prevent concurrent update action
+     * 更新并冻结消息队列的偏移量，阻止并发更新
      *
      * @param mq target message queue
      * @param offset expect update offset
@@ -46,37 +51,38 @@ public interface OffsetStore {
     void updateAndFreezeOffset(final MessageQueue mq, final long offset);
 
     /**
-     * Get offset from local storage
+     * 从本地存储中获取消息队列的消费偏移量
      *
      * @return The fetched offset
      */
     long readOffset(final MessageQueue mq, final ReadOffsetType type);
 
     /**
-     * Persist all offsets,may be in local storage or remote name server
+     * 持久化多个消息队列的消费偏移量，视底层实现存储在本地或者Broker
      */
     void persistAll(final Set<MessageQueue> mqs);
 
     /**
-     * Persist the offset,may be in local storage or remote name server
+     * 持久化多个消息队列的消费偏移量，视底层实现存储在本地或者Broker
      */
     void persist(final MessageQueue mq);
 
     /**
-     * Remove offset
+     * 移除消息队列的消费偏移量
      */
     void removeOffset(MessageQueue mq);
 
     /**
-     * @return The cloned offset table of given topic
+     * @return 返回主题下所有队列的消费偏移量
      */
     Map<MessageQueue, Long> cloneOffsetTable(String topic);
 
     /**
+     * 将消息队列的消费偏移量同步到Broker
+     *
      * @param mq
      * @param offset
      * @param isOneway
      */
-    void updateConsumeOffsetToBroker(MessageQueue mq, long offset, boolean isOneway) throws RemotingException,
-        MQBrokerException, InterruptedException, MQClientException;
+    void updateConsumeOffsetToBroker(MessageQueue mq, long offset, boolean isOneway) throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
 }

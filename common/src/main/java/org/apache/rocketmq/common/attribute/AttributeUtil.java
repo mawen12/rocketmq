@@ -29,6 +29,7 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
 public class AttributeUtil {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
+
     public static Map<String, String> alterCurrentAttributes(boolean create, Map<String, Attribute> all,
         ImmutableMap<String, String> currentAttributes, ImmutableMap<String, String> newAttributes) {
 

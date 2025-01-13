@@ -21,15 +21,30 @@ import org.apache.rocketmq.common.ServiceThread;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * 重新平衡服务
+ */
 public class RebalanceService extends ServiceThread {
-    private static long waitInterval =
-        Long.parseLong(System.getProperty(
-            "rocketmq.client.rebalance.waitInterval", "20000"));
-    private static long minInterval =
-        Long.parseLong(System.getProperty(
-            "rocketmq.client.rebalance.minInterval", "1000"));
+
+    /**
+     * 等待间隔，即该线程每次开始执行前，等待指定时间
+     * 从 PROPERTIES(rocketmq.client.rebalance.waitInterval) -> DEFAULT(20000)，
+     */
+    private static long waitInterval = Long.parseLong(System.getProperty("rocketmq.client.rebalance.waitInterval", "20000"));
+
+    /**
+     * 最小间隔，即每次重平衡失败时，等待间隔
+     * 从 PROPERTIES(rocketmq.client.rebalance.minInterval) -> DEFAULT(1000)
+     */
+    private static long minInterval = Long.parseLong(System.getProperty("rocketmq.client.rebalance.minInterval", "1000"));
+
     private final Logger log = LoggerFactory.getLogger(RebalanceService.class);
+
     private final MQClientInstance mqClientFactory;
+
+    /**
+     * 上次重新平衡的时间戳
+     */
     private long lastRebalanceTimestamp = System.currentTimeMillis();
 
     public RebalanceService(MQClientInstance mqClientFactory) {
@@ -42,14 +57,20 @@ public class RebalanceService extends ServiceThread {
 
         long realWaitInterval = waitInterval;
         while (!this.isStopped()) {
+            // 等待指定间隔再开始执行
             this.waitForRunning(realWaitInterval);
 
+            // 计算距离上次执行间隔
             long interval = System.currentTimeMillis() - lastRebalanceTimestamp;
             if (interval < minInterval) {
+                // 重新计算等待间隔，结束本次操作
                 realWaitInterval = minInterval - interval;
             } else {
+                // 执行重平衡
                 boolean balanced = this.mqClientFactory.doRebalance();
+                // 如果重平衡成功，则重置等待时间，否则等待最小时间
                 realWaitInterval = balanced ? waitInterval : minInterval;
+                // 更新上次平衡时间
                 lastRebalanceTimestamp = System.currentTimeMillis();
             }
         }

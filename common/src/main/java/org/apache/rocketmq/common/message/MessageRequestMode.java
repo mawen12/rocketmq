@@ -17,17 +17,18 @@
 package org.apache.rocketmq.common.message;
 
 /**
- * Message Request Mode
+ * 消息请求模式
  */
 public enum MessageRequestMode {
 
     /**
-     * pull
+     * 基于拉的请求
      */
     PULL("PULL"),
 
     /**
-     * pop, consumer working in pop mode could share MessageQueue
+     * 基于弹出的请求，以弹出模式工作的消费者可以共享消费队列
+     *
      */
     POP("POP");
 

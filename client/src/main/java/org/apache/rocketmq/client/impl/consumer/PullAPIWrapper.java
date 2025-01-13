@@ -52,16 +52,32 @@ import org.apache.rocketmq.remoting.protocol.route.TopicRouteData;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * 拉API包装器
+ */
 public class PullAPIWrapper {
     private static final Logger log = LoggerFactory.getLogger(PullAPIWrapper.class);
     private final MQClientInstance mQClientFactory;
+    /**
+     * 消费者分组
+     */
     private final String consumerGroup;
     private final boolean unitMode;
-    private ConcurrentMap<MessageQueue, AtomicLong/* brokerId */> pullFromWhichNodeTable =
-        new ConcurrentHashMap<>(32);
+    /**
+     * Map<消息队列, BrokerId>
+     */
+    private ConcurrentMap<MessageQueue, AtomicLong> pullFromWhichNodeTable = new ConcurrentHashMap<>(32);
+
     private volatile boolean connectBrokerByUser = false;
+    /**
+     * 默认的BrokerId为MASTER，brokerId=0
+     */
     private volatile long defaultBrokerId = MixAll.MASTER_ID;
+    /**
+     * 用于生成随机数
+     */
     private Random random = new Random(System.nanoTime());
+
     private ArrayList<FilterMessageHook> filterMessageHookList = new ArrayList<>();
 
     public PullAPIWrapper(MQClientInstance mQClientFactory, String consumerGroup, boolean unitMode) {
@@ -70,24 +86,17 @@ public class PullAPIWrapper {
         this.unitMode = unitMode;
     }
 
-    public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult,
-        final SubscriptionData subscriptionData) {
+    public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult, final SubscriptionData subscriptionData) {
         PullResultExt pullResultExt = (PullResultExt) pullResult;
 
         this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
         if (PullStatus.FOUND == pullResult.getPullStatus()) {
             ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
-            List<MessageExt> msgList = MessageDecoder.decodesBatch(
-                byteBuffer,
-                this.mQClientFactory.getClientConfig().isDecodeReadBody(),
-                this.mQClientFactory.getClientConfig().isDecodeDecompressBody(),
-                true
-            );
+            List<MessageExt> msgList = MessageDecoder.decodesBatch(byteBuffer, this.mQClientFactory.getClientConfig().isDecodeReadBody(), this.mQClientFactory.getClientConfig().isDecodeDecompressBody(), true);
 
             boolean needDecodeInnerMessage = false;
             for (MessageExt messageExt: msgList) {
-                if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)
-                    && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
+                if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG) && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
                     needDecodeInnerMessage = true;
                     break;
                 }
@@ -96,8 +105,7 @@ public class PullAPIWrapper {
                 List<MessageExt> innerMsgList = new ArrayList<>();
                 try {
                     for (MessageExt messageExt: msgList) {
-                        if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)
-                            && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
+                        if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG) && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
                             MessageDecoder.decodeMessage(messageExt, innerMsgList);
                         } else {
                             innerMsgList.add(messageExt);
@@ -133,10 +141,8 @@ public class PullAPIWrapper {
                 if (Boolean.parseBoolean(traFlag)) {
                     msg.setTransactionId(msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
                 }
-                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MIN_OFFSET,
-                    Long.toString(pullResult.getMinOffset()));
-                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MAX_OFFSET,
-                    Long.toString(pullResult.getMaxOffset()));
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MIN_OFFSET, Long.toString(pullResult.getMinOffset()));
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MAX_OFFSET, Long.toString(pullResult.getMaxOffset()));
                 msg.setBrokerName(mq.getBrokerName());
                 msg.setQueueId(mq.getQueueId());
                 if (pullResultExt.getOffsetDelta() != null) {
@@ -177,108 +183,80 @@ public class PullAPIWrapper {
         }
     }
 
-    public PullResult pullKernelImpl(
-        final MessageQueue mq,
-        final String subExpression,
-        final String expressionType,
-        final long subVersion,
-        final long offset,
-        final int maxNums,
-        final int maxSizeInBytes,
-        final int sysFlag,
-        final long commitOffset,
-        final long brokerSuspendMaxTimeMillis,
-        final long timeoutMillis,
-        final CommunicationMode communicationMode,
-        final PullCallback pullCallback
-    ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-        FindBrokerResult findBrokerResult =
-            this.mQClientFactory.findBrokerAddressInSubscribe(this.mQClientFactory.getBrokerNameFromMessageQueue(mq),
-                this.recalculatePullFromWhichNode(mq), false);
+    public PullResult pullKernelImpl(final MessageQueue mq, final String subExpression, final String expressionType, final long subVersion, final long offset,
+                                     final int maxNums, final int maxSizeInBytes, final int sysFlag, final long commitOffset, final long brokerSuspendMaxTimeMillis,
+                                     final long timeoutMillis, final CommunicationMode communicationMode, final PullCallback pullCallback) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        // 从内存中读取Broker信息
+        FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(this.mQClientFactory.getBrokerNameFromMessageQueue(mq), this.recalculatePullFromWhichNode(mq), false);
         if (null == findBrokerResult) {
+            // 从Namesrv读取Broker的信息，并更新到内存中
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
-            findBrokerResult =
-                this.mQClientFactory.findBrokerAddressInSubscribe(this.mQClientFactory.getBrokerNameFromMessageQueue(mq),
-                    this.recalculatePullFromWhichNode(mq), false);
+            // 从内存中再次读取
+            findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(this.mQClientFactory.getBrokerNameFromMessageQueue(mq), this.recalculatePullFromWhichNode(mq), false);
         }
 
-
         if (findBrokerResult != null) {
+            // 校验版本
             {
-                // check version
-                if (!ExpressionType.isTagType(expressionType)
-                    && findBrokerResult.getBrokerVersion() < MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
-                    throw new MQClientException("The broker[" + mq.getBrokerName() + ", "
-                        + findBrokerResult.getBrokerVersion() + "] does not upgrade to support for filter message by " + expressionType, null);
+                if (!ExpressionType.isTagType(expressionType) && findBrokerResult.getBrokerVersion() < MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
+                    // V4_1_0_SNAPSHOT之前的版本，仅支持基于Tag类型的过滤，不支持其他类型
+                    throw new MQClientException("The broker[" + mq.getBrokerName() + ", " + findBrokerResult.getBrokerVersion() + "] does not upgrade to support for filter message by " + expressionType, null);
                 }
             }
             int sysFlagInner = sysFlag;
 
             if (findBrokerResult.isSlave()) {
+                // 该Broker是SLAVE，需要清除提交偏移量的标识
                 sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
             }
 
+            // 构造拉消息请求
             PullMessageRequestHeader requestHeader = new PullMessageRequestHeader();
+            // 写入消费组
             requestHeader.setConsumerGroup(this.consumerGroup);
+            // 写入主题
             requestHeader.setTopic(mq.getTopic());
+            // 写入队列ID
             requestHeader.setQueueId(mq.getQueueId());
+            // 写入队列偏移量
             requestHeader.setQueueOffset(offset);
+            // 写入最大消息数
             requestHeader.setMaxMsgNums(maxNums);
+            // 写入系统标识
             requestHeader.setSysFlag(sysFlagInner);
+            // 写入提交的偏移量
             requestHeader.setCommitOffset(commitOffset);
+            // 写入暂停超时时间
             requestHeader.setSuspendTimeoutMillis(brokerSuspendMaxTimeMillis);
+            // 写入订阅
             requestHeader.setSubscription(subExpression);
+            // 写入子版本
             requestHeader.setSubVersion(subVersion);
+            // 写入消息最大字节数
             requestHeader.setMaxMsgBytes(maxSizeInBytes);
+            // 写入表达式
             requestHeader.setExpressionType(expressionType);
+            // 写入Broker名称
             requestHeader.setBrokerName(mq.getBrokerName());
 
             String brokerAddr = findBrokerResult.getBrokerAddr();
             if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) {
+                // 根据类过滤器选择broker地址
                 brokerAddr = computePullFromWhichFilterServer(mq.getTopic(), brokerAddr);
             }
 
-            PullResult pullResult = this.mQClientFactory.getMQClientAPIImpl().pullMessage(
-                brokerAddr,
-                requestHeader,
-                timeoutMillis,
-                communicationMode,
-                pullCallback);
-
-            return pullResult;
+            // 向指定broker请求拉取消息，并返回结果
+            return this.mQClientFactory.getMQClientAPIImpl().pullMessage(brokerAddr, requestHeader, timeoutMillis, communicationMode, pullCallback);
         }
 
+        // 尽管从Namesrv获取了Broker更新，但是本地仍然没有
         throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);
     }
 
-    public PullResult pullKernelImpl(
-        MessageQueue mq,
-        final String subExpression,
-        final String expressionType,
-        final long subVersion,
-        long offset,
-        final int maxNums,
-        final int sysFlag,
-        long commitOffset,
-        final long brokerSuspendMaxTimeMillis,
-        final long timeoutMillis,
-        final CommunicationMode communicationMode,
-        PullCallback pullCallback
-    ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-        return pullKernelImpl(
-                mq,
-                subExpression,
-                expressionType,
-                subVersion, offset,
-                maxNums,
-                Integer.MAX_VALUE,
-                sysFlag,
-                commitOffset,
-                brokerSuspendMaxTimeMillis,
-                timeoutMillis,
-                communicationMode,
-                pullCallback
-        );
+    public PullResult pullKernelImpl(MessageQueue mq, final String subExpression, final String expressionType, final long subVersion, long offset, final int maxNums, final int sysFlag,
+        long commitOffset, final long brokerSuspendMaxTimeMillis, final long timeoutMillis, final CommunicationMode communicationMode, PullCallback pullCallback) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        // 拉取指定主题下，指定队列下的固定数量的消息
+        return pullKernelImpl(mq, subExpression, expressionType, subVersion, offset, maxNums, Integer.MAX_VALUE, sysFlag, commitOffset, brokerSuspendMaxTimeMillis, timeoutMillis, communicationMode, pullCallback);
     }
 
     public long recalculatePullFromWhichNode(final MessageQueue mq) {
@@ -294,20 +272,23 @@ public class PullAPIWrapper {
         return MixAll.MASTER_ID;
     }
 
-    private String computePullFromWhichFilterServer(final String topic, final String brokerAddr)
-        throws MQClientException {
+    private String computePullFromWhichFilterServer(final String topic, final String brokerAddr) throws MQClientException {
+        // 读取内存中的主题路由信息
         ConcurrentMap<String, TopicRouteData> topicRouteTable = this.mQClientFactory.getTopicRouteTable();
         if (topicRouteTable != null) {
+            // 获取主题的路由信息
             TopicRouteData topicRouteData = topicRouteTable.get(topic);
+            // 获取该主题地址下的过滤服务列表
             List<String> list = topicRouteData.getFilterServerTable().get(brokerAddr);
 
             if (list != null && !list.isEmpty()) {
+                // 随机选择一个服务列表
                 return list.get(randomNum() % list.size());
             }
         }
 
-        throw new MQClientException("Find Filter Server Failed, Broker Addr: " + brokerAddr + " topic: "
-            + topic, null);
+        // 无法过滤，抛出异常
+        throw new MQClientException("Find Filter Server Failed, Broker Addr: " + brokerAddr + " topic: " + topic, null);
     }
 
     public boolean isConnectBrokerByUser() {

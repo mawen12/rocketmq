@@ -37,26 +37,20 @@ import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
 /**
- * Local storage implementation
+ * 基于客户端本地文件的{@link OffsetStore}实现
  */
 public class LocalFileOffsetStore implements OffsetStore {
-    public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty(
-        "rocketmq.client.localOffsetStoreDir",
-        System.getProperty("user.home") + File.separator + ".rocketmq_offsets");
+    public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty("rocketmq.client.localOffsetStoreDir", System.getProperty("user.home") + File.separator + ".rocketmq_offsets");
     private final static Logger log = LoggerFactory.getLogger(LocalFileOffsetStore.class);
     private final MQClientInstance mQClientFactory;
     private final String groupName;
     private final String storePath;
-    private ConcurrentMap<MessageQueue, ControllableOffset> offsetTable =
-        new ConcurrentHashMap<>();
+    private ConcurrentMap<MessageQueue, ControllableOffset> offsetTable = new ConcurrentHashMap<>();
 
     public LocalFileOffsetStore(MQClientInstance mQClientFactory, String groupName) {
         this.mQClientFactory = mQClientFactory;
         this.groupName = groupName;
-        this.storePath = LOCAL_OFFSET_STORE_DIR + File.separator +
-            this.mQClientFactory.getClientId() + File.separator +
-            this.groupName + File.separator +
-            "offsets.json";
+        this.storePath = LOCAL_OFFSET_STORE_DIR + File.separator + this.mQClientFactory.getClientId() + File.separator + this.groupName + File.separator + "offsets.json";
     }
 
     @Override
@@ -66,10 +60,7 @@ public class LocalFileOffsetStore implements OffsetStore {
             for (Entry<MessageQueue, AtomicLong> mqEntry : offsetSerializeWrapper.getOffsetTable().entrySet()) {
                 AtomicLong offset = mqEntry.getValue();
                 offsetTable.put(mqEntry.getKey(), new ControllableOffset(offset.get()));
-                log.info("load consumer's offset, {} {} {}",
-                        this.groupName,
-                        mqEntry.getKey(),
-                        offset.get());
+                log.info("load consumer's offset, {} {} {}", this.groupName, mqEntry.getKey(), offset.get());
             }
         }
     }

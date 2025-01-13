@@ -58,7 +58,13 @@ import org.apache.rocketmq.store.util.LibC;
 import sun.misc.Unsafe;
 import sun.nio.ch.DirectBuffer;
 
+/**
+ * 默认的{@link MappedFile}实现
+ */
 public class DefaultMappedFile extends AbstractMappedFile {
+    /**
+     * 系统页大小，4k
+     */
     public static final int OS_PAGE_SIZE = 1024 * 4;
     public static final Unsafe UNSAFE = getUnsafe();
     private static final Method IS_LOADED_METHOD;
@@ -160,8 +166,7 @@ public class DefaultMappedFile extends AbstractMappedFile {
         init(fileName, fileSize);
     }
 
-    public DefaultMappedFile(final String fileName, final int fileSize,
-        final TransientStorePool transientStorePool) throws IOException {
+    public DefaultMappedFile(final String fileName, final int fileSize, final TransientStorePool transientStorePool) throws IOException {
         init(fileName, fileSize, transientStorePool);
     }
 
@@ -174,8 +179,7 @@ public class DefaultMappedFile extends AbstractMappedFile {
     }
 
     @Override
-    public void init(final String fileName, final int fileSize,
-        final TransientStorePool transientStorePool) throws IOException {
+    public void init(final String fileName, final int fileSize, final TransientStorePool transientStorePool) throws IOException {
         init(fileName, fileSize);
         this.writeBuffer = transientStorePool.borrowBuffer();
         this.transientStorePool = transientStorePool;

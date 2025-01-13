@@ -25,27 +25,30 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * 消费队列分配算法抽象类
+ */
 public abstract class AbstractAllocateMessageQueueStrategy implements AllocateMessageQueueStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractAllocateMessageQueueStrategy.class);
 
-    public boolean check(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
-        List<String> cidAll) {
+    public boolean check(String consumerGroup, String currentCID, List<MessageQueue> mqAll, List<String> cidAll) {
+        // 当前客户端ID不能为空
         if (StringUtils.isEmpty(currentCID)) {
             throw new IllegalArgumentException("currentCID is empty");
         }
+        // 所有消息队列不能为空
         if (CollectionUtils.isEmpty(mqAll)) {
             throw new IllegalArgumentException("mqAll is null or mqAll empty");
         }
+        // 所有消费者不能为空
         if (CollectionUtils.isEmpty(cidAll)) {
             throw new IllegalArgumentException("cidAll is null or cidAll empty");
         }
 
+        // 所有消费者中必须存在当前消费者
         if (!cidAll.contains(currentCID)) {
-            log.info("[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}",
-                consumerGroup,
-                currentCID,
-                cidAll);
+            log.info("[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}", consumerGroup, currentCID, cidAll);
             return false;
         }
 

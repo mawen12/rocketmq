@@ -37,6 +37,9 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.store.logfile.DefaultMappedFile;
 import org.apache.rocketmq.store.logfile.MappedFile;
 
+/**
+ * 映射文件队列
+ */
 public class MappedFileQueue implements Swappable {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private static final Logger LOG_ERROR = LoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
@@ -53,6 +56,9 @@ public class MappedFileQueue implements Swappable {
      */
     protected final int mappedFileSize;
 
+    /**
+     * 保存了消息的所有映射文件
+     */
     protected final CopyOnWriteArrayList<MappedFile> mappedFiles = new CopyOnWriteArrayList<>();
 
     protected final AllocateMappedFileService allocateMappedFileService;

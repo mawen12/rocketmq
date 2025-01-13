@@ -20,11 +20,29 @@ import org.apache.rocketmq.common.constant.ConsumeInitMode;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.message.MessageRequestMode;
 
+/**
+ * 代表以弹出的方式从Broker获取消息的请求
+ */
 public class PopRequest implements MessageRequest {
+    /**
+     * 主题
+     */
     private String topic;
+    /**
+     * 消费分组
+     */
     private String consumerGroup;
+    /**
+     * 消费队列，队列的Broker、主题、id
+     */
     private MessageQueue messageQueue;
+    /**
+     * 弹出处理队列
+     */
     private PopProcessQueue popProcessQueue;
+    /**
+     *
+     */
     private boolean lockedFirst = false;
     private int initMode = ConsumeInitMode.MAX;
 

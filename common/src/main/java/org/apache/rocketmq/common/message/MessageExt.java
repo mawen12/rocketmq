@@ -46,7 +46,7 @@ public class MessageExt extends Message {
     private int storeSize;
 
     /**
-     * 消息在消费队列中偏移量
+     * 消息在消费队列中偏移量，即消息在当前队列中是第几条消息
      */
     private long queueOffset;
     /**

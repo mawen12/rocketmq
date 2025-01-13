@@ -16,8 +16,13 @@
  */
 package org.apache.rocketmq.remoting.protocol;
 
+/**
+ * 请求来源枚举
+ */
 public enum RequestSource {
-
+    /**
+     * 来源于客户端SDK
+     */
     SDK(-1),
     PROXY_FOR_ORDER(0),
     PROXY_FOR_BROADCAST(1),

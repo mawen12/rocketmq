@@ -30,17 +30,31 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.protocol.RequestCode;
 import org.apache.rocketmq.remoting.rpc.TopicQueueRequestHeader;
 
+/**
+ * 查询消费者分组下，指定主题的指定队列的消费进度
+ */
 @RocketMQAction(value = RequestCode.QUERY_CONSUMER_OFFSET, action = Action.GET)
 public class QueryConsumerOffsetRequestHeader extends TopicQueueRequestHeader {
+    /**
+     * 消费者分组
+     */
     @CFNotNull
     @RocketMQResource(ResourceType.GROUP)
     private String consumerGroup;
+    /**
+     * 消费主题
+     */
     @CFNotNull
     @RocketMQResource(ResourceType.TOPIC)
     private String topic;
+    /**
+     * 队列ID
+     */
     @CFNotNull
     private Integer queueId;
-
+    /**
+     * 如果消费者分组还没有消费该队列，是否返回0
+     */
     private Boolean setZeroIfNotFound;
 
     @Override

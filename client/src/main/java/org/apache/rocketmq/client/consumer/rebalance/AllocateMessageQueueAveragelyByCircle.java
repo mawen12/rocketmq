@@ -21,14 +21,12 @@ import java.util.List;
 import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
- * Cycle average Hashing queue algorithm
+ * 基于周期的平均哈希队列
  */
 public class AllocateMessageQueueAveragelyByCircle extends AbstractAllocateMessageQueueStrategy {
 
     @Override
-    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
-        List<String> cidAll) {
-
+    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll, List<String> cidAll) {
         List<MessageQueue> result = new ArrayList<>();
         if (!check(consumerGroup, currentCID, mqAll, cidAll)) {
             return result;

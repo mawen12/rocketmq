@@ -46,23 +46,36 @@ import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
 /**
- * 重新平衡实现
+ * 重新平衡实现，在消费者启动时触发
  */
 public abstract class RebalanceImpl {
+
     protected static final Logger log = LoggerFactory.getLogger(RebalanceImpl.class);
 
     protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<>(64);
+
     protected final ConcurrentMap<MessageQueue, PopProcessQueue> popProcessQueueTable = new ConcurrentHashMap<>(64);
 
     /**
      * Map<主题, 消息队列集合>
      * 保存了消费者订阅的主题及其消息队列集合
      */
-    protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable = new ConcurrentHashMap<>();
+    protected final ConcurrentMap<String/* topic */, Set<MessageQueue>/* 消息订阅 */> topicSubscribeInfoTable = new ConcurrentHashMap<>();
     /**
-     * Map<主题, 订阅信息>
+     * 保存了用户订阅时传递的主题和订阅表达式信息，以及对于集群模式下的推模式和拉模式，构造%RETRY%consumerGroup保存消费失败需要重试的消息
+     * <ul>
+     *     <li>当用户使用DefaultMQPushConsumer进行订阅时，所注册的主题和订阅表达式都会保存到该变量中</li>
+     *     <li>当用户使用DefaultLitePullConsumer进行订阅时，所注册的主题和订阅表达式都会保存到该变量中</li>
+     *     <li>当在集群模式下使用推模式(PUSH)时，构造%RETRY%consumerGroup保存消费失败需要重试的消息</li>
+     *     <li>当在集群模式下使用拉模式(PUSH)时，构造%RETRY%consumerGroup保存消费失败需要重试的消息</li>
+     * </ul>
+     *
+     * @see org.apache.rocketmq.client.consumer.DefaultMQPushConsumer#subscribe(String, String)
+     * @see org.apache.rocketmq.client.consumer.DefaultLitePullConsumer#subscribe(String, String)
+     * @see DefaultMQPushConsumerImpl#copySubscription()
+     * @see DefaultMQPullConsumerImpl#copySubscription()
      */
-    protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner = new ConcurrentHashMap<>();
+    protected final ConcurrentMap<String /* topic */, SubscriptionData/* 订阅表达式信息，基于原始字符串解析 */> subscriptionInner = new ConcurrentHashMap<>();
     /**
      * 消费组
      */
@@ -71,13 +84,14 @@ public abstract class RebalanceImpl {
      * 消息模式
      */
     protected MessageModel messageModel;
+    /**
+     * 消息队列分配策略，因为用户仅指定主题和订阅表达式，主题下哪些队列被消费，怎么分配由该算法决定
+     */
     protected AllocateMessageQueueStrategy allocateMessageQueueStrategy;
     protected MQClientInstance mQClientFactory;
     private static final int QUERY_ASSIGNMENT_TIMEOUT = 3000;
 
-    public RebalanceImpl(String consumerGroup, MessageModel messageModel,
-        AllocateMessageQueueStrategy allocateMessageQueueStrategy,
-        MQClientInstance mQClientFactory) {
+    public RebalanceImpl(String consumerGroup, MessageModel messageModel, AllocateMessageQueueStrategy allocateMessageQueueStrategy, MQClientInstance mQClientFactory) {
         this.consumerGroup = consumerGroup;
         this.messageModel = messageModel;
         this.allocateMessageQueueStrategy = allocateMessageQueueStrategy;
@@ -439,8 +453,7 @@ public abstract class RebalanceImpl {
         }
     }
 
-    private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet,
-        final boolean needLockMq) {
+    private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet, final boolean needLockMq) {
         boolean changed = false;
 
         // drop process queues no longer belong me
@@ -521,8 +534,7 @@ public abstract class RebalanceImpl {
         return changed;
     }
 
-    private boolean updateMessageQueueAssignment(final String topic, final Set<MessageQueueAssignment> assignments,
-        final boolean isOrder) {
+    private boolean updateMessageQueueAssignment(final String topic, final Set<MessageQueueAssignment> assignments, final boolean isOrder) {
         boolean changed = false;
 
         Map<MessageQueue, MessageQueueAssignment> mq2PushAssignment = new HashMap<>();

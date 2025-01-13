@@ -248,6 +248,7 @@ public class ConsumerOffsetManagerV2 extends ConsumerOffsetManager {
 
     @Override
     public boolean load() {
+        // 加载数据版本和消费者偏移量
         return loadDataVersion() && loadConsumerOffsets();
     }
 
@@ -273,8 +274,7 @@ public class ConsumerOffsetManagerV2 extends ConsumerOffsetManager {
      */
     public boolean loadDataVersion() {
         try {
-            ConfigHelper.loadDataVersion(configStorage, TableId.CONSUMER_OFFSET)
-                .ifPresent(buf -> ConfigHelper.onDataVersionLoad(buf, dataVersion));
+            ConfigHelper.loadDataVersion(configStorage, TableId.CONSUMER_OFFSET).ifPresent(buf -> ConfigHelper.onDataVersionLoad(buf, dataVersion));
         } catch (RocksDBException e) {
             LOG.error("Failed to load RocksDB config", e);
             return false;

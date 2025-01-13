@@ -33,16 +33,37 @@ import org.apache.rocketmq.remoting.protocol.heartbeat.ConsumeType;
 import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.remoting.protocol.heartbeat.SubscriptionData;
 
+/**
+ * 消费分组信息，代表一个消费分组下，对于不同主题的订阅数据
+ */
 public class ConsumerGroupInfo {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
+    /**
+     * 客户端消费者分组
+     */
     private final String groupName;
-    private final ConcurrentMap<String/* Topic */, SubscriptionData> subscriptionTable =
-        new ConcurrentHashMap<>();
-    private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
-        new ConcurrentHashMap<>(16);
+    /**
+     * Map<主题, 订阅数据>
+     * 维护了同一个消费者分组下，消费者对于不同主题的订阅数据
+     */
+    private final ConcurrentMap<String, SubscriptionData> subscriptionTable = new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable = new ConcurrentHashMap<>(16);
+    /**
+     * 消费类型，每当客户端重启时，该值有可能发生变更
+     */
     private volatile ConsumeType consumeType;
+    /**
+     * 消费模式，每当客户端重启时，该值有可能发生变更
+     */
     private volatile MessageModel messageModel;
+    /**
+     * 消费起点，每当客户端重启时，该值有可能发生变更
+     */
     private volatile ConsumeFromWhere consumeFromWhere;
+    /**
+     * 最后的更新时间，每当上述值发生变更时，更新该值
+     */
     private volatile long lastUpdateTimestamp = System.currentTimeMillis();
 
     public ConsumerGroupInfo(String groupName, ConsumeType consumeType, MessageModel messageModel,

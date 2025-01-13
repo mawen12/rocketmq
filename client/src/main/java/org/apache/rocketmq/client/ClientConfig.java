@@ -108,15 +108,21 @@ public class ClientConfig {
     private boolean enableHeartbeatChannelEventListener = true;
 
     /**
-     * The switch for message trace
+     * 消息追踪的开关，默认关闭
      */
     protected boolean enableTrace = false;
 
     /**
-     * The name value of message trace topic. If not set, the default trace topic name will be used.
+     * 进行消息追踪的主题名称，如果没有设置，使用默认主题名
      */
     protected String traceTopic;
 
+    /**
+     * 创建该客户端ID，格式为ip@pid#nanoTime
+     *
+     * @see ClientConfig#changeInstanceNameToPID()
+     * @return
+     */
     public String buildMQClientId() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClientIP());

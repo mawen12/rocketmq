@@ -21,29 +21,69 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.protocol.body.ConsumeMessageDirectlyResult;
 
+/**
+ * 消息消费服务，{@link org.apache.rocketmq.client.consumer.listener.MessageListener}的底层实现
+ */
 public interface ConsumeMessageService {
+    /**
+     * 启动消费服务
+     */
     void start();
 
+    /**
+     * 等待时间内暂停
+     *
+     * @param awaitTerminateMillis
+     */
     void shutdown(long awaitTerminateMillis);
 
+    /**
+     * 更新核心线程数
+     *
+     * @param corePoolSize
+     */
     void updateCorePoolSize(int corePoolSize);
 
+    /**
+     * 增加核心线程数
+     */
     void incCorePoolSize();
 
+    /**
+     * 降低核心线程数
+     */
     void decCorePoolSize();
 
+    /**
+     * 返回核心线程数
+     * @return
+     */
     int getCorePoolSize();
 
+    /**
+     * 返回消费消息结果
+     * @param msg
+     * @param brokerName
+     * @return
+     */
     ConsumeMessageDirectlyResult consumeMessageDirectly(final MessageExt msg, final String brokerName);
 
-    void submitConsumeRequest(
-        final List<MessageExt> msgs,
-        final ProcessQueue processQueue,
-        final MessageQueue messageQueue,
-        final boolean dispathToConsume);
+    /**
+     * 提交消费请求
+     *
+     * @param msgs
+     * @param processQueue
+     * @param messageQueue
+     * @param dispathToConsume
+     */
+    void submitConsumeRequest(final List<MessageExt> msgs, final ProcessQueue processQueue, final MessageQueue messageQueue, final boolean dispathToConsume);
 
-    void submitPopConsumeRequest(
-        final List<MessageExt> msgs,
-        final PopProcessQueue processQueue,
-        final MessageQueue messageQueue);
+    /**
+     * 提交POP消费请求
+     *
+     * @param msgs
+     * @param processQueue
+     * @param messageQueue
+     */
+    void submitPopConsumeRequest(final List<MessageExt> msgs, final PopProcessQueue processQueue, final MessageQueue messageQueue);
 }

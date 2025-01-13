@@ -57,6 +57,18 @@ import org.apache.rocketmq.remoting.protocol.header.ResetOffsetRequestHeader;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * 客户端远程处理器，处理以下请求：
+ * <ul>
+ *     <li>{@link RequestCode#CHECK_TRANSACTION_STATE}</li>
+ *     <li>{@link RequestCode#NOTIFY_CONSUMER_IDS_CHANGED}</li>
+ *     <li>{@link RequestCode#RESET_CONSUMER_CLIENT_OFFSET}</li>
+ *     <li>{@link RequestCode#GET_CONSUMER_STATUS_FROM_CLIENT}</li>
+ *     <li>{@link RequestCode#GET_CONSUMER_RUNNING_INFO}</li>
+ *     <li>{@link RequestCode#CONSUME_MESSAGE_DIRECTLY}</li>
+ *     <li>{@link RequestCode#PUSH_REPLY_MESSAGE_TO_CLIENT}</li>
+ * </ul>
+ */
 public class ClientRemotingProcessor implements NettyRequestProcessor {
     private final Logger logger = LoggerFactory.getLogger(ClientRemotingProcessor.class);
     private final MQClientInstance mqClientFactory;
@@ -70,11 +82,14 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         RemotingCommand request) throws RemotingCommandException {
         switch (request.getCode()) {
             case RequestCode.CHECK_TRANSACTION_STATE:
+
                 return this.checkTransactionState(ctx, request);
             case RequestCode.NOTIFY_CONSUMER_IDS_CHANGED:
                 return this.notifyConsumerIdsChanged(ctx, request);
+
             case RequestCode.RESET_CONSUMER_CLIENT_OFFSET:
                 return this.resetOffset(ctx, request);
+
             case RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT:
                 return this.getConsumeStatus(ctx, request);
 
@@ -201,17 +216,13 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        final ConsumeMessageDirectlyResultRequestHeader requestHeader =
-            (ConsumeMessageDirectlyResultRequestHeader) request
-                .decodeCommandCustomHeader(ConsumeMessageDirectlyResultRequestHeader.class);
+        final ConsumeMessageDirectlyResultRequestHeader requestHeader = request.decodeCommandCustomHeader(ConsumeMessageDirectlyResultRequestHeader.class);
 
         final MessageExt msg = MessageDecoder.clientDecode(ByteBuffer.wrap(request.getBody()), true);
 
-        ConsumeMessageDirectlyResult result =
-            this.mqClientFactory.consumeMessageDirectly(msg, requestHeader.getConsumerGroup(), requestHeader.getBrokerName());
+        ConsumeMessageDirectlyResult result = this.mqClientFactory.consumeMessageDirectly(msg, requestHeader.getConsumerGroup(), requestHeader.getBrokerName());
 
         if (null != result) {
             response.setCode(ResponseCode.SUCCESS);

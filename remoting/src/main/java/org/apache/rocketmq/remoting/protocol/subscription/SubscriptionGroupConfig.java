@@ -23,18 +23,44 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.rocketmq.common.MixAll;
+import org.apache.rocketmq.common.annotation.ImportantPoint;
 
+/**
+ * 订阅组配置类，包含了消费者订阅组的配置信息，用于确定消费行为
+ */
 public class SubscriptionGroupConfig {
 
+    /**
+     * 消费者分组
+     */
     private String groupName;
 
+    /**
+     * 是否开启消费功能，默认开启
+     */
     private boolean consumeEnable = true;
+    /**
+     * 是否从最小偏移量开始消费，默认开启
+     */
     private boolean consumeFromMinEnable = true;
+    /**
+     * 是否开启广播消费，默认开启
+     */
     private boolean consumeBroadcastEnable = true;
+    /**
+     * 是否开启顺序消费，默认不开启
+     */
     private boolean consumeMessageOrderly = false;
 
+    /**
+     * 重试队列数量，默认为1，即默认选择queueId=0的队列
+     */
     private int retryQueueNums = 1;
 
+    /**
+     * 消息消费出错时，默认重试的最大次数为16
+     */
+    @ImportantPoint("消息消费失败时，默认重试的最大次数")
     private int retryMaxTimes = 16;
     private GroupRetryPolicy groupRetryPolicy = new GroupRetryPolicy();
 

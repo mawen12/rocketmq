@@ -27,6 +27,9 @@ public class RequestCode {
 
     public static final int QUERY_MESSAGE = 12;
     public static final int QUERY_BROKER_OFFSET = 13;
+    /**
+     * 客户端向Broker查询消费偏移量
+     */
     public static final int QUERY_CONSUMER_OFFSET = 14;
     public static final int UPDATE_CONSUMER_OFFSET = 15;
     public static final int UPDATE_AND_CREATE_TOPIC = 17;
@@ -174,6 +177,9 @@ public class RequestCode {
     public static final int GET_CONSUMER_RUNNING_INFO = 307;
 
     public static final int QUERY_CORRECTION_OFFSET = 308;
+    /**
+     * Broker向客户端推送消息的请求代码
+     */
     public static final int CONSUME_MESSAGE_DIRECTLY = 309;
 
     public static final int SEND_MESSAGE_V2 = 310;

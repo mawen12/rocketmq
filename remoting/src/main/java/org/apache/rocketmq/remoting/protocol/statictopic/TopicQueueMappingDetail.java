@@ -30,7 +30,7 @@ public class TopicQueueMappingDetail extends TopicQueueMappingInfo {
 
     // the mapping info in current broker, do not register to nameserver
     // make sure this value is not null
-    private ConcurrentMap<Integer/*global id*/, List<LogicQueueMappingItem>> hostedQueues = new ConcurrentHashMap<>();
+    private ConcurrentMap<Integer/*队列Id*/, List<LogicQueueMappingItem>/*逻辑队列映射*/> hostedQueues = new ConcurrentHashMap<>();
 
     //make sure there is a default constructor
     public TopicQueueMappingDetail() {
