@@ -24,13 +24,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.rocketmq.common.UtilAll;
 
 /**
- * 消息ID的生成器，格式为：
+ * 消息ID的生成器，长度为16(IPv4)/28(IPv6)
  * <pre>
- * ┌────┬─────┬──────────┬──────┬─────────┐
- * │ ip │ pid │ hashCode │ diff │ counter │
- * ├────┼─────┼──────────┼──────┼─────────┤
- * │ 4  │ 2   │ 4        │ 4    │ 2       │
- * └────┴─────┴──────────┴──────┴─────────┘
+ * +-------------+--------------+----------------------+------+---------+
+ * | producer-ip | producer-pid | ClassLoader#hashCode | diff | counter |
+ * +-------------+--------------+----------------------+------+---------+
+ * | 4|16        |            2 |                    4 |    4 |       2 |
+ * +-------------+--------------+----------------------+------+---------+
  * </pre>
  */
 public class MessageClientIDSetter {
@@ -45,6 +45,9 @@ public class MessageClientIDSetter {
      * </ul>
      */
     private static final char[] FIX_STRING;
+    /**
+     * 消息计数器，记录该客户端所有生成消息的累计数量，消息可能被多个线程同时发出，因此需要线程同步
+     */
     private static final AtomicInteger COUNTER;
     private static long startTime;
     private static long nextStartTime;
@@ -138,7 +141,7 @@ public class MessageClientIDSetter {
     }
 
     /**
-     * 为消息创建一个唯一ID
+     * 为消息创建一个唯一ID，长度为
      *
      * @return
      */

@@ -73,44 +73,51 @@ import static org.apache.rocketmq.remoting.metrics.RemotingMetricsConstant.RESUL
 import static org.apache.rocketmq.remoting.metrics.RemotingMetricsConstant.RESULT_PROCESS_REQUEST_FAILED;
 import static org.apache.rocketmq.remoting.metrics.RemotingMetricsConstant.RESULT_WRITE_CHANNEL_FAILED;
 
+/**
+ * 基于Netty远程服务的抽象，即使用Netty作为远程服务的底层实现
+ */
 public abstract class NettyRemotingAbstract {
 
     /**
-     * Remoting logger instance.
+     * 远程日志实例
      */
     private static final Logger log = LoggerFactory.getLogger(LoggerName.ROCKETMQ_REMOTING_NAME);
 
     /**
-     * Semaphore to limit maximum number of on-going one-way requests, which protects system memory footprint.
+     * 使用{@link Semaphore}来限制正在进行的单向请求的最大数量，从而保护系统内存占用
+     * <p>
+     * 使用
+     *
+     * @see org.apache.rocketmq.client.impl.CommunicationMode#ONEWAY
      */
     protected final Semaphore semaphoreOneway;
 
     /**
-     * 使用信号量来限制正在进行的异步请求的最大数量，从而保护系统内存占用
+     * 使用{@link Semaphore}来限制正在进行的异步请求的最大数量，从而保护系统内存占用
+     *
+     * @see org.apache.rocketmq.client.impl.CommunicationMode#ASYNC
      */
     protected final Semaphore semaphoreAsync;
 
     /**
-     * This map caches all on-going requests.
+     * 缓存所有正在进行中的请求，在开始请求时放入，请求结束时移除
      */
-    protected final ConcurrentMap<Integer /* opaque */, ResponseFuture> responseTable =
-        new ConcurrentHashMap<>(256);
+    protected final ConcurrentMap<Integer /* 请求ID */, ResponseFuture> responseTable = new ConcurrentHashMap<>(256);
 
     /**
-     * This container holds all processors per request code, aka, for each incoming request, we may look up the
-     * responding processor in this map to handle the request.
+     * 保存了所有的处理器，对每个即将到来的请求，获取其请求码，从此处查找对应的请求处理器来处理请求
+     * <p>
+     * 开始处理时，将写入{@link #responseTable}中，处理完毕从{@link #responseTable}中移除
      */
-    protected final HashMap<Integer/* request code */, Pair<NettyRequestProcessor, ExecutorService>> processorTable =
-        new HashMap<>(64);
+    protected final HashMap<Integer/* 请求码 */, Pair<NettyRequestProcessor, ExecutorService>> processorTable = new HashMap<>(64);
 
     /**
-     * Executor to feed netty events to user defined {@link ChannelEventListener}.
+     * 负责将netty事件推送给用户自定义的{@link ChannelEventListener}的执行器
      */
     protected final NettyEventExecutor nettyEventExecutor = new NettyEventExecutor();
 
     /**
-     * The default request processor to use in case there is no exact match in {@link #processorTable} per request
-     * code.
+     * 处理当发送过来请求的请求码在{@link #processorTable}没有匹配的处理器时，将使用该处理器
      */
     protected Pair<NettyRequestProcessor, ExecutorService> defaultRequestProcessorPair;
 
@@ -120,20 +127,28 @@ public abstract class NettyRemotingAbstract {
     protected volatile SslContext sslContext;
 
     /**
-     * custom rpc hooks
+     * 保存注册的RPC回调
      */
     protected List<RPCHook> rpcHooks = new ArrayList<>();
 
+    /**
+     * 请求管道
+     */
     protected RequestPipeline requestPipeline;
 
+    /**
+     * 是否暂停状态标识，该类被多个线程共享，使用原子类实现线程同步
+     */
     protected AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 
     static {
+        // 初始化Netty日志工厂
         NettyLogger.initNettyLogger();
     }
 
     /**
      * Constructor, specifying capacity of one-way and asynchronous semaphores.
+     *
      *
      * @param permitsOneway Number of permits for one-way requests.
      * @param permitsAsync  Number of permits for asynchronous requests.

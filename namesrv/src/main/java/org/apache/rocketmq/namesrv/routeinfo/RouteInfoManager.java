@@ -75,30 +75,30 @@ public class RouteInfoManager {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     /**
-     * Map<主题, Map<broker名称, 队列数据>>
      * 该表中的broker名称必须在{@link #brokerAddrTable}中存在
      */
-    private final Map<String/* topic */, Map<String, QueueData>> topicQueueTable;
+    private final Map<String/* topic */, Map<String/* broker名称 */, QueueData/* 队列数据 */>> topicQueueTable;
 
     /**
      * Map<broker名称, broker数据>
      */
-    private final Map<String/* brokerName */, BrokerData> brokerAddrTable;
+    private final Map<String/* broker名称 */, BrokerData/* broker数据 */> brokerAddrTable;
 
     /**
      * Map<集群名称, broker集合>
      */
-    private final Map<String/* clusterName */, Set<String/* brokerName */>> clusterAddrTable;
+    private final Map<String/* 集群名称 */, Set<String/* broker名称 */>> clusterAddrTable;
 
-    private final Map<BrokerAddrInfo/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
+    private final Map<BrokerAddrInfo/* broker地址 */, BrokerLiveInfo> brokerLiveTable;
 
-    private final Map<BrokerAddrInfo/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
+    private final Map<BrokerAddrInfo/* broker地址 */, List<String>/* Filter Server */> filterServerTable;
 
     private final Map<String/* topic */, Map<String/*brokerName*/, TopicQueueMappingInfo>> topicQueueMappingInfoTable;
 
     private final BatchUnregistrationService unRegisterService;
 
     private final NamesrvController namesrvController;
+
     private final NamesrvConfig namesrvConfig;
 
     public RouteInfoManager(final NamesrvConfig namesrvConfig, NamesrvController namesrvController) {
@@ -1230,6 +1230,9 @@ class BrokerAddrInfo {
 }
 
 class BrokerLiveInfo {
+    /**
+     *
+     */
     private long lastUpdateTimestamp;
     private long heartbeatTimeoutMillis;
     private DataVersion dataVersion;

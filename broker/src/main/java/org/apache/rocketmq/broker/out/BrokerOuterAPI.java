@@ -242,7 +242,12 @@ public class BrokerOuterAPI {
         return this.remotingClient.isAddressReachable(address);
     }
 
+    /**
+     *
+     * @param addrs 用户配置的namesrv地址，多个地址使用;分隔
+     */
     public void updateNameServerAddressList(final String addrs) {
+        // 支持使用;分隔多个地址
         String[] addrArray = addrs.split(";");
         List<String> lst = new ArrayList<String>(Arrays.asList(addrArray));
         this.remotingClient.updateNameServerAddressList(lst);
@@ -583,6 +588,8 @@ public class BrokerOuterAPI {
 
     /**
      * 注册Broker到Namesrv
+     *
+     * <p>包含了主题、配置等信息
      *
      * @param namesrvAddr
      * @param oneway

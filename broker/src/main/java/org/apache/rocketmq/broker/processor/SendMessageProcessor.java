@@ -294,8 +294,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return true;
     }
 
-    public RemotingCommand sendMessage(final ChannelHandlerContext ctx, final RemotingCommand request, final SendMessageContext sendMessageContext, final SendMessageRequestHeader requestHeader,
-                                       final TopicQueueMappingContext mappingContext, final SendMessageCallback sendMessageCallback) throws RemotingCommandException {
+    public RemotingCommand sendMessage(final ChannelHandlerContext ctx, final RemotingCommand request, final SendMessageContext sendMessageContext, final SendMessageRequestHeader requestHeader, final TopicQueueMappingContext mappingContext, final SendMessageCallback sendMessageCallback)
+            throws RemotingCommandException {
         /**
          * 预发送方法，校验消息并按需创建主题，将信息同步到所有的Namesrv
          */
@@ -458,8 +458,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
      * @param messageType
      * @return
      */
-    private RemotingCommand handlePutMessageResult(PutMessageResult putMessageResult, RemotingCommand response, RemotingCommand request, MessageExt msg, SendMessageResponseHeader responseHeader,
-                                                   SendMessageContext sendMessageContext, ChannelHandlerContext ctx, int queueIdInt, long beginTimeMillis, TopicQueueMappingContext mappingContext, TopicMessageType messageType) {
+    private RemotingCommand handlePutMessageResult(PutMessageResult putMessageResult, RemotingCommand response, RemotingCommand request, MessageExt msg, SendMessageResponseHeader responseHeader, SendMessageContext sendMessageContext,
+                                                   ChannelHandlerContext ctx, int queueIdInt, long beginTimeMillis, TopicQueueMappingContext mappingContext, TopicMessageType messageType) {
         /**
          * 检查发送状态，如果为空，则返回系统异常
          */

@@ -76,6 +76,7 @@ public class TopicConfigManager extends ConfigManager {
      * 数据版本
      */
     protected DataVersion dataVersion = new DataVersion();
+
     protected transient BrokerController brokerController;
 
     public TopicConfigManager() {

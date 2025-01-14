@@ -33,6 +33,9 @@ import org.apache.rocketmq.tools.command.CommandUtil;
 import org.apache.rocketmq.tools.command.SubCommand;
 import org.apache.rocketmq.tools.command.SubCommandException;
 
+/**
+ * 更新或创建主题
+ */
 public class UpdateTopicSubCommand implements SubCommand {
 
     @Override
@@ -45,6 +48,12 @@ public class UpdateTopicSubCommand implements SubCommand {
         return "Update or create topic.";
     }
 
+    /**
+     * -c DefaultCluster -t TopicTest -n 127.0.0.1:9876
+     *
+     * @param options
+     * @return
+     */
     @Override
     public Options buildCommandlineOptions(Options options) {
         OptionGroup optionGroup = new OptionGroup();
@@ -167,16 +176,16 @@ public class UpdateTopicSubCommand implements SubCommand {
 
                 defaultMQAdminExt.start();
 
-                Set<String> masterSet =
-                    CommandUtil.fetchMasterAddrByClusterName(defaultMQAdminExt, clusterName);
+                // 获取集群中MASTER BROKER集合
+                Set<String> masterSet = CommandUtil.fetchMasterAddrByClusterName(defaultMQAdminExt, clusterName);
                 for (String addr : masterSet) {
+                    // 创建或更新所有MASTER节点上的主题配置
                     defaultMQAdminExt.createAndUpdateTopicConfig(addr, topicConfig);
                     System.out.printf("create topic to %s success.%n", addr);
                 }
 
                 if (isOrder) {
-                    Set<String> brokerNameSet =
-                        CommandUtil.fetchBrokerNameByClusterName(defaultMQAdminExt, clusterName);
+                    Set<String> brokerNameSet = CommandUtil.fetchBrokerNameByClusterName(defaultMQAdminExt, clusterName);
                     StringBuilder orderConf = new StringBuilder();
                     String splitor = "";
                     for (String s : brokerNameSet) {

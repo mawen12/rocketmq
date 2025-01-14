@@ -17,10 +17,16 @@
 
 package org.apache.rocketmq.remoting.protocol;
 
-import io.grpc.Metadata;
-
 public class RequestCode {
 
+    /**
+     * 发送消息
+     * <p>在{@link org.apache.rocketmq.client.impl.MQClientAPIImpl#sendSmartMsg}=false时开启
+     *
+     * @see org.apache.rocketmq.remoting.protocol.header.SendMessageRequestHeader
+     * @see org.apache.rocketmq.broker.processor.SendMessageProcessor
+     * @see org.apache.rocketmq.remoting.protocol.header.SendMessageResponseHeader
+     */
     public static final int SEND_MESSAGE = 10;
 
     public static final int PULL_MESSAGE = 11;
@@ -32,6 +38,15 @@ public class RequestCode {
      */
     public static final int QUERY_CONSUMER_OFFSET = 14;
     public static final int UPDATE_CONSUMER_OFFSET = 15;
+    /**
+     * 更新或创建队列
+     *
+     * <p>该操作仅发生在MASTER BROKER上，在修改Broker后，Broker会将信息更新到Namesrv
+     *
+     * @see org.apache.rocketmq.remoting.protocol.header.CreateTopicRequestHeader
+     * @see org.apache.rocketmq.broker.processor.AdminBrokerProcessor
+     * @see RemotingCommand
+     */
     public static final int UPDATE_AND_CREATE_TOPIC = 17;
     public static final int UPDATE_AND_CREATE_TOPIC_LIST = 18;
     public static final int GET_ALL_TOPIC_CONFIG = 21;
@@ -108,16 +123,42 @@ public class RequestCode {
 
     public static final int DELETE_KV_CONFIG = 102;
 
+    /**
+     * 将Broker注册到Namesrv
+     *
+     * <p>注册的行为：
+     * <ul>
+     *     <li>Broker启动时，会发起注册</li>
+     *     <li>Broker上配置文件发生变更时，视配置会发起注册</li>
+     * </ul>
+     * <p>Master Broker注册时，还会携带{@link org.apache.rocketmq.remoting.protocol.body.TopicConfigAndMappingSerializeWrapper}
+     *
+     * @see org.apache.rocketmq.remoting.protocol.header.namesrv.RegisterBrokerRequestHeader
+     * @see org.apache.rocketmq.namesrv.processor.DefaultRequestProcessor
+     * @see org.apache.rocketmq.remoting.protocol.header.namesrv.RegisterBrokerResponseHeader
+     */
     public static final int REGISTER_BROKER = 103;
 
     public static final int UNREGISTER_BROKER = 104;
     /**
      * 根据主题获取路由信息
      *
-     * @see org.apache.rocketmq.auth.authorization.builder.DefaultAuthorizationContextBuilder#build(Metadata, com.google.protobuf.GeneratedMessageV3)
+     * <p>在发送消息之前，获取该主题的Broker信息，用于将消息发送到指定Broker
+     *
+     * @see org.apache.rocketmq.remoting.protocol.header.namesrv.GetRouteInfoRequestHeader
+     * @see org.apache.rocketmq.namesrv.processor.ClientRequestProcessor
+     * @see RemotingCommand
      */
     public static final int GET_ROUTEINFO_BY_TOPIC = 105;
 
+    /**
+     * 获取集群信息
+     *
+     * <p>在更新主题信息之前，先从Namesrv中获取集群信息，确定MASTER Broker列表
+     *
+     * @see RemotingCommand
+     * @see org.apache.rocketmq.namesrv.processor.DefaultRequestProcessor
+     */
     public static final int GET_BROKER_CLUSTER_INFO = 106;
     public static final int UPDATE_AND_CREATE_SUBSCRIPTIONGROUP = 200;
     public static final int GET_ALL_SUBSCRIPTIONGROUP_CONFIG = 201;
@@ -182,6 +223,14 @@ public class RequestCode {
      */
     public static final int CONSUME_MESSAGE_DIRECTLY = 309;
 
+    /**
+     * 发送消息，默认启用
+     * <p>受{@link org.apache.rocketmq.client.impl.MQClientAPIImpl#sendSmartMsg}影响
+     *
+     * @see org.apache.rocketmq.remoting.protocol.header.SendMessageRequestHeaderV2
+     * @see org.apache.rocketmq.broker.processor.SendMessageProcessor
+     * @see org.apache.rocketmq.remoting.protocol.header.SendMessageResponseHeader
+     */
     public static final int SEND_MESSAGE_V2 = 310;
 
     public static final int GET_UNIT_TOPIC_LIST = 311;
@@ -208,6 +257,13 @@ public class RequestCode {
      */
     public static final int GET_NAMESRV_CONFIG = 319;
 
+    /**
+     * 发送批次消息
+     *
+     * @see org.apache.rocketmq.remoting.protocol.header.SendMessageRequestHeaderV2
+     * @see org.apache.rocketmq.broker.processor.SendMessageProcessor
+     * @see org.apache.rocketmq.remoting.protocol.header.SendMessageResponseHeader
+     */
     public static final int SEND_BATCH_MESSAGE = 320;
 
     public static final int QUERY_CONSUME_QUEUE = 321;

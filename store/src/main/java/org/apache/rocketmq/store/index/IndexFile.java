@@ -27,6 +27,13 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.store.logfile.DefaultMappedFile;
 import org.apache.rocketmq.store.logfile.MappedFile;
 
+/**
+ * 索引文件。
+ * <p>
+ * 提供了一种可以通过key或时间区间来查询消息的方法。Index文件的存储位置是: $HOME/store/index/{fileName}，文件名fileName是以创建时的时间戳命名的，
+ * 固定的单个indexFile文件大小约为400M，一个IndexFile可以保存2000W个索引，IndexFile的底层存储设计为在文件系统中实现HashMap结构，故RocketMQ的索引文件
+ * 其底层实现为hash索引。
+ */
 public class IndexFile {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private static int hashSlotSize = 4;

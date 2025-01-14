@@ -17,6 +17,7 @@
 package org.apache.rocketmq.common;
 
 import org.apache.rocketmq.common.annotation.ImportantField;
+import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.config.ConfigManagerVersion;
 import org.apache.rocketmq.common.constant.PermName;
 import org.apache.rocketmq.common.message.MessageRequestMode;
@@ -31,7 +32,11 @@ public class BrokerConfig extends BrokerIdentity {
     private String brokerConfigPath = null;
 
     private String rocketmqHome = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
+    /**
+     * Namesrv地址，从PROPERTIES(rocketmq.namesrv.addr) -> ENV(NAMESRV_ADDR)
+     */
     @ImportantField
+    @ImportantPoint("Namesrv的地址列表，多个地址使用;分隔，Broker要向该地址注册自己的信息")
     private String namesrvAddr = System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
 
     /**

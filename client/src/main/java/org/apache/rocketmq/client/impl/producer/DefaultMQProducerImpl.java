@@ -1579,7 +1579,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     /**
-     * DEFAULT ONEWAY -------------------------------------------------------
+     * 单向直接发送，不返回请求结果
      */
     public void sendOneway(Message msg) throws MQClientException, RemotingException, InterruptedException {
         try {

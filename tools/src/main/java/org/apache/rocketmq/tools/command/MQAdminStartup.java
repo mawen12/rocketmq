@@ -121,12 +121,29 @@ import org.apache.rocketmq.tools.command.topic.UpdateTopicListSubCommand;
 import org.apache.rocketmq.tools.command.topic.UpdateTopicPermSubCommand;
 import org.apache.rocketmq.tools.command.topic.UpdateTopicSubCommand;
 
+/**
+ * MQ管理器启动器，管理RocketMQ的主题信息
+ */
 public class MQAdminStartup {
     protected static final List<SubCommand> SUB_COMMANDS = new ArrayList<>();
 
-    private static final String ROCKETMQ_HOME = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY,
-        System.getenv(MixAll.ROCKETMQ_HOME_ENV));
+    private static final String ROCKETMQ_HOME = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
 
+    /**
+     * 本地启动配置
+     *
+     * <p>Environment_Variables:
+     * <ul>
+     *     <li>ROCKETMQ_HOME=/Users/mawen/Documents/github/mawen12/rocketmq</li>
+     * </ul>
+     *
+     * <p>Arguments:
+     * <ul>
+     *     <li>-n 127.0.0.1:9876</li>
+     * </ul>
+     *
+     * @param args
+     */
     public static void main(String[] args) {
         main0(args, null);
     }
@@ -164,9 +181,7 @@ public class MQAdminStartup {
                         String[] subargs = parseSubArgs(args);
 
                         Options options = ServerUtil.buildCommandlineOptions(new Options());
-                        final CommandLine commandLine =
-                            ServerUtil.parseCmdLine("mqadmin " + cmd.commandName(), subargs, cmd.buildCommandlineOptions(options),
-                                new DefaultParser());
+                        final CommandLine commandLine = ServerUtil.parseCmdLine("mqadmin " + cmd.commandName(), subargs, cmd.buildCommandlineOptions(options), new DefaultParser());
                         if (null == commandLine) {
                             return;
                         }

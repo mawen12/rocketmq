@@ -2843,6 +2843,9 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     *
+     */
     class ReputMessageService extends ServiceThread {
 
         protected volatile long reputFromOffset = 0;
@@ -2901,8 +2904,7 @@ public class DefaultMessageStore implements MessageStore {
 
         public void doReput() {
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
-                LOGGER.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
-                    this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
+                LOGGER.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.", this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
                 this.reputFromOffset = DefaultMessageStore.this.commitLog.getMinOffset();
             }
             boolean isCommitLogAvailable = isCommitLogAvailable();
@@ -2910,13 +2912,10 @@ public class DefaultMessageStore implements MessageStore {
                 currentReputTimestamp = System.currentTimeMillis();
             }
             for (boolean doNext = true; isCommitLogAvailable && doNext; ) {
-
                 SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
-
                 if (result == null) {
                     break;
                 }
-
                 try {
                     this.reputFromOffset = result.getStartOffset();
 
@@ -3030,7 +3029,6 @@ public class DefaultMessageStore implements MessageStore {
             }
             return ReputMessageService.class.getSimpleName();
         }
-
     }
 
     class MainBatchDispatchRequestService extends ServiceThread {

@@ -17,10 +17,11 @@
 package org.apache.rocketmq.client.producer;
 
 import com.alibaba.fastjson.JSON;
+import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
- * 生产者发送消息的结果
+ * Client发送消息到Broker，Broker返回的结果
  */
 public class SendResult {
     /**
@@ -28,13 +29,13 @@ public class SendResult {
      */
     private SendStatus sendStatus;
     /**
-     * 消息ID
+     * 消息ID，由客户端的{@link org.apache.rocketmq.common.message.MessageClientIDSetter#setUniqID(Message)}来设置
      *
      * @see org.apache.rocketmq.common.message.Message#properties[UNIQ_KEY]
      */
     private String msgId;
     /**
-     * 存储消息的队列
+     * 存储消息的队列，该消息被存储在ENV(user.home)/store/commitLog中，
      */
     private MessageQueue messageQueue;
     /**

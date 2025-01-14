@@ -60,7 +60,7 @@ public class TopicConfig {
      */
     private int topicSysFlag = 0;
     /**
-     * 是否为有序主题
+     * 是否有序
      */
     private boolean order = false;
     // Field attributes should not have ' ' char in key or value, otherwise will lead to decode failure.

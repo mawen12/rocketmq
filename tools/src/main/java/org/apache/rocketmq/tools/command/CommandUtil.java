@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.remoting.exception.RemotingConnectException;
@@ -41,10 +42,10 @@ public class CommandUtil {
     public static final String NO_MASTER_PLACEHOLDER = "NO_MASTER";
 
     public static Map<String/*master addr*/, List<String>/*slave addr*/> fetchMasterAndSlaveDistinguish(
-        final MQAdminExt adminExt, final String clusterName)
-        throws InterruptedException, RemotingConnectException,
-        RemotingTimeoutException, RemotingSendRequestException,
-        MQBrokerException {
+            final MQAdminExt adminExt, final String clusterName)
+            throws InterruptedException, RemotingConnectException,
+            RemotingTimeoutException, RemotingSendRequestException,
+            MQBrokerException {
         Map<String, List<String>> masterAndSlaveMap = new HashMap<>(4);
 
         ClusterInfo clusterInfoSerializeWrapper = adminExt.examineBrokerClusterInfo();
@@ -87,8 +88,7 @@ public class CommandUtil {
     }
 
     public static Set<String> fetchMasterAddrByClusterName(final MQAdminExt adminExt, final String clusterName)
-        throws InterruptedException, RemotingConnectException, RemotingTimeoutException,
-        RemotingSendRequestException, MQBrokerException {
+            throws InterruptedException, RemotingConnectException, RemotingTimeoutException, RemotingSendRequestException, MQBrokerException {
         Set<String> masterSet = new HashSet<>();
 
         ClusterInfo clusterInfoSerializeWrapper = adminExt.examineBrokerClusterInfo();
@@ -114,8 +114,8 @@ public class CommandUtil {
     }
 
     public static Set<String> fetchMasterAndSlaveAddrByClusterName(final MQAdminExt adminExt, final String clusterName)
-        throws InterruptedException, RemotingConnectException, RemotingTimeoutException,
-        RemotingSendRequestException, MQBrokerException {
+            throws InterruptedException, RemotingConnectException, RemotingTimeoutException,
+            RemotingSendRequestException, MQBrokerException {
         Set<String> brokerAddressSet = new HashSet<>();
         ClusterInfo clusterInfoSerializeWrapper = adminExt.examineBrokerClusterInfo();
         Set<String> brokerNameSet = clusterInfoSerializeWrapper.getClusterAddrTable().get(clusterName);
@@ -135,7 +135,7 @@ public class CommandUtil {
     }
 
     public static String fetchMasterAddrByBrokerName(final MQAdminExt adminExt,
-        final String brokerName) throws Exception {
+                                                     final String brokerName) throws Exception {
         ClusterInfo clusterInfoSerializeWrapper = adminExt.examineBrokerClusterInfo();
         BrokerData brokerData = clusterInfoSerializeWrapper.getBrokerAddrTable().get(brokerName);
         if (null != brokerData) {
@@ -148,8 +148,8 @@ public class CommandUtil {
     }
 
     public static Set<String> fetchMasterAndSlaveAddrByBrokerName(final MQAdminExt adminExt, final String brokerName)
-        throws InterruptedException, RemotingConnectException, RemotingTimeoutException,
-        RemotingSendRequestException, MQBrokerException {
+            throws InterruptedException, RemotingConnectException, RemotingTimeoutException,
+            RemotingSendRequestException, MQBrokerException {
         Set<String> brokerAddressSet = new HashSet<>();
         ClusterInfo clusterInfoSerializeWrapper = adminExt.examineBrokerClusterInfo();
         final BrokerData brokerData = clusterInfoSerializeWrapper.getBrokerAddrTable().get(brokerName);
@@ -160,7 +160,7 @@ public class CommandUtil {
     }
 
     public static Set<String> fetchBrokerNameByClusterName(final MQAdminExt adminExt, final String clusterName)
-        throws Exception {
+            throws Exception {
         ClusterInfo clusterInfoSerializeWrapper = adminExt.examineBrokerClusterInfo();
         Set<String> brokerNameSet = clusterInfoSerializeWrapper.getClusterAddrTable().get(clusterName);
         if (brokerNameSet == null || brokerNameSet.isEmpty()) {

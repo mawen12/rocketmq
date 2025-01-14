@@ -558,8 +558,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     }
 
     /**
-     * Similar to <a href="https://en.wikipedia.org/wiki/User_Datagram_Protocol">UDP</a>, this method won't wait for
-     * acknowledgement from broker before return. Obviously, it has maximums throughput yet potentials of message loss.
+     * 单向发送消息，此方法不会等待Broker，且具有最大吞吐量，但也存在消息丢失的可能性，因此该方法没有返回值。
      *
      * @param msg Message to send.
      * @throws MQClientException    if there is any client error.
@@ -568,6 +567,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      */
     @Override
     public void sendOneway(Message msg) throws MQClientException, RemotingException, InterruptedException {
+        // 格式化消息，如果存在Namespace，则设置到topic中
         msg.setTopic(withNamespace(msg.getTopic()));
         this.defaultMQProducerImpl.sendOneway(msg);
     }

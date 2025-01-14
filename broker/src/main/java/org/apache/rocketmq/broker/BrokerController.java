@@ -332,22 +332,11 @@ public class BrokerController {
         this(brokerConfig, null, null, messageStoreConfig, null);
     }
 
-    public BrokerController(
-        final BrokerConfig brokerConfig,
-        final NettyServerConfig nettyServerConfig,
-        final NettyClientConfig nettyClientConfig,
-        final MessageStoreConfig messageStoreConfig
-    ) {
+    public BrokerController(final BrokerConfig brokerConfig, final NettyServerConfig nettyServerConfig, final NettyClientConfig nettyClientConfig, final MessageStoreConfig messageStoreConfig) {
         this(brokerConfig, nettyServerConfig, nettyClientConfig, messageStoreConfig, null);
     }
 
-    public BrokerController(
-        final BrokerConfig brokerConfig,
-        final NettyServerConfig nettyServerConfig,
-        final NettyClientConfig nettyClientConfig,
-        final MessageStoreConfig messageStoreConfig,
-        final AuthConfig authConfig
-    ) {
+    public BrokerController(final BrokerConfig brokerConfig, final NettyServerConfig nettyServerConfig, final NettyClientConfig nettyClientConfig, final MessageStoreConfig messageStoreConfig, final AuthConfig authConfig) {
         this.brokerConfig = brokerConfig;
         this.nettyServerConfig = nettyServerConfig;
         this.nettyClientConfig = nettyClientConfig;
@@ -791,6 +780,9 @@ public class BrokerController {
         }
     }
 
+    /**
+     * 更新Namesrv
+     */
     private void updateNamesrvAddr() {
         if (this.brokerConfig.isFetchNameSrvAddrByDnsLookup()) {
             this.brokerOuterAPI.updateNameServerAddressListByDnsLookup(this.brokerConfig.getNamesrvAddr());
@@ -1991,20 +1983,8 @@ public class BrokerController {
         /**
          * 注册当前Broker到所有的Namesrv上
          */
-        List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(
-            this.brokerConfig.getBrokerClusterName(),
-            this.getBrokerAddr(),
-            this.brokerConfig.getBrokerName(),
-            this.brokerConfig.getBrokerId(),
-            this.getHAServerAddr(),
-            topicConfigWrapper,
-            Lists.newArrayList(),
-            oneway,
-            this.brokerConfig.getRegisterBrokerTimeoutMills(),
-            this.brokerConfig.isEnableSlaveActingMaster(),
-            this.brokerConfig.isCompressedRegister(),
-            this.brokerConfig.isEnableSlaveActingMaster() ? this.brokerConfig.getBrokerNotActiveTimeoutMillis() : null,
-            this.getBrokerIdentity());
+        List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(this.brokerConfig.getBrokerClusterName(), this.getBrokerAddr(), this.brokerConfig.getBrokerName(), this.brokerConfig.getBrokerId(), this.getHAServerAddr(), topicConfigWrapper,
+                Lists.newArrayList(), oneway, this.brokerConfig.getRegisterBrokerTimeoutMills(), this.brokerConfig.isEnableSlaveActingMaster(), this.brokerConfig.isCompressedRegister(), this.brokerConfig.isEnableSlaveActingMaster() ? this.brokerConfig.getBrokerNotActiveTimeoutMillis() : null, this.getBrokerIdentity());
 
         /**
          * 更新本地的Master地址和HA服务地址，按需更新主题配置

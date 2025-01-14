@@ -21,12 +21,15 @@ package org.apache.rocketmq.client.impl;
  */
 public enum CommunicationMode {
     /**
-     * 同步
+     * 同步，并等待Broker响应，返回{@link org.apache.rocketmq.client.producer.SendResult}
      */
     SYNC,
     /**
-     * 异步
+     * 异步，提供{@link org.apache.rocketmq.client.producer.SendCallback}来监听Broker响应
      */
     ASYNC,
+    /**
+     * 单向发送，不等待响应
+     */
     ONEWAY,
 }

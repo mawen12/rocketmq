@@ -410,8 +410,8 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
 
     }
 
-    public void createSubscriptionGroupList(final String address, final List<SubscriptionGroupConfig> configs,
-                                            final long timeoutMillis) throws RemotingException, InterruptedException, MQClientException {
+    public void createSubscriptionGroupList(final String address, final List<SubscriptionGroupConfig> configs, final long timeoutMillis)
+            throws RemotingException, InterruptedException, MQClientException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.UPDATE_AND_CREATE_SUBSCRIPTIONGROUP_LIST, null);
         SubscriptionGroupList requestBody = new SubscriptionGroupList(configs);
         request.setBody(requestBody.encode());
@@ -426,8 +426,20 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
         throw new MQClientException(response.getCode(), response.getRemark());
     }
 
-    public void createTopic(final String addr, final String defaultTopic, final TopicConfig topicConfig,
-                            final long timeoutMillis)
+    /**
+     * 创建或更新主题配置
+     *
+     * @param addr          MASTER Broker地址
+     * @param defaultTopic  默认的主题
+     * @param topicConfig   主题配置
+     * @param timeoutMillis 超时
+     *
+     * @throws RemotingException    异常服务异常
+     * @throws MQBrokerException    Broker处理异常
+     * @throws InterruptedException 线程被打断异常
+     * @throws MQClientException    Client处理异常
+     */
+    public void createTopic(final String addr, final String defaultTopic, final TopicConfig topicConfig, final long timeoutMillis)
             throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         Validators.checkTopicConfig(topicConfig);
 
@@ -444,8 +456,7 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
 
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.UPDATE_AND_CREATE_TOPIC, requestHeader);
 
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-                request, timeoutMillis);
+        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
         assert response != null;
         switch (response.getCode()) {
             case ResponseCode.SUCCESS: {
@@ -593,7 +604,9 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      * @param communicationMode
      * @param context
      * @param producer
+     *
      * @return
+     *
      * @throws RemotingException
      * @throws MQBrokerException
      * @throws InterruptedException
@@ -658,20 +671,20 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
                 /**
                  * 处理异步消息发送
                  */
-                {
-                    final AtomicInteger times = new AtomicInteger();
-                    long costTimeAsync = System.currentTimeMillis() - beginStartTime;
-                    /**
-                     * 发送消息前的第三次超时时间检查点
-                     */
-                    if (timeoutMillis < costTimeAsync) {
-                        throw new RemotingTooMuchRequestException("sendMessage call timeout");
-                    }
-                    // 调用对应的异步消息发送
-                    this.sendMessageAsync(addr, brokerName, msg, timeoutMillis - costTimeAsync, request, sendCallback, topicPublishInfo, instance, retryTimesWhenSendFailed, times, context, producer);
-
-                    return null;
+            {
+                final AtomicInteger times = new AtomicInteger();
+                long costTimeAsync = System.currentTimeMillis() - beginStartTime;
+                /**
+                 * 发送消息前的第三次超时时间检查点
+                 */
+                if (timeoutMillis < costTimeAsync) {
+                    throw new RemotingTooMuchRequestException("sendMessage call timeout");
                 }
+                // 调用对应的异步消息发送
+                this.sendMessageAsync(addr, brokerName, msg, timeoutMillis - costTimeAsync, request, sendCallback, topicPublishInfo, instance, retryTimesWhenSendFailed, times, context, producer);
+
+                return null;
+            }
             /**
              * 同步发送
              */
@@ -1272,6 +1285,7 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      *
      * @param topic        pop consumer topic
      * @param msgFoundList popped message list
+     *
      * @return sorted map, key is topicMark@queueId, value is sorted msg queueOffset list
      */
     private static Map<String, List<Long>> buildQueueOffsetSortedMap(String topic, List<MessageExt> msgFoundList) {
@@ -1497,7 +1511,9 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      * @param addr
      * @param requestHeader
      * @param timeoutMillis
+     *
      * @return
+     *
      * @throws RemotingException
      * @throws MQBrokerException
      * @throws InterruptedException
@@ -1663,8 +1679,6 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
     }
 
     /**
-     *
-     *
      * @param addr
      * @param brokerName
      * @param msg
@@ -1672,6 +1686,7 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      * @param delayLevel
      * @param timeoutMillis
      * @param maxConsumeRetryTimes
+     *
      * @throws RemotingException
      * @throws MQBrokerException
      * @throws InterruptedException
@@ -2054,9 +2069,8 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
-    public ClusterInfo getBrokerClusterInfo(
-            final long timeoutMillis) throws InterruptedException, RemotingTimeoutException,
-            RemotingSendRequestException, RemotingConnectException, MQBrokerException {
+    public ClusterInfo getBrokerClusterInfo(final long timeoutMillis)
+            throws InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException, MQBrokerException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_BROKER_CLUSTER_INFO, null);
 
         RemotingCommand response = this.remotingClient.invokeSync(null, request, timeoutMillis);
@@ -2076,7 +2090,9 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      * 从Namesrv读取TBW102主题的路由信息
      *
      * @param timeoutMillis 超时时间
+     *
      * @return
+     *
      * @throws RemotingException
      * @throws MQClientException
      * @throws InterruptedException
@@ -2093,7 +2109,9 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      *
      * @param topic         主题
      * @param timeoutMillis 超时时间
+     *
      * @return
+     *
      * @throws RemotingException
      * @throws MQClientException
      * @throws InterruptedException
@@ -2111,7 +2129,9 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      * @param topic              主题
      * @param timeoutMillis      超时时间
      * @param allowTopicNotExist 是否允许主题不存在
+     *
      * @return
+     *
      * @throws MQClientException
      * @throws InterruptedException
      * @throws RemotingTimeoutException
@@ -2690,11 +2710,10 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
         throw new MQClientException(response.getCode(), response.getRemark());
     }
 
-    public boolean deleteExpiredCommitLog(final String addr, long timeoutMillis) throws MQClientException,
-            RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
+    public boolean deleteExpiredCommitLog(final String addr, long timeoutMillis)
+            throws MQClientException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.DELETE_EXPIRED_COMMITLOG, null);
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-                request, timeoutMillis);
+        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
         switch (response.getCode()) {
             case ResponseCode.SUCCESS: {
                 return true;
@@ -3260,6 +3279,7 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      * @param addr
      * @param requestHeader
      * @param timeoutMillis
+     *
      * @throws InterruptedException
      * @throws RemotingTimeoutException
      * @throws RemotingSendRequestException

@@ -66,6 +66,7 @@ public class RegisterBrokerRequestHeader implements CommandCustomHeader {
      */
     @CFNullable
     private Long heartbeatTimeoutMillis;
+
     @CFNullable
     private Boolean enableActingMaster;
 

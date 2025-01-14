@@ -42,7 +42,15 @@ import org.apache.rocketmq.store.queue.QueueOffsetOperator;
 import org.apache.rocketmq.store.queue.ReferredIterator;
 
 /**
- * 默认的消费队列实现，其支持{@link CQType#SimpleCQ}
+ * 默认的消费队列实现，其支持{@link CQType#SimpleCQ}。
+ * <p>
+ * 消息消费索引，引入的目的主要是提高消费的性能。由于RocketMQ是基于主题Topic的订阅模式，消息消费是针对主题进行的，如果要遍历commitlog文件，
+ * 根据topic检索消息是非常低效的。Consumer可根据consumequeue来查找待消费的消息。其中，ConsumeQueue作为消费消息的索引，保存了指定Topic下的队列消息
+ * 在CommitLog中的起始物理偏移量offset、消息大小size和消息Tag的HashCode值。
+ * <p>
+ * consumequeue文件可以看作是基于topic的commitlog索引文件，故consumequeue文件夹的组织方式如下：topic/queue/file三层组织架构。
+ * 具体存储路径：$HOME/store/consumequeue/{topic}/{queueId}/{fileName}。同样consumequeue文件采用定长设计，每一个条目共20字节，
+ * 分别为8字节commitlog物理偏移量、4字节的消息长度、8字节的tag hashcode。单个文件由30w个条目组成，单个consumequeue大小为20*30*10000=6000000，即5.72m。
  */
 public class ConsumeQueue implements ConsumeQueueInterface, FileQueueLifeCycle {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);

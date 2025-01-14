@@ -16,8 +16,20 @@
  */
 package org.apache.rocketmq.client.producer;
 
+/**
+ * 异步发送消息回调，对{@link org.apache.rocketmq.client.consumer.DefaultMQPushConsumer}中提供该参数时，代表发送模式为{@link org.apache.rocketmq.client.impl.CommunicationMode#ASYNC}。
+ */
 public interface SendCallback {
+    /**
+     * 通知客户端发送成功，并返回Broker发送结果
+     *
+     * @param sendResult
+     */
     void onSuccess(final SendResult sendResult);
 
+    /**
+     * 通知客户端发送异常，并返回异常信息
+     * @param e
+     */
     void onException(final Throwable e);
 }
