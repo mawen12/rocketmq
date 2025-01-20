@@ -26,27 +26,39 @@ public class Message implements Serializable {
     private static final long serialVersionUID = 8445773977080406428L;
 
     /**
-     * 消息所属主题
+     * 消息所属topic的名称，必填
      */
     private String topic;
     /**
-     * 标志位
+     * 完全由应用来设置，RocketMQ不做干预，选填
      */
     private int flag;
     /**
      * 消息属性，组成有：
      * <ul>
-     *     <li>KEYS: 键，用户设置</li>
-     *     <li>TAGS: 标签，用户设置</li>
-     *     <li>WAIT: 是否等待消息存储完成，默认</li>
-     *     <li>UNIQ_KEY: 该消息的唯一ID，客户端设置</li>
+     *     <li>
+     *         KEYS: 代表这条消息的业务关键词，服务器会根据keys创建哈希索引，设置后，可以在Console系统根据Topic、Keys来查询消息，
+     *              由于是哈希索引，请尽可能保证key唯一，例如订单号、商品Id等。选填
+     *     </li>
+     *     <li>
+     *         TAGS: 消息标签，方便服务器过滤使用，目前只支持每个消息设置一个tag，选填
+     *     </li>
+     *     <li>
+     *         WAIT: 表示消息是否在服务器落盘后才返回应答
+     *     </li>
+     *     <li>
+     *         UNIQ_KEY: 该消息的唯一ID，客户端设置
+     *     </li>
+     *     <li>
+     *         DELAY_TIME_LEVEL：消息延时级别，0标识不延时，大于0会延时特定的时间才会被消费
+     *     </li>
      * </ul>
      *
      * @see MessageClientIDSetter#setUniqID(Message)
      */
     private Map<String, String> properties;
     /**
-     * 经过压缩后的消息体
+     * 消息体，必填
      */
     private byte[] body;
     /**

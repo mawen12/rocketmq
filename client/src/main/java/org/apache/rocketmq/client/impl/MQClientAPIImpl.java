@@ -611,16 +611,16 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
      * @throws MQBrokerException
      * @throws InterruptedException
      */
-    public SendResult sendMessage(final String addr, final String brokerName, final Message msg, final SendMessageRequestHeader requestHeader, final long timeoutMillis, final CommunicationMode communicationMode,
-                                  final SendMessageContext context, final DefaultMQProducerImpl producer) throws RemotingException, MQBrokerException, InterruptedException {
+    public SendResult sendMessage(final String addr, final String brokerName, final Message msg, final SendMessageRequestHeader requestHeader, final long timeoutMillis, final CommunicationMode communicationMode, final SendMessageContext context, final DefaultMQProducerImpl producer)
+            throws RemotingException, MQBrokerException, InterruptedException {
         /**
          * 失败时不重试
          */
         return sendMessage(addr, brokerName, msg, requestHeader, timeoutMillis, communicationMode, null, null, null, 0, context, producer);
     }
 
-    public SendResult sendMessage(final String addr, final String brokerName, final Message msg, final SendMessageRequestHeader requestHeader, final long timeoutMillis, final CommunicationMode communicationMode,
-                                  final SendCallback sendCallback, final TopicPublishInfo topicPublishInfo, final MQClientInstance instance, final int retryTimesWhenSendFailed, final SendMessageContext context, final DefaultMQProducerImpl producer) throws RemotingException, MQBrokerException, InterruptedException {
+    public SendResult sendMessage(final String addr, final String brokerName, final Message msg, final SendMessageRequestHeader requestHeader, final long timeoutMillis, final CommunicationMode communicationMode, final SendCallback sendCallback, final TopicPublishInfo topicPublishInfo, final MQClientInstance instance, final int retryTimesWhenSendFailed, final SendMessageContext context, final DefaultMQProducerImpl producer)
+            throws RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
         RemotingCommand request = null;
         /**
@@ -829,46 +829,60 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
         }
     }
 
-    protected SendResult processSendResponse(
-            final String brokerName,
-            final Message msg,
-            final RemotingCommand response,
-            final String addr
-    ) throws MQBrokerException, RemotingCommandException {
+    /**
+     * 处理发送消息的响应
+     *
+     * @param brokerName
+     * @param msg
+     * @param response
+     * @param addr
+     * @return
+     * @throws MQBrokerException
+     * @throws RemotingCommandException
+     */
+    protected SendResult processSendResponse(final String brokerName, final Message msg, final RemotingCommand response, final String addr) throws MQBrokerException, RemotingCommandException {
         SendStatus sendStatus;
         switch (response.getCode()) {
             case ResponseCode.FLUSH_DISK_TIMEOUT: {
+                // 写入磁盘超时
                 sendStatus = SendStatus.FLUSH_DISK_TIMEOUT;
                 break;
             }
             case ResponseCode.FLUSH_SLAVE_TIMEOUT: {
+                // 写入Slave超时
                 sendStatus = SendStatus.FLUSH_SLAVE_TIMEOUT;
                 break;
             }
             case ResponseCode.SLAVE_NOT_AVAILABLE: {
+                // Slave不可用
                 sendStatus = SendStatus.SLAVE_NOT_AVAILABLE;
                 break;
             }
             case ResponseCode.SUCCESS: {
+                // 写入成功
                 sendStatus = SendStatus.SEND_OK;
                 break;
             }
             default: {
+                // 其他场景均视为异常
                 throw new MQBrokerException(response.getCode(), response.getRemark(), addr);
             }
         }
 
-        SendMessageResponseHeader responseHeader =
-                (SendMessageResponseHeader) response.decodeCommandCustomHeader(SendMessageResponseHeader.class);
+        // 解析响应
+        SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) response.decodeCommandCustomHeader(SendMessageResponseHeader.class);
 
         //If namespace not null , reset Topic without namespace.
         String topic = msg.getTopic();
         if (StringUtils.isNotEmpty(this.clientConfig.getNamespace())) {
+            // 移除topic上的namespace
             topic = NamespaceUtil.withoutNamespace(topic, this.clientConfig.getNamespace());
         }
 
+        // 构造消息队列
         MessageQueue messageQueue = new MessageQueue(topic, brokerName, responseHeader.getQueueId());
 
+        // 获取消息ID
         String uniqMsgId = MessageClientIDSetter.getUniqID(msg);
         if (msg instanceof MessageBatch && responseHeader.getBatchUniqId() == null) {
             // This means it is not an inner batch
@@ -878,9 +892,8 @@ public class MQClientAPIImpl implements NameServerUpdateCallback, StartAndShutdo
             }
             uniqMsgId = sb.toString();
         }
-        SendResult sendResult = new SendResult(sendStatus,
-                uniqMsgId,
-                responseHeader.getMsgId(), messageQueue, responseHeader.getQueueOffset());
+        // 构造消息结果
+        SendResult sendResult = new SendResult(sendStatus, uniqMsgId, responseHeader.getMsgId(), messageQueue, responseHeader.getQueueOffset());
         sendResult.setTransactionId(responseHeader.getTransactionId());
         sendResult.setRecallHandle(responseHeader.getRecallHandle());
         String regionId = response.getExtFields().get(MessageConst.PROPERTY_MSG_REGION);

@@ -35,9 +35,9 @@ import org.apache.rocketmq.store.TransientStorePool;
 import org.apache.rocketmq.store.config.FlushDiskType;
 
 /**
- * 映射文件，用于存储消息的物理文件
- * <p>
- * 映射文件设计规则：
+ * 映射文件，用于存储消息的物理文件，提供刷新、提供等功能
+ *
+ * <p>映射文件设计规则：
  * <ul>
  *     <li>
  *         文件大小：映射文件最大1G，在消息写入过程中，有可能出现文件不够存储消息的场景，这时候需要创建新的映射文件写入，原文件大小就在1G以内

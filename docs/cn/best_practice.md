@@ -46,6 +46,7 @@
 Producer的send方法本身支持内部重试，重试逻辑如下：
 
 - 至多重试2次。
+// TODO by mawen，最新的DefaultMQProducer中sendMsgTimeout为3s
 - 如果同步模式发送失败，则轮转到下一个Broker，如果异步模式发送失败，则只会在当前Broker进行重试。这个方法的总耗时时间不超过sendMsgTimeout设置的值，默认10s。
 - 如果本身向broker发送消息产生超时异常，就不会再重试。
 

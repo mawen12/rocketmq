@@ -27,13 +27,28 @@ import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.protocol.FastCodesHeader;
 
+/**
+ * 发送消息响应头
+ */
 public class SendMessageResponseHeader implements CommandCustomHeader, FastCodesHeader {
+    /**
+     * commitlog中的消息偏移量
+     */
     @CFNotNull
     private String msgId;
+    /**
+     * 消息存储的队列ID
+     */
     @CFNotNull
     private Integer queueId;
+    /**
+     * 队列偏移量
+     */
     @CFNotNull
     private Long queueOffset;
+    /**
+     * 消息ID
+     */
     private String transactionId;
     private String batchUniqId;
     private String recallHandle;

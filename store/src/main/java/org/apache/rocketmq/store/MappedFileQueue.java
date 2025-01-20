@@ -692,6 +692,12 @@ public class MappedFileQueue implements Swappable {
         return deleteCount;
     }
 
+    /**
+     * 刷新至少指定页数到内存中
+     *
+     * @param flushLeastPages
+     * @return
+     */
     public boolean flush(final int flushLeastPages) {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.getFlushedWhere(), this.getFlushedWhere() == 0);
@@ -708,6 +714,7 @@ public class MappedFileQueue implements Swappable {
 
         return result;
     }
+
 
     public synchronized boolean commit(final int commitLeastPages) {
         boolean result = true;

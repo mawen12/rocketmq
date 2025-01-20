@@ -25,11 +25,11 @@ package org.apache.rocketmq.remoting.protocol.heartbeat;
  */
 public enum MessageModel {
     /**
-     * 广播模式，每个消费者都能接收到相同的消息
+     * 广播模式，相同Consumer Group的每个Consumer实例都接收全量的消息。
      */
     BROADCASTING("BROADCASTING"),
     /**
-     * 集群模式，一个消费者组中的消费者瓜分消息，这能够实现消费端的负载均衡
+     * 集群模式，相同Consumer Group的每个Consumer实例平均分摊消息。
      */
     CLUSTERING("CLUSTERING");
 

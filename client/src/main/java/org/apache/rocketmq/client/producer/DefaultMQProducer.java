@@ -57,11 +57,11 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 
 /**
- * 生产者消息发送接口，该类是应用程序发送消息的入口点，提供发送消息的多个方法
- * <p>
- * 该类中部分参数影响了{@link DefaultMQProducerImpl}的行为
- * <p>
- * 线程安全类
+ * 应用用来投递消息的入口，主要负责消息的发送。
+ *
+ * <p>开箱即用，可通过无参构造方法快速创建一个生产者
+ * <p>支持同步/异步/oneway的发送方式，这些发送方式均支持批量发送
+ * <p>线程安全类
  */
 @ImportantPoint("客户端生产者")
 public class DefaultMQProducer extends ClientConfig implements MQProducer {
@@ -70,6 +70,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * Wrapping internal implementations for virtually all methods presented in this class.
      */
     protected final transient DefaultMQProducerImpl defaultMQProducerImpl;
+
     private final Logger logger = LoggerFactory.getLogger(DefaultMQProducer.class);
     /**
      * 支持重试的响应码
@@ -96,8 +97,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     ));
 
     /**
-     * 生产者组，聚合了所有具有完全相同角色的生产者实例，这在涉及事务型消息时尤为重要；
-     * 对于非事务性消息，只要每个进程都是唯一的，那就没关系
+     * 生产者组
+     *
+     * <p>聚合了所有具有完全相同角色的生产者实例，这在涉及事务型消息时尤为重要；对于非事务性消息，只要每个进程都是唯一的，那就没关系
      */
     private String producerGroup;
 
@@ -107,51 +109,60 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private List<String> topics;
 
     /**
-     * 用于测试场景的Topic，默认为TBW102
+     * 在发送消息时，自动创建服务器不存在的topic，需要指定key，该key可用于配置发送消息所在topic的默认路由
+     *
+     * <p>默认为TBW102
      */
     private String createTopicKey = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
     /**
-     * 创建的Topic的默认队列数量，可读=可写=4
+     * 在发送消息时，自动创建服务器不存在的topic时，默认创建的队列数，可读=可写=4
      */
     private volatile int defaultTopicQueueNums = 4;
 
     /**
-     * 发送消息的超时时间，单位为毫秒，默认为3s
+     * 发送消息的超时时间，单位毫秒，默认3s
      */
     private int sendMsgTimeout = 3000;
 
     /**
-     * Compress message body threshold, namely, message body larger than 4k will be compressed on default.
+     * 消息体Body超过多大开始压缩(Consumer收到消息会自动解压缩)，单位字节，默认4k
      */
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
     /**
-     * 同步模式发送消息失败时，最大重试次数。默认为2，加上原本第一次调用，累计调用3次。
-     * 重试过程中可能导致消息被重复发送到服务端，这需要开发者进行处理
+     * 如果消息发送失败，最大重试次数，默认2次
+     *
+     * <p>该参数仅对同步发送模式起作用
+     * <p>重试过程中可能导致消息被重复发送到服务端，这需要开发者进行处理
      */
     private int retryTimesWhenSendFailed = 2;
 
     /**
-     * 异步模式发送消息失败时，最大重试次数，默认为2，加上原本第一次调用，累计调用3次。
-     * 重试过程中可能导致消息被重复发送到服务端，这需要开发者进行处理
+     * 如果消息发送失败，最大重试次数，默认2次
+     *
+     * <p>该参数仅对异步发送模式起作用
+     * <p>重试过程中可能导致消息被重复发送到服务端，这需要开发者进行处理
      */
     private int retryTimesWhenSendAsyncFailed = 2;
 
     /**
-     * 指示当发送消息失败时，是否需要重试另一个Broker，默认不重试
-     * <p>
-     * 触发场景为发送结果{@link SendResult#sendStatus} != {@link SendStatus#SEND_OK}时
+     * 如果发送消息返回sendResult，但是sendStatus!=SEND_OK，是否用另一个Broker重试发送
+     *
+     * <p>该参数仅对同步发送模式起作用
+     * <p>异步发送只会在当前broker进行重试
      */
     private boolean retryAnotherBrokerWhenNotStoreOK = false;
 
     /**
-     * 允许发送消息的消息体的最大大小，默认为4m
+     * 客户端限制的消息体大小，单位字节，默认4m，超过报错
+     *
+     * <p>服务端也会限制，所以需要跟服务端配置使用，即应该设置保持一致
      */
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 
     /**
-     * Interface of asynchronous transfer data
+     * 基于RPCHook实现的消息轨迹插件
      */
     private TraceDispatcher traceDispatcher = null;
 
@@ -194,6 +205,10 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      */
     private long totalBatchMaxBytes = -1;
 
+    /**
+     * 该参数是在Producer创建时传入的，包含消息发送前的预处理和消息响应后的处理两个接口，
+     * 用户可以在第一个接口中做一些安全控制或其他操作
+     */
     private RPCHook rpcHook = null;
 
     /**
@@ -219,10 +234,14 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * 根据压缩类型，确定压缩算法的压缩器，压缩器有：
      * <ul>
-     *     <li>LZ4: {@link org.apache.rocketmq.common.compression.Lz4Compressor}</li>
-     *     <li>ZSTD: {@link org.apache.rocketmq.common.compression.ZstdCompressor}</li>
-     *     <li>ZLIB: {@link org.apache.rocketmq.common.compression.ZlibCompressor}</li>
+     *     <li>LZ4</li>
+     *     <li>ZSTD</li>
+     *     <li>ZLIB</li>
      * </ul>
+     *
+     * @see org.apache.rocketmq.common.compression.Lz4Compressor
+     * @see org.apache.rocketmq.common.compression.ZstdCompressor
+     * @see org.apache.rocketmq.common.compression.ZlibCompressor
      */
     private Compressor compressor = CompressorFactory.getCompressor(compressType);
 

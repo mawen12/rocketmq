@@ -42,9 +42,27 @@ public class ClientConfig {
     public static final String SEND_LATENCY_ENABLE = "com.rocketmq.sendLatencyEnable";
     public static final String START_DETECTOR_ENABLE = "com.rocketmq.startDetectorEnable";
     public static final String HEART_BEAT_V2 = "com.rocketmq.heartbeat.v2";
+    /**
+     * Name Server地址列表，多个NameServer地址使用;隔开
+     */
     private String namesrvAddr = NameServerAddressUtils.getNameServerAddresses();
+    /**
+     * 客户端本机IP地址
+     *
+     * <p>某些机器会发生无法识别客户端IP地址的情况，需要应用在代码中强制指定
+     */
     private String clientIP = NetworkUtil.getLocalAddress();
+    /**
+     * 客户端实例名称
+     *
+     * <p>客户端创建的多个Producer、Consumer实际共用一个内部实例
+     *
+     * @see org.apache.rocketmq.client.impl.factory.MQClientInstance
+     */
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
+    /**
+     * 通信层异步回调线程数
+     */
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
     /**
      * 命名空间，即租户，默认为空
@@ -56,15 +74,15 @@ public class ClientConfig {
     protected AccessChannel accessChannel = AccessChannel.LOCAL;
 
     /**
-     * Pulling topic information interval from the named server
+     * 轮询Name Server间隔时间，单位毫秒，默认为30s
      */
     private int pollNameServerInterval = 1000 * 30;
     /**
-     * Heartbeat interval in microseconds with message broker
+     * 向Broker发送心跳间隔时间，单位毫秒，默认30s
      */
     private int heartbeatBrokerInterval = 1000 * 30;
     /**
-     * Offset persistent interval for consumer
+     * 持久化Consumer消费进度间隔时间，单位毫秒，默认5s
      */
     private int persistConsumerOffsetInterval = 1000 * 5;
     private long pullTimeDelayMillsWhenException = 1000;

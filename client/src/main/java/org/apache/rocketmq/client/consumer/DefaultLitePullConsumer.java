@@ -41,53 +41,69 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
 import static org.apache.rocketmq.remoting.protocol.heartbeat.SubscriptionData.SUB_ALL;
 
+/**
+ * 主动从Broker拉取消息，主动权由应用控制，可以实现批量的消费消息。
+ *
+ * <p>Pull方式拉取消息的过程需要用户自己写，首先通过打算消费的Topic拿到MessageQueue的集合，遍历MessageQueue集合，
+ * 然后针对每个MessageQueue批量取消息，也可以自定义与控制offset位置
+ *
+ * <p>优势：Consumer可以按需消费，不同担心自己处理能力。而Broker堆积消息也会相对简单，无需记录每一个要发送消息的状态，
+ * 只需要维护所有消息的队列和偏移量就可以了。所以对于慢消费，消息量有限且到来速度不均匀的情况，pull模式比较适合消息延迟与忙等。
+ *
+ * <p>缺点：由于主动权在消费方，消费方无法及时获取最新的消息。比较适合不及时批处理场景。
+ */
 public class DefaultLitePullConsumer extends ClientConfig implements LitePullConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultLitePullConsumer.class);
 
+    /**
+     * 内部核心处理默认实现
+     */
     private final DefaultLitePullConsumerImpl defaultLitePullConsumerImpl;
 
     /**
-     * Consumers belonging to the same consumer group share a group id. The consumers in a group then divides the topic
-     * as fairly amongst themselves as possible by establishing that each queue is only consumed by a single consumer
-     * from the group. If all consumers are from the same group, it functions as a traditional message queue. Each
-     * message would be consumed by one consumer of the group only. When multiple consumer groups exist, the flow of the
-     * data consumption model aligns with the traditional publish-subscribe model. The messages are broadcast to all
-     * consumer groups.
+     * 消费者组，多个Consumer如果属于一个应用，订阅同样的消息，且消费逻辑一致，则应将它们归为同一组
+     *
+     * <p>相同订阅和相同消费者组内的消费者实现负载均衡
      */
     private String consumerGroup;
 
     /**
-     * Long polling mode, the Consumer connection max suspend time, it is not recommended to modify
+     * 长轮询，Consumer拉消息请求在Broker挂起最长时间，单位毫秒，默认20s
+     *
+     * <p>该参数不建议修改
      */
     private long brokerSuspendMaxTimeMillis = 1000 * 20;
 
     /**
-     * Long polling mode, the Consumer connection timeout(must greater than brokerSuspendMaxTimeMillis), it is not
-     * recommended to modify
+     * 长轮询，Consumer拉消息请求在Broker挂起超过指定时间，客户端认为超时，单位毫秒，默认20s
+     *
+     * <p>该参数不建议修改
      */
     private long consumerTimeoutMillisWhenSuspend = 1000 * 30;
 
     /**
-     * The socket timeout in milliseconds
+     * 非长轮询，拉消息超时时间，单位毫秒，默认10s
      */
     private long consumerPullTimeoutMillis = 1000 * 10;
 
     /**
-     * Consumption pattern,default is clustering
+     * 消息模式，默认集群消费
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
     /**
-     * Message queue listener
+     * 监听队列变化
      */
     private MessageQueueListener messageQueueListener;
     /**
-     * Offset Storage
+     * 消息进度存储
      */
     private OffsetStore offsetStore;
 
     /**
-     * Queue allocation algorithm
+     * Rebalance算法实现策略
+     *
+     * <p>队列分配算法，指示消息队列如何分配给每个消费者客户端
      */
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy = new AllocateMessageQueueAveragely();
     /**

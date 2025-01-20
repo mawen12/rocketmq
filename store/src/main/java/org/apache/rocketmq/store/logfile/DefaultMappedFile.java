@@ -515,14 +515,17 @@ public class DefaultMappedFile extends AbstractMappedFile {
         int flush = FLUSHED_POSITION_UPDATER.get(this);
         int write = getReadPosition();
 
+        // 如果文件满了，代表可以刷新
         if (this.isFull()) {
             return true;
         }
 
+        // 如果强制刷新页数，并且最大合法位置/系统页 - 刷新位置/系统页 >= 强制刷新页数，代表可以刷新
         if (flushLeastPages > 0) {
             return ((write / OS_PAGE_SIZE) - (flush / OS_PAGE_SIZE)) >= flushLeastPages;
         }
 
+        // 如果最大合法位置超过了刷新位置，代表可以刷新
         return write > flush;
     }
 

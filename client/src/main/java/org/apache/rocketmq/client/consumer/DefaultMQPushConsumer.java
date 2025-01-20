@@ -67,41 +67,50 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     protected final transient DefaultMQPushConsumerImpl defaultMQPushConsumerImpl;
 
     /**
-     * 消费者组，相同订阅和相同消费者组内的消费者实现负载均衡
+     * 消费者组，多个Consumer如果属于一个应用，订阅同样的消息，且消费逻辑一致，则应将它们归为同一组
+     *
+     * <p>相同订阅和相同消费者组内的消费者实现负载均衡
      */
     private String consumerGroup;
 
     /**
-     * 消息模式，默认为集群模式，即相同订阅和消费者组内的消费者瓜分消息；如果设置为广播模式，则每个消费者都消费一样的消息
+     * 消息模式，默认集群消费
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
     /**
-     * 消费引导时的时间点，默认为从上次消费停止的地方继续消费
+     * Consumer启动后，默认从上次消费的位置开始消费，这包含两种情况：
+     * <ul>
+     *     <li>上次消费的位置未过期，则消费从上次终止的位置执行</li>
+     *     <li>上次消费的位置已过期，则从当前队列第一条消息开始消费</li>
+     * </ul>
      */
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
 
     /**
-     * 消费时间戳，当前时间往前30分钟，即在选择{@link ConsumeFromWhere#CONSUME_FROM_TIMESTAMP}时，使用该时间戳作为消费时间点。
+     * 消费时间戳，半个小时前
+     *
+     * <p>仅当{@link ConsumeFromWhere#CONSUME_FROM_TIMESTAMP}时才起作用
      */
     private String consumeTimestamp = UtilAll.timeMillisToHumanString3(System.currentTimeMillis() - (1000 * 60 * 30));
 
     /**
-     * 队列分配算法，指示消息队列如何分配给每个消费者客户端
+     * Rebalance算法策略实现
+     *
+     * <p>队列分配算法，指示消息队列如何分配给每个消费者客户端
      */
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy;
 
     /**
-     * 保存了用户订阅时传递的主题和订阅表达式信息
-     * <ul>
-     *     <li>{@link org.apache.rocketmq.client.consumer.DefaultMQPushConsumer#subscribe(String, String)}</li>
-     *     <li>{@link org.apache.rocketmq.client.consumer.DefaultLitePullConsumer#subscribe(String, String)}</li>
-     * </ul>
+     * 订阅关系
+     *
+     * @see org.apache.rocketmq.client.consumer.DefaultMQPushConsumer#subscribe(String, String)
+     * @see org.apache.rocketmq.client.consumer.DefaultLitePullConsumer#subscribe(String, String)
      */
     private Map<String /* topic */, String /* 订阅表达式 */> subscription = new HashMap<>();
 
     /**
-     * 消费者监听器
+     * 消息监听器
      */
     private MessageListener messageListener;
 
@@ -111,17 +120,17 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private MessageQueueListener messageQueueListener;
 
     /**
-     * 队列偏移量存储
+     * 消息进度存储
      */
     private OffsetStore offsetStore;
 
     /**
-     * 最小的消费者线程数量，默认为20，有效值为[1, 1000]
+     * 消费者线程池最小线程数，默认为20，有效值为[1, 1000]
      */
     private int consumeThreadMin = 20;
 
     /**
-     * 最大的消费者线程数量，默认为20，有效值为[1, 1000]
+     * 消费者线程池最大线程数，默认为20，有效值为[1, 1000]
      */
     private int consumeThreadMax = 20;
 
@@ -131,12 +140,14 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private long adjustThreadPoolNumsThreshold = 100000;
 
     /**
-     * 并发消费时最大跨度偏移量，在顺序消费时没有影响，默认为2000
+     * 单队列并行消费允许的最大跨度，在顺序消费时没有影响，默认为2000
      */
     private int consumeConcurrentlyMaxSpan = 2000;
 
     /**
-     * 拉队列阈值。默认为1000。消息队列级别的流控，每个消息队列默认缓存最多1000条消息。考虑{@link #pullBatchSize}，瞬时值可能超过限制。有效范围[1, 65535]
+     * 拉消息本地队列缓存最大消息数，默认为1000，有效范围[1, 65535]
+     *
+     * <p>这是消息队列级别的流控，考虑{@link #pullBatchSize}，瞬时值可能超过限制
      */
     private int pullThresholdForQueue = 1000;
 
@@ -175,17 +186,21 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private int pullThresholdSizeForTopic = -1;
 
     /**
-     * 消息拉取间隔，默认为0
+     * 拉消息间隔，单位毫秒，默认0
+     *
+     * <p>由于是长轮询，所以为0，但是如果应用为了流控，也可以设置大于0的值，
      */
     private long pullInterval = 0;
 
     /**
-     * 批次消息的最大消息数，默认为1，即{@link MessageListenerConcurrently#consumeMessage(List, ConsumeConcurrentlyContext)}，第一个参数返回的消息数目为1。有效范围[1, 1024]
+     * 批量消费，一次消费多少条消息，默认1，有效范围[1, 1024]
+     *
+     * @see MessageListenerConcurrently#consumeMessage(List, ConsumeConcurrentlyContext)
      */
     private int consumeMessageBatchMaxSize = 1;
 
     /**
-     * 批次拉取的消息数，默认为32。
+     * 批量拉消息，一次最多拉多少条。默认32
      */
     private int pullBatchSize = 32;
 

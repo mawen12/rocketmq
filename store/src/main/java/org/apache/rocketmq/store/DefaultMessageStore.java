@@ -693,9 +693,7 @@ public class DefaultMessageStore implements MessageStore {
 
     private PutMessageResult waitForPutResult(CompletableFuture<PutMessageResult> putMessageResultFuture) {
         try {
-            int putMessageTimeout =
-                Math.max(this.messageStoreConfig.getSyncFlushTimeout(),
-                    this.messageStoreConfig.getSlaveTimeout()) + 5000;
+            int putMessageTimeout = Math.max(this.messageStoreConfig.getSyncFlushTimeout(), this.messageStoreConfig.getSlaveTimeout()) + 5000;
             return putMessageResultFuture.get(putMessageTimeout, TimeUnit.MILLISECONDS);
         } catch (ExecutionException | InterruptedException e) {
             return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, null);
@@ -2844,7 +2842,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     *
+     * 用于分发请求，并异步构建{@code ConsumeQueue}和{@code IndexFile}数据
      */
     class ReputMessageService extends ServiceThread {
 

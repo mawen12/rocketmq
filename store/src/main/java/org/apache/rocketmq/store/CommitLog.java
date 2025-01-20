@@ -1470,8 +1470,7 @@ public class CommitLog implements Swappable {
         return true;
     }
 
-    private CompletableFuture<PutMessageResult> handleDiskFlushAndHA(PutMessageResult putMessageResult,
-        MessageExt messageExt, int needAckNums, boolean needHandleHA) {
+    private CompletableFuture<PutMessageResult> handleDiskFlushAndHA(PutMessageResult putMessageResult, MessageExt messageExt, int needAckNums, boolean needHandleHA) {
         CompletableFuture<PutMessageStatus> flushResultFuture = handleDiskFlush(putMessageResult.getAppendMessageResult(), messageExt);
         CompletableFuture<PutMessageStatus> replicaResultFuture;
         if (!needHandleHA) {
@@ -1640,6 +1639,9 @@ public class CommitLog implements Swappable {
         return QueueTypeUtils.getCQType(topicConfig);
     }
 
+    /**
+     * 代表刷新{@code commitLog}的服务
+     */
     abstract class FlushCommitLogService extends ServiceThread {
         protected static final int RETRY_TIMES_OVER = 10;
     }
@@ -1824,47 +1826,73 @@ public class CommitLog implements Swappable {
     }
 
     /**
-     * GroupCommit Service
+     * 组提交服务
      */
     class GroupCommitService extends FlushCommitLogService {
+        /**
+         * 保存了组提交写请求
+         */
         private volatile LinkedList<GroupCommitRequest> requestsWrite = new LinkedList<>();
+        /**
+         * 保存了组提交读请求
+         */
         private volatile LinkedList<GroupCommitRequest> requestsRead = new LinkedList<>();
+        /**
+         * 放入消息的自旋锁
+         *
+         * <p>对{@link #requestsWrite}操作前需要申请该锁
+         */
         private final PutMessageSpinLock lock = new PutMessageSpinLock();
 
         public void putRequest(final GroupCommitRequest request) {
+            // 申请锁
             lock.lock();
             try {
+                // 添加写请求
                 this.requestsWrite.add(request);
             } finally {
+                // 释放锁
                 lock.unlock();
             }
+            // 唤醒
             this.wakeup();
         }
 
         private void swapRequests() {
+            // 申请锁
             lock.lock();
             try {
+                // 将请求写和读进行交换
                 LinkedList<GroupCommitRequest> tmp = this.requestsWrite;
                 this.requestsWrite = this.requestsRead;
                 this.requestsRead = tmp;
             } finally {
+                // 释放锁
                 lock.unlock();
             }
         }
 
         private void doCommit() {
+            // 尽在读请求不为空时处理
             if (!this.requestsRead.isEmpty()) {
+                // 遍历读请求
                 for (GroupCommitRequest req : this.requestsRead) {
+                    // 刷新位置比请求的下一个位置大，代表已经刷新，无需再次处理
                     boolean flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
+                    // 最高重试1000池
                     for (int i = 0; i < 1000 && !flushOK; i++) {
+                        // 执行刷新
                         CommitLog.this.mappedFileQueue.flush(0);
+                        // 刷新位置比请求的下一个位置大，代表已经刷新，无需再次处理
                         flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
                         if (flushOK) {
+                            // 刷新完成，跳出循环
                             break;
                         } else {
                             // When transientStorePoolEnable is true, the messages in writeBuffer may not be committed
                             // to pageCache very quickly, and flushOk here may almost be false, so we can sleep 1ms to
                             // wait for the messages to be committed to pageCache.
+
                             try {
                                 Thread.sleep(1);
                             } catch (InterruptedException ignored) {
@@ -2383,17 +2411,29 @@ public class CommitLog implements Swappable {
 
     }
 
+    /**
+     * 默认的刷新管理器
+     */
     class DefaultFlushManager implements FlushManager {
 
+        /**
+         * 刷新{@link CommitLog}服务
+         */
         private final FlushCommitLogService flushCommitLogService;
 
-        //If TransientStorePool enabled, we must flush message to FileChannel at fixed periods
+        /**
+         * 实时提交服务
+         *
+         * <p>如果启用了{@link TransientStorePool}，则必须以固定的周期将消息刷新到{@link java.nio.channels.FileChannel}
+         */
         private final FlushCommitLogService commitRealTimeService;
 
         public DefaultFlushManager() {
             if (FlushDiskType.SYNC_FLUSH == CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
+                // 同步刷新，则使用组刷新服务
                 this.flushCommitLogService = new CommitLog.GroupCommitService();
             } else {
+                // 异步刷新，则使用刷新实时服务
                 this.flushCommitLogService = new CommitLog.FlushRealTimeService();
             }
 

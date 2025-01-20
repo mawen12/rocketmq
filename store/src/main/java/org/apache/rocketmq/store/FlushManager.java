@@ -20,17 +20,46 @@ package org.apache.rocketmq.store;
 import java.util.concurrent.CompletableFuture;
 import org.apache.rocketmq.common.message.MessageExt;
 
+/**
+ * 将内存内容刷新到磁盘文件
+ */
 public interface FlushManager {
 
+    /**
+     * 开启刷新管理器
+     */
     void start();
 
+    /**
+     * 关闭刷新管理器
+     */
     void shutdown();
 
+    /**
+     * 唤醒刷新
+     */
     void wakeUpFlush();
 
+    /**
+     * 唤醒提交
+     */
     void wakeUpCommit();
 
+    /**
+     * 处理磁盘刷新
+     *
+     * @param result
+     * @param putMessageResult
+     * @param messageExt
+     */
     void handleDiskFlush(AppendMessageResult result, PutMessageResult putMessageResult, MessageExt messageExt);
 
+    /**
+     * 处理磁盘刷新，并返回结果
+     *
+     * @param result
+     * @param messageExt
+     * @return
+     */
     CompletableFuture<PutMessageStatus> handleDiskFlush(AppendMessageResult result, MessageExt messageExt);
 }

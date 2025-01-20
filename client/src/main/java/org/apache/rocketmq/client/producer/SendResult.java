@@ -26,20 +26,30 @@ import org.apache.rocketmq.common.message.MessageQueue;
 public class SendResult {
     /**
      * 发送状态，要么成功，要么消息存储失败
+     *
+     * <p>该值是响应上的{@link org.apache.rocketmq.remoting.protocol.ResponseCode}
      */
     private SendStatus sendStatus;
     /**
      * 消息ID，由客户端的{@link org.apache.rocketmq.common.message.MessageClientIDSetter#setUniqID(Message)}来设置
+     *
+     * <p>直接从客户端的消息上获取
      *
      * @see org.apache.rocketmq.common.message.Message#properties[UNIQ_KEY]
      */
     private String msgId;
     /**
      * 存储消息的队列，该消息被存储在ENV(user.home)/store/commitLog中，
+     *
+     * <p>其中的QueueId是响应上的{@link org.apache.rocketmq.remoting.protocol.header.SendMessageResponseHeader#queueId}
      */
     private MessageQueue messageQueue;
     /**
      * 队列偏移量
+     *
+     * <p>是响应中的{@link org.apache.rocketmq.remoting.protocol.header.SendMessageResponseHeader#queueOffset}
+     *
+     * <p>是指消息对指定队列中是第几条
      */
     private long queueOffset;
     /**
@@ -47,9 +57,14 @@ public class SendResult {
      */
     private String transactionId;
     /**
+     * 偏移量消息ID
      *
+     * <p>是响应上{@link org.apache.rocketmq.remoting.protocol.header.SendMessageResponseHeader#msgId}
+     *
+     * <p>是指消息在{@code commitlog}中的偏移量
      */
     private String offsetMsgId;
+
     private String regionId;
     /**
      * 消息是否可追踪
@@ -59,6 +74,7 @@ public class SendResult {
      * 原始的响应体
      */
     private byte[] rawRespBody;
+
     private String recallHandle;
 
     public SendResult() {

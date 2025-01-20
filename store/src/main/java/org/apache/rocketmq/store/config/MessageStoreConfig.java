@@ -225,6 +225,9 @@ public class MessageStoreConfig {
     private int haMaxGapNotInSync = 1024 * 1024 * 256;
     @ImportantField
     private volatile BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
+    /**
+     * 磁盘刷新类型，默认为异步刷新
+     */
     @ImportantField
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
     // Used by GroupTransferService to sync messages from master to slave

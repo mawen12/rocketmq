@@ -148,7 +148,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
      */
     private ServiceState serviceState = ServiceState.CREATE_JUST;
     /**
-     * MQ客户端实力
+     * MQ客户端实例
      */
     private MQClientInstance mQClientFactory;
     private ArrayList<CheckForbiddenHook> checkForbiddenHookList = new ArrayList<>();
@@ -903,6 +903,29 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     }
 
+    /**
+     * 消息发送方法
+     *
+     * <p>支持内部重试，重试逻辑如下：
+     * <ul>
+     *     <li>至多重试2次</li>
+     *     <li>如果同步模式发送失败，则轮转到下一个Broker，如果异步模式发送失败，则只会在当前Broker重试</li>
+     *     <li>方法的总耗时时间不超过sendMsgTimeout设置的值，默认为3s</li>
+     *     <li>如果本身向Broker发送消息产生超时异常，则不会再重试</li>
+     * </ul>
+     *
+     * <p>比如调用send同步方法发送失败时，则尝试将消息存储到db，然后由后台线程定时重试，确保消息一定到达Broker
+     *
+     * @param msg
+     * @param communicationMode
+     * @param sendCallback
+     * @param timeout
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     @ImportantPoint("客户端发送消息的方法，其中同步发送，可以有三次发送机会，异步发布仅有一次")
     private SendResult sendDefaultImpl(Message msg, final CommunicationMode communicationMode, final SendCallback sendCallback, final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         /**
