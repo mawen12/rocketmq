@@ -70,6 +70,7 @@ public class Message implements Serializable {
     }
 
     public Message(String topic, byte[] body) {
+        // 默认是等待消息写入到磁盘中的
         this(topic, "", "", 0, body, true);
     }
 
@@ -186,6 +187,11 @@ public class Message implements Serializable {
         this.putProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL, String.valueOf(level));
     }
 
+    /**
+     * 是否保存到磁盘上后返回
+     *
+     * @see org.apache.rocketmq.store.CommitLog.DefaultFlushManager
+     */
     public boolean isWaitStoreMsgOK() {
         String result = this.getProperty(MessageConst.PROPERTY_WAIT_STORE_MSG_OK);
         if (null == result) {

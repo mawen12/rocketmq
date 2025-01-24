@@ -23,6 +23,8 @@ public class MessageConst {
     public static final String PROPERTY_TAGS = "TAGS";
     /**
      * 是否等待消息写入存储成功
+     *
+     * @see org.apache.rocketmq.store.CommitLog.DefaultFlushManager#handleDiskFlush(org.apache.rocketmq.store.AppendMessageResult, org.apache.rocketmq.store.PutMessageResult, MessageExt)
      */
     public static final String PROPERTY_WAIT_STORE_MSG_OK = "WAIT";
     public static final String PROPERTY_DELAY_TIME_LEVEL = "DELAY";

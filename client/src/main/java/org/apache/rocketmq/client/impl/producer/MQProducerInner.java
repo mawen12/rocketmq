@@ -22,20 +22,50 @@ import org.apache.rocketmq.client.producer.TransactionListener;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.remoting.protocol.header.CheckTransactionStateRequestHeader;
 
+/**
+ * 内部的MQ Producer 接口
+ */
 public interface MQProducerInner {
+    /**
+     * @return 返回所有的发布主题
+     */
     Set<String> getPublishTopicList();
 
+    /**
+     * @param topic 主题
+     * @return 检查主题信息是否需要更新
+     */
     boolean isPublishTopicNeedUpdate(final String topic);
 
+    /**
+     * @return 事务消息相关的监听器
+     */
     TransactionCheckListener checkListener();
+
+    /**
+     * @return 事务消息相关的监听器
+     */
     TransactionListener getCheckListener();
 
-    void checkTransactionState(
-        final String addr,
-        final MessageExt msg,
-        final CheckTransactionStateRequestHeader checkRequestHeader);
+    /**
+     * 事务消息相关
+     *
+     * @param addr
+     * @param msg
+     * @param checkRequestHeader
+     */
+    void checkTransactionState(final String addr, final MessageExt msg, final CheckTransactionStateRequestHeader checkRequestHeader);
 
+    /**
+     * 将主题信息更新到Broker
+     *
+     * @param topic
+     * @param info
+     */
     void updateTopicPublishInfo(final String topic, final TopicPublishInfo info);
 
+    /**
+     * @return 是否测试模式
+     */
     boolean isUnitMode();
 }

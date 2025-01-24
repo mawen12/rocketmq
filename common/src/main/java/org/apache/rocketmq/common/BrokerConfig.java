@@ -129,8 +129,14 @@ public class BrokerConfig extends BrokerIdentity {
     private int adminBrokerThreadPoolQueueCapacity = 10000;
     private int loadBalanceThreadPoolQueueCapacity = 100000;
 
+    /**
+     * 是否开启长轮询，默认为true
+     */
     private boolean longPollingEnable = true;
 
+    /**
+     *
+     */
     private long shortPollingTimeMills = 1000;
 
     private boolean notifyConsumerIdsChangedEnable = true;
@@ -338,7 +344,7 @@ public class BrokerConfig extends BrokerIdentity {
     private boolean skipPreOnline = false;
 
     /**
-     * 是否开启发送，默认为true
+     * 是否开启异步发送，默认为true
      */
     private boolean asyncSendEnable = true;
 

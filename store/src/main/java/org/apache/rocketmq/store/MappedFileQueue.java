@@ -695,14 +695,16 @@ public class MappedFileQueue implements Swappable {
     /**
      * 刷新至少指定页数到内存中
      *
-     * @param flushLeastPages
+     * @param flushLeastPages 最少刷新页数
      * @return
      */
     public boolean flush(final int flushLeastPages) {
         boolean result = true;
+        // 获取上次刷新的映射文件，如果没有且是首页刷新，则返回第一页，否则返回空
         MappedFile mappedFile = this.findMappedFileByOffset(this.getFlushedWhere(), this.getFlushedWhere() == 0);
         if (mappedFile != null) {
             long tmpTimeStamp = mappedFile.getStoreTimestamp();
+            // 执行刷新
             int offset = mappedFile.flush(flushLeastPages);
             long where = mappedFile.getFileFromOffset() + offset;
             result = where == this.getFlushedWhere();

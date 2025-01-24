@@ -99,7 +99,7 @@ public interface MessageStore {
     }
 
     /**
-     * Store a message into store.
+     * 将一条消息存储起来
      *
      * @param msg Message instance to store
      * @return result of store operation.

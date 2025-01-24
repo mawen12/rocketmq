@@ -163,12 +163,17 @@ public class DefaultMessageStore implements MessageStore {
     private CompactionService compactionService;
 
     private final StoreStatsService storeStatsService;
-
+    /**
+     * 临时缓冲池
+     */
     private final TransientStorePool transientStorePool;
 
     protected final RunningFlags runningFlags = new RunningFlags();
     private final SystemClock systemClock = new SystemClock();
 
+    /**
+     * 单线程的调度线程池
+     */
     private final ScheduledExecutorService scheduledExecutorService;
     private final BrokerStatsManager brokerStatsManager;
     private final MessageArrivingListener messageArrivingListener;
@@ -229,9 +234,7 @@ public class DefaultMessageStore implements MessageStore {
     private final ScheduledExecutorService scheduledCleanQueueExecutorService =
         ThreadUtils.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreCleanQueueScheduledThread"));
 
-    public DefaultMessageStore(final MessageStoreConfig messageStoreConfig, final BrokerStatsManager brokerStatsManager,
-        final MessageArrivingListener messageArrivingListener, final BrokerConfig brokerConfig,
-        final ConcurrentMap<String, TopicConfig> topicConfigTable) throws IOException {
+    public DefaultMessageStore(final MessageStoreConfig messageStoreConfig, final BrokerStatsManager brokerStatsManager, final MessageArrivingListener messageArrivingListener, final BrokerConfig brokerConfig, final ConcurrentMap<String, TopicConfig> topicConfigTable) throws IOException {
         this.messageArrivingListener = messageArrivingListener;
         this.brokerConfig = brokerConfig;
         this.messageStoreConfig = messageStoreConfig;
@@ -273,10 +276,10 @@ public class DefaultMessageStore implements MessageStore {
             this.reputMessageService = new ConcurrentReputMessageService();
         }
 
+        // 读取存储配置，构造临时缓冲池
         this.transientStorePool = new TransientStorePool(messageStoreConfig.getTransientStorePoolSize(), messageStoreConfig.getMappedFileSizeCommitLog());
 
-        this.scheduledExecutorService =
-            ThreadUtils.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread", getBrokerIdentity()));
+        this.scheduledExecutorService = ThreadUtils.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread", getBrokerIdentity()));
 
         this.dispatcherList = new LinkedList<>();
         this.dispatcherList.addLast(new CommitLogDispatcherBuildConsumeQueue());
@@ -597,9 +600,7 @@ public class DefaultMessageStore implements MessageStore {
      */
     @Override
     public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
-        /**
-         * 触发写入消息之前的生命周期函数，并进行回调
-         */
+        // 触发写入消息之前的生命周期函数，并进行回调
         {
             for (PutMessageHook putMessageHook : putMessageHookList) {
                 PutMessageResult handleResult = putMessageHook.executeBeforePutMessage(msg);
@@ -609,9 +610,7 @@ public class DefaultMessageStore implements MessageStore {
             }
         }
 
-        /**
-         * 校验消息属性
-         */
+        // 校验消息属性
         {
             if (msg.getProperties().containsKey(MessageConst.PROPERTY_INNER_NUM) && !MessageSysFlag.check(msg.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)) {
                 LOGGER.warn("[BUG]The message had property {} but is not an inner batch", MessageConst.PROPERTY_INNER_NUM);
@@ -627,9 +626,7 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         long beginTime = this.getSystemClock().now();
-        /**
-         * 写入消息到commitLog
-         */
+        // 写入消息到commitLog
         CompletableFuture<PutMessageResult> putResultFuture = this.commitLog.asyncPutMessage(msg);
 
         putResultFuture.thenAccept(result -> {
@@ -691,16 +688,24 @@ public class DefaultMessageStore implements MessageStore {
         return waitForPutResult(asyncPutMessages(messageExtBatch));
     }
 
+    /**
+     * 等待异步的结果
+     *
+     * @param putMessageResultFuture
+     * @return
+     */
     private PutMessageResult waitForPutResult(CompletableFuture<PutMessageResult> putMessageResultFuture) {
         try {
+            // 获取刷新的超时时间, max(syncFlushTimeout, slaveTimeout) + 5s
             int putMessageTimeout = Math.max(this.messageStoreConfig.getSyncFlushTimeout(), this.messageStoreConfig.getSlaveTimeout()) + 5000;
+            // 等到指定超时时间
             return putMessageResultFuture.get(putMessageTimeout, TimeUnit.MILLISECONDS);
         } catch (ExecutionException | InterruptedException e) {
+            // 对于执行出错或者线程被中断的，返回错误
             return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, null);
         } catch (TimeoutException e) {
-            LOGGER.error("usually it will never timeout, putMessageTimeout is much bigger than slaveTimeout and "
-                + "flushTimeout so the result can be got anyway, but in some situations timeout will happen like full gc "
-                + "process hangs or other unexpected situations.");
+            LOGGER.error("usually it will never timeout, putMessageTimeout is much bigger than slaveTimeout and flushTimeout so the result can be got anyway, but in some situations timeout will happen like full gc process hangs or other unexpected situations.");
+            // 对于超时，返回错误
             return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, null);
         }
     }
@@ -1020,6 +1025,14 @@ public class DefaultMessageStore implements MessageStore {
         return CompletableFuture.completedFuture(getMessage(group, topic, queueId, offset, maxMsgNums, maxTotalMsgSize, messageFilter));
     }
 
+    /**
+     * 读取已提交的最大偏移量
+     *
+     * @param topic   Topic name.
+     * @param queueId Queue ID.
+     * @return
+     * @throws ConsumeQueueException
+     */
     @Override
     public long getMaxOffsetInQueue(String topic, int queueId) throws ConsumeQueueException {
         return getMaxOffsetInQueue(topic, queueId, true);
@@ -1028,8 +1041,10 @@ public class DefaultMessageStore implements MessageStore {
     @Override
     public long getMaxOffsetInQueue(String topic, int queueId, boolean committed) throws ConsumeQueueException {
         if (committed) {
+            // 获取该主题队列对应的接口
             ConsumeQueueInterface logic = this.getConsumeQueue(topic, queueId);
             if (logic != null) {
+
                 return logic.getMaxOffsetInQueue();
             }
         } else {

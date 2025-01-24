@@ -30,22 +30,32 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.store.ConsumeQueueExt;
 import org.apache.rocketmq.store.exception.ConsumeQueueException;
 
+/**
+ * 持有{@link PullRequest}请求的服务
+ */
 public class PullRequestHoldService extends ServiceThread {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
+
     protected static final String TOPIC_QUEUEID_SEPARATOR = "@";
+
     protected final BrokerController brokerController;
+
     private final SystemClock systemClock = new SystemClock();
-    protected ConcurrentMap<String/* topic@queueId */, ManyPullRequest> pullRequestTable =
-        new ConcurrentHashMap<>(1024);
+
+    protected ConcurrentMap<String/* topic@queueId */, ManyPullRequest> pullRequestTable = new ConcurrentHashMap<>(1024);
 
     public PullRequestHoldService(final BrokerController brokerController) {
         this.brokerController = brokerController;
     }
 
     public void suspendPullRequest(final String topic, final int queueId, final PullRequest pullRequest) {
+        // 构造唯一key，即topic@queueId
         String key = this.buildKey(topic, queueId);
+        // 获取该key的拉请求
+        // TODO by mawen 使用 Map#computeIfAbsent 简化代码
         ManyPullRequest mpr = this.pullRequestTable.get(key);
         if (null == mpr) {
+            // 拉请求不存在时，构造新的
             mpr = new ManyPullRequest();
             ManyPullRequest prev = this.pullRequestTable.putIfAbsent(key, mpr);
             if (prev != null) {
@@ -53,7 +63,9 @@ public class PullRequestHoldService extends ServiceThread {
             }
         }
 
+        // 设置该请求状态为暂停
         pullRequest.getRequestCommand().setSuspended(true);
+        // 放入请求
         mpr.addPullRequest(pullRequest);
     }
 
@@ -68,11 +80,15 @@ public class PullRequestHoldService extends ServiceThread {
     @Override
     public void run() {
         log.info("{} service started", this.getServiceName());
+
         while (!this.isStopped()) {
             try {
+                // 是否支持长轮询
                 if (this.brokerController.getBrokerConfig().isLongPollingEnable()) {
+                    // 长轮询固定等待5s
                     this.waitForRunning(5 * 1000);
                 } else {
+                    // 短轮询仅等待固定时间
                     this.waitForRunning(this.brokerController.getBrokerConfig().getShortPollingTimeMills());
                 }
 
@@ -99,12 +115,14 @@ public class PullRequestHoldService extends ServiceThread {
     }
 
     protected void checkHoldRequest() {
+        // 迭代请求列表
         for (String key : this.pullRequestTable.keySet()) {
             String[] kArray = key.split(TOPIC_QUEUEID_SEPARATOR);
             if (2 == kArray.length) {
                 String topic = kArray[0];
                 int queueId = Integer.parseInt(kArray[1]);
                 try {
+                    // 获取主题下对应队列的最大偏移量
                     final long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
                     this.notifyMessageArriving(topic, queueId, offset);
                 } catch (Throwable e) {

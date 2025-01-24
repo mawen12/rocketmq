@@ -199,54 +199,37 @@ public class TopicQueueMappingManager extends ConfigManager {
      * @return
      */
     public TopicQueueMappingContext buildTopicQueueMappingContext(TopicRequestHeader requestHeader, boolean selectOneWhenMiss) {
-        /**
-         * 检查lo是否为Flase，如果是的话，表示需要进一步处理
-         */
+        // 检查lo是否为Flase，如果是的话，表示需要进一步处理
         if (requestHeader.getLo() != null && Boolean.FALSE.equals(requestHeader.getLo())) {
             return new TopicQueueMappingContext(requestHeader.getTopic(), null, null, null, null);
         }
-        /**
-         * 获取主题
-         */
+        // 获取主题
         String topic = requestHeader.getTopic();
-        /**
-         * 获取Client计算好的队列ID
-         */
+        // 获取Client计算好的队列ID
         Integer globalId = null;
         if (requestHeader instanceof TopicQueueRequestHeader) {
             globalId = ((TopicQueueRequestHeader) requestHeader).getQueueId();
         }
-
-        /**
-         * 获取该主题对应的队列映射信息
-         */
+        // 获取该主题对应的队列映射信息
         TopicQueueMappingDetail mappingDetail = getTopicQueueMapping(topic);
         if (mappingDetail == null) {
             //it is not static topic
             return new TopicQueueMappingContext(topic, null, null, null, null);
         }
-        /**
-         * 检查Broker名称
-         */
+        // 检查Broker名称
         assert mappingDetail.getBname().equals(this.brokerController.getBrokerConfig().getBrokerName());
 
-        /**
-         * 对于没有队列ID的，直接返回
-         */
+        // 对于没有队列ID的，直接返回
         if (globalId == null) {
             return new TopicQueueMappingContext(topic, null, mappingDetail, null, null);
         }
 
-        /**
-         * 对于队列ID<0，并且不允许选择的，直接返回
-         */
+        // 对于队列ID<0，并且不允许选择的，直接返回
         if (globalId < 0 && !selectOneWhenMiss) {
             return new TopicQueueMappingContext(topic, globalId, mappingDetail, null, null);
         }
 
-        /**
-         * 对于队列ID<0进行修正
-         */
+        // 对于队列ID<0进行修正
         if (globalId < 0) {
             try {
                 if (!mappingDetail.getHostedQueues().isEmpty()) {
@@ -255,27 +238,22 @@ public class TopicQueueMappingManager extends ConfigManager {
             } catch (Throwable ignored) {
             }
         }
-        /**
-         * 如果队列ID仍然<0，直接返回
-         */
+
+        // 如果队列ID仍然<0，直接返回，代表不存在对应队列
         if (globalId < 0) {
             return new TopicQueueMappingContext(topic, globalId,  mappingDetail, null, null);
         }
 
-        /**
-         * 获取该队列对应的逻辑文件映射信息
-         */
+        // 获取该队列对应的逻辑文件映射信息
         List<LogicQueueMappingItem> mappingItemList = TopicQueueMappingDetail.getMappingInfo(mappingDetail, globalId);
         LogicQueueMappingItem leaderItem = null;
-        /**
-         * 如果信息不为空，则获取最后一个
-         */
+
+        // 如果信息不为空，则获取最后一个
         if (mappingItemList != null && mappingItemList.size() > 0) {
             leaderItem = mappingItemList.get(mappingItemList.size() - 1);
         }
-        /**
-         * 返回带有逻辑文件映射信息的主题队列映射上下文
-         */
+
+        // 返回带有逻辑文件映射信息的主题队列映射上下文
         return new TopicQueueMappingContext(topic, globalId, mappingDetail, mappingItemList, leaderItem);
     }
 

@@ -20,7 +20,17 @@ package org.apache.rocketmq.store;
  * 放置消息状态
  */
 public enum PutMessageStatus {
+    /**
+     * 将消息在指定超时时间内从内存刷新到磁盘上时，返回的状态。
+     *
+     * 将消息在指定超时时间内从
+     *
+     *
+     */
     PUT_OK,
+    /**
+     * 消息在指定超时时间内未能从内存刷新到磁盘上返回的状态
+     */
     FLUSH_DISK_TIMEOUT,
     FLUSH_SLAVE_TIMEOUT,
     SLAVE_NOT_AVAILABLE,

@@ -22,18 +22,37 @@ import org.apache.rocketmq.store.ConsumeQueueExt;
 import java.nio.ByteBuffer;
 
 public class CqUnit {
+    /**
+     * 队列偏移量
+     */
     private final long queueOffset;
+    /**
+     * 大小
+     */
     private final int size;
+    /**
+     * 位置
+     */
     private final long pos;
+    /**
+     * 批次数量
+     */
     private final short batchNum;
     /**
      * Be careful, the tagsCode is reused as an address for extent file. To prevent accident mistake, we follow the
      * rules: 1. If the cqExtUnit is not null, make tagsCode == cqExtUnit.getTagsCode() 2. If the cqExtUnit is null, and
      * the tagsCode is smaller than 0, it is an invalid tagsCode, which means failed to get cqExtUnit by address
      */
+
+    /**
+     *
+     */
     private long tagsCode;
+
     private ConsumeQueueExt.CqExtUnit cqExtUnit;
+
     private final ByteBuffer nativeBuffer;
+
     private final int compactedOffset;
 
     public CqUnit(long queueOffset, long pos, int size, long tagsCode) {

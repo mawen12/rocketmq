@@ -31,18 +31,25 @@ import sun.nio.ch.DirectBuffer;
  * 临时存储池
  */
 public class TransientStorePool {
+
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
     /**
-     * 缓存池大小
+     * 缓存池大小，默认为5
+     *
+     * @see org.apache.rocketmq.store.config.MessageStoreConfig#transientStorePoolSize
      */
     private final int poolSize;
     /**
-     * 文件大小
+     * 文件大小，默认为1G
+     *
+     * @see org.apache.rocketmq.store.config.MessageStoreConfig#mappedFileSizeCommitLog
      */
     private final int fileSize;
     /**
-     * 可用字节缓存的队列
+     * 可用字节缓存的队列，默认为5个1G的文件，该队列中实际保存了消息的数据
+     *
+     * <p>该直接缓冲底层是直接分配在内存上
      */
     private final Deque<ByteBuffer> availableBuffers;
     /**
@@ -57,10 +64,12 @@ public class TransientStorePool {
     }
 
     /**
-     * It's a heavy init method.
+     * 这是一个高昂的初始化方法
      */
     public void init() {
+        // 分配指定池大小的缓存区，每个缓存区都是一个文件大小
         for (int i = 0; i < poolSize; i++) {
+            // 在内存上分配OS可以直接访问的区域
             ByteBuffer byteBuffer = ByteBuffer.allocateDirect(fileSize);
 
             final long address = ((DirectBuffer) byteBuffer).address();
@@ -71,20 +80,34 @@ public class TransientStorePool {
         }
     }
 
+    /**
+     * 销毁方法，需要将之前申请的内存释放掉
+     */
     public void destroy() {
         for (ByteBuffer byteBuffer : availableBuffers) {
+            // 获取内存地址
             final long address = ((DirectBuffer) byteBuffer).address();
+            // 构造指向该地址的指针
             Pointer pointer = new Pointer(address);
+            // 解锁
             LibC.INSTANCE.munlock(pointer, new NativeLong(fileSize));
         }
     }
 
+    /**
+     * 将内存中的第一个字节缓冲区取出，并保存到参数中
+     *
+     * @param byteBuffer
+     */
     public void returnBuffer(ByteBuffer byteBuffer) {
         byteBuffer.position(0);
         byteBuffer.limit(fileSize);
         this.availableBuffers.offerFirst(byteBuffer);
     }
 
+    /**
+     * @return 返回头部缓存区
+     */
     public ByteBuffer borrowBuffer() {
         ByteBuffer buffer = availableBuffers.pollFirst();
         if (availableBuffers.size() < poolSize * 0.4) {

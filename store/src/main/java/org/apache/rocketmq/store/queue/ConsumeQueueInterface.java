@@ -25,21 +25,25 @@ import org.apache.rocketmq.store.DispatchRequest;
 import org.apache.rocketmq.store.MessageFilter;
 import org.rocksdb.RocksDBException;
 
+/**
+ * 消费队列接口，用于管理${user.home}/store/consumequeue下的文件接口
+ *
+ * <p>文件目录：${user.home}/store/consumequeue/topic/queueId/file
+ */
 public interface ConsumeQueueInterface extends FileQueueLifeCycle {
     /**
-     * Get the topic name
-     * @return the topic this cq belongs to.
+     * @return 返回该ConsumeQueue所属的主题
      */
     String getTopic();
 
     /**
-     * Get queue id
-     * @return the queue id this cq belongs to.
+     * @return 返回该ConsumeQueue所属的队列ID
      */
     int getQueueId();
 
     /**
      * Get the units from the start offset.
+     *
      *
      * @param startIndex start index
      * @return the unit iterateFrom

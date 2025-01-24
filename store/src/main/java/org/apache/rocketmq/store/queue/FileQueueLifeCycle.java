@@ -19,54 +19,59 @@ package org.apache.rocketmq.store.queue;
 import org.apache.rocketmq.store.Swappable;
 
 /**
- * FileQueueLifeCycle contains life cycle methods of ConsumerQueue that is directly implemented by FILE.
+ * 包含由 FILE 直接实现的 ConsumeQueue 的生命周期方法
  */
 public interface FileQueueLifeCycle extends Swappable {
     /**
-     * Load from file.
-     * @return true if loaded successfully.
+     * 从文件中加载内容
+     *
+     * @return 加载成功返回true
      */
     boolean load();
 
     /**
-     * Recover from file.
+     * 从文件中恢复
      */
     void recover();
 
     /**
-     * Check files.
+     * 检查文件
      */
     void checkSelf();
 
     /**
-     * Flush cache to file.
-     * @param flushLeastPages  the minimum number of pages to be flushed
-     * @return true if any data has been flushed.
+     * 将缓存刷新到文件
+     *
+     * @param flushLeastPages  被刷新的最小页数
+     * @return 有数据被刷新时返回true
      */
     boolean flush(int flushLeastPages);
 
     /**
-     * Destroy files.
+     * 销毁文件
      */
     void destroy();
 
     /**
-     * Truncate dirty logic files starting at max commit log position.
-     * @param maxCommitLogPos max commit log position
+     * 截断最大提交日志位置作为起点的脏逻辑文件
+     *
+     * @param maxCommitLogPos 最大提交日志位置
      */
     void truncateDirtyLogicFiles(long maxCommitLogPos);
 
     /**
-     * Delete expired files ending at min commit log position.
-     * @param minCommitLogPos min commit log position
-     * @return deleted file numbers.
+     * 删除最小提交日志位置的过期文件
+     *
+     * @param minCommitLogPos 最小提交日志位置
+     * @return 删除的文件数量
      */
     int deleteExpiredFile(long minCommitLogPos);
 
     /**
-     * Roll to next file.
-     * @param nextBeginOffset next begin offset
-     * @return the beginning offset of the next file
+     * 滚动到下一个文件
+     *
+     * @param nextBeginOffset 下一个开始偏移量
+     * @return 下一个文件的开始偏移量
      */
     long rollNextFile(final long nextBeginOffset);
 
@@ -77,8 +82,9 @@ public interface FileQueueLifeCycle extends Swappable {
     boolean isFirstFileAvailable();
 
     /**
-     * Does the first file exist?
-     * @return true if it exists
+     * 第一个文件是否存在
+     *
+     * @return 第一个文件存在时返回true
      */
     boolean isFirstFileExist();
 }

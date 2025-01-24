@@ -22,9 +22,21 @@ import org.apache.rocketmq.broker.processor.NotificationProcessor;
 import org.apache.rocketmq.broker.processor.PopMessageProcessor;
 import org.apache.rocketmq.store.MessageArrivingListener;
 
+/**
+ * 消息达到通知监听器
+ */
 public class NotifyMessageArrivingListener implements MessageArrivingListener {
+    /**
+     * 持有{@link PullRequest}请求的服务
+     */
     private final PullRequestHoldService pullRequestHoldService;
+    /**
+     * 弹出消息的处理器
+     */
     private final PopMessageProcessor popMessageProcessor;
+    /**
+     * 通知处理器
+     */
     private final NotificationProcessor notificationProcessor;
 
     public NotifyMessageArrivingListener(final PullRequestHoldService pullRequestHoldService, final PopMessageProcessor popMessageProcessor, final NotificationProcessor notificationProcessor) {
@@ -34,14 +46,9 @@ public class NotifyMessageArrivingListener implements MessageArrivingListener {
     }
 
     @Override
-    public void arriving(String topic, int queueId, long logicOffset, long tagsCode,
-                         long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {
-
-        this.pullRequestHoldService.notifyMessageArriving(
-            topic, queueId, logicOffset, tagsCode, msgStoreTime, filterBitMap, properties);
-        this.popMessageProcessor.notifyMessageArriving(
-            topic, queueId, logicOffset, tagsCode, msgStoreTime, filterBitMap, properties);
-        this.notificationProcessor.notifyMessageArriving(
-            topic, queueId, logicOffset, tagsCode, msgStoreTime, filterBitMap, properties);
+    public void arriving(String topic, int queueId, long logicOffset, long tagsCode, long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {
+        this.pullRequestHoldService.notifyMessageArriving(topic, queueId, logicOffset, tagsCode, msgStoreTime, filterBitMap, properties);
+        this.popMessageProcessor.notifyMessageArriving(topic, queueId, logicOffset, tagsCode, msgStoreTime, filterBitMap, properties);
+        this.notificationProcessor.notifyMessageArriving(topic, queueId, logicOffset, tagsCode, msgStoreTime, filterBitMap, properties);
     }
 }

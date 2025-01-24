@@ -100,9 +100,7 @@ public final class ThreadUtils {
         return ThreadUtils.newScheduledThreadPool(corePoolSize, threadFactory, new ThreadPoolExecutor.AbortPolicy());
     }
 
-    public static ScheduledExecutorService newScheduledThreadPool(int corePoolSize,
-        ThreadFactory threadFactory,
-        RejectedExecutionHandler handler) {
+    public static ScheduledExecutorService newScheduledThreadPool(int corePoolSize, ThreadFactory threadFactory, RejectedExecutionHandler handler) {
         return new ScheduledThreadPoolExecutor(corePoolSize, threadFactory, handler);
     }
 

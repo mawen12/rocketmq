@@ -227,14 +227,25 @@ public class MessageStoreConfig {
     private volatile BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
     /**
      * 磁盘刷新类型，默认为异步刷新
+     *
+     * @see org.apache.rocketmq.store.FlushManager
      */
     @ImportantField
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
-    // Used by GroupTransferService to sync messages from master to slave
+    /**
+     * 本地缓存写入到磁盘中的超时时间
+     *
+     * 被{@link GroupTransferService}用于将消息从master同步到slave的超时时间，默认为5s
+     */
     private int syncFlushTimeout = 1000 * 5;
-    // Used by PutMessage to wait messages be flushed to disk and synchronized in current broker member group.
+    /**
+     * 用于将消息刷新到磁盘，并且在当前Broker成员组中等待的时间，默认为8s
+     */
     private int putMessageTimeout = 1000 * 8;
     private int slaveTimeout = 3000;
+    /**
+     * 消息延迟级别
+     */
     private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
     private long flushDelayOffsetInterval = 1000 * 10;
     @ImportantField
@@ -255,6 +266,9 @@ public class MessageStoreConfig {
      */
     @ImportantField
     private boolean transientStorePoolEnable = false;
+    /**
+     * 临时缓冲池的大小，默认为5
+     */
     private int transientStorePoolSize = 5;
     /**
      * 是否在存储池中没有可用缓存时快速失败，默认不会快速失败

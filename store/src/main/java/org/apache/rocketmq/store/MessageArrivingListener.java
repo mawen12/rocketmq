@@ -19,18 +19,21 @@ package org.apache.rocketmq.store;
 
 import java.util.Map;
 
+/**
+ * 消息达到监听器
+ */
 public interface MessageArrivingListener {
 
     /**
-     * Notify that a new message arrives in a consume queue
-     * @param topic topic name
-     * @param queueId consume queue id
-     * @param logicOffset consume queue offset
-     * @param tagsCode message tags hash code
-     * @param msgStoreTime message store time
-     * @param filterBitMap message bloom filter
-     * @param properties message properties
+     * 通知一个新的消息达到了一个消费队列
+     *
+     * @param topic 主题名称
+     * @param queueId 消费队列ID
+     * @param logicOffset 消费队列偏移量
+     * @param tagsCode 消息标签哈希值
+     * @param msgStoreTime 消息存储时间
+     * @param filterBitMap 消息布隆过滤器
+     * @param properties 消息属性
      */
-    void arriving(String topic, int queueId, long logicOffset, long tagsCode,
-        long msgStoreTime, byte[] filterBitMap, Map<String, String> properties);
+    void arriving(String topic, int queueId, long logicOffset, long tagsCode, long msgStoreTime, byte[] filterBitMap, Map<String, String> properties);
 }

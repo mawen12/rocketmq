@@ -560,40 +560,30 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
      * @return
      */
     protected RemotingCommand msgCheck(final ChannelHandlerContext ctx, final SendMessageRequestHeader requestHeader, final RemotingCommand request, final RemotingCommand response) {
-        /**
-         * 如果Broker不允许写入，并且写入的主题是顺序的，则返回没有权限的错误
-         */
+        // 如果Broker不允许写入，并且写入的主题是顺序的，则返回没有权限的错误
         if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission()) && this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
             response.setCode(ResponseCode.NO_PERMISSION);
             response.setRemark("the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1() + "] sending message is forbidden");
             return response;
         }
 
-        /**
-         * 检查主题的格式、长度
-         */
+        // 检查主题的格式、长度
         TopicValidator.ValidateTopicResult result = TopicValidator.validateTopic(requestHeader.getTopic());
         if (!result.isValid()) {
-            /**
-             * 对于校验未通过的主题，返回非法参数的错误
-             */
+            // 对于校验未通过的主题，返回非法参数的错误
             response.setCode(ResponseCode.INVALID_PARAMETER);
             response.setRemark(result.getRemark());
             return response;
         }
 
-        /**
-         * 如果该主题不允许被生产者发送，则返回没有权限的错误
-         */
+        // 如果该主题不允许被生产者发送，则返回没有权限的错误
         if (TopicValidator.isNotAllowedSendTopic(requestHeader.getTopic())) {
             response.setCode(ResponseCode.NO_PERMISSION);
             response.setRemark("Sending message to topic[" + requestHeader.getTopic() + "] is forbidden.");
             return response;
         }
 
-        /**
-         * 获取主题配置
-         */
+        // 获取主题配置
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
         if (null == topicConfig) {
             int topicSysFlag = 0;
@@ -606,31 +596,29 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             }
 
             LOGGER.warn("the topic {} not exist, producer: {}", requestHeader.getTopic(), ctx.channel().remoteAddress());
-            /**
-             * 该主题不存在，在发送消息方法中创建主题，并同步到所有的Namesrv中
-             */
+
+            // 该主题不存在，在发送消息方法中创建主题，并同步到所有的Namesrv中
             topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageMethod(requestHeader.getTopic(), requestHeader.getDefaultTopic(), RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getDefaultTopicQueueNums(), topicSysFlag);
 
             if (null == topicConfig) {
+                // 主题无法创建，但是对于%RETRY%主题，由服务端负责创建
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(requestHeader.getTopic(), 1, PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
                 }
             }
 
             if (null == topicConfig) {
+                // 主题配置不存在，返回对应错误
                 response.setCode(ResponseCode.TOPIC_NOT_EXIST);
                 response.setRemark("topic[" + requestHeader.getTopic() + "] not exist, apply first please!" + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
                 return response;
             }
         }
 
-        /**
-         * 获取消息发送的队列ID
-         */
+        // 获取消息发送的队列ID
         int queueIdInt = requestHeader.getQueueId();
-        /**
-         * 判断队列ID是否在可写的队列数量范围内，如果队列ID错误，则返回非法参数的错误
-         */
+
+        // 判断队列ID是否在可写的队列数量范围内，如果队列ID错误，则返回非法参数的错误
         int idValid = Math.max(topicConfig.getWriteQueueNums(), topicConfig.getReadQueueNums());
         if (queueIdInt >= idValid) {
             String errorInfo = String.format("request queueId[%d] is illegal, %s Producer: %s", queueIdInt, topicConfig, RemotingHelper.parseChannelRemoteAddr(ctx.channel()));

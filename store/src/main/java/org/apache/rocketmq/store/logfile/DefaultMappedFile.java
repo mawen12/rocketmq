@@ -77,8 +77,28 @@ public class DefaultMappedFile extends AbstractMappedFile {
     protected static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
 
     protected static final AtomicIntegerFieldUpdater<DefaultMappedFile> WROTE_POSITION_UPDATER;
+
     protected static final AtomicIntegerFieldUpdater<DefaultMappedFile> COMMITTED_POSITION_UPDATER;
+
     protected static final AtomicIntegerFieldUpdater<DefaultMappedFile> FLUSHED_POSITION_UPDATER;
+
+    static {
+        WROTE_POSITION_UPDATER = AtomicIntegerFieldUpdater.newUpdater(DefaultMappedFile.class, "wrotePosition");
+        COMMITTED_POSITION_UPDATER = AtomicIntegerFieldUpdater.newUpdater(DefaultMappedFile.class, "committedPosition");
+        FLUSHED_POSITION_UPDATER = AtomicIntegerFieldUpdater.newUpdater(DefaultMappedFile.class, "flushedPosition");
+
+        Method isLoaded0method = null;
+        // On the windows platform and openjdk 11 method isLoaded0 always returns false.
+        // see https://github.com/AdoptOpenJDK/openjdk-jdk11/blob/19fb8f93c59dfd791f62d41f332db9e306bc1422/src/java.base/windows/native/libnio/MappedByteBuffer.c#L34
+        if (!SystemUtils.IS_OS_WINDOWS) {
+            try {
+                isLoaded0method = MappedByteBuffer.class.getDeclaredMethod("isLoaded0", long.class, long.class, int.class);
+                isLoaded0method.setAccessible(true);
+            } catch (NoSuchMethodException ignore) {
+            }
+        }
+        IS_LOADED_METHOD = isLoaded0method;
+    }
 
     /**
      * 文件写入位置，当该值与{@link #fileSize}相等时，代表文件已经满了
@@ -101,9 +121,12 @@ public class DefaultMappedFile extends AbstractMappedFile {
      */
     protected FileChannel fileChannel;
     /**
-     * Message will put to here first, and then reput to FileChannel if writeBuffer is not null.
+     * 对于用户发送请求的消息，首先会放在此处，如果该值不为空，则将其放到{@link #fileChannel}中
      */
     protected ByteBuffer writeBuffer = null;
+    /**
+     * 临时缓存池
+     */
     protected TransientStorePool transientStorePool = null;
     /**
      * 文件名称
@@ -140,24 +163,6 @@ public class DefaultMappedFile extends AbstractMappedFile {
      * this logical queue.
      */
     private long stopTimestamp = -1;
-
-    static {
-        WROTE_POSITION_UPDATER = AtomicIntegerFieldUpdater.newUpdater(DefaultMappedFile.class, "wrotePosition");
-        COMMITTED_POSITION_UPDATER = AtomicIntegerFieldUpdater.newUpdater(DefaultMappedFile.class, "committedPosition");
-        FLUSHED_POSITION_UPDATER = AtomicIntegerFieldUpdater.newUpdater(DefaultMappedFile.class, "flushedPosition");
-
-        Method isLoaded0method = null;
-        // On the windows platform and openjdk 11 method isLoaded0 always returns false.
-        // see https://github.com/AdoptOpenJDK/openjdk-jdk11/blob/19fb8f93c59dfd791f62d41f332db9e306bc1422/src/java.base/windows/native/libnio/MappedByteBuffer.c#L34
-        if (!SystemUtils.IS_OS_WINDOWS) {
-            try {
-                isLoaded0method = MappedByteBuffer.class.getDeclaredMethod("isLoaded0", long.class, long.class, int.class);
-                isLoaded0method.setAccessible(true);
-            } catch (NoSuchMethodException ignore) {
-            }
-        }
-        IS_LOADED_METHOD = isLoaded0method;
-    }
 
     public DefaultMappedFile() {
     }
@@ -309,44 +314,28 @@ public class DefaultMappedFile extends AbstractMappedFile {
         assert messageExt != null;
         assert cb != null;
 
-        /**
-         * 获取当前文件写入位置
-         */
+        // 获取当前文件写入位置
         int currentPos = WROTE_POSITION_UPDATER.get(this);
 
-        /**
-         * 检查文件位置是否小于文件大小，超过代表无法写入
-         */
+        // 检查文件位置是否小于文件大小，超过代表无法写入
         if (currentPos < this.fileSize) {
-            /**
-             * 获取保存消息的字节缓冲区
-             */
+            // 获取保存消息的字节缓冲区
             ByteBuffer byteBuffer = appendMessageBuffer().slice();
-            /**
-             * 定位到可写位置
-             */
+            // 定位到可写位置
             byteBuffer.position(currentPos);
             AppendMessageResult result;
             if (messageExt instanceof MessageExtBatch && !((MessageExtBatch) messageExt).isInnerBatch()) {
-                /**
-                 * 传统批次消息
-                 */
+                // 传统批次消息
                 result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, (MessageExtBatch) messageExt, putMessageContext);
             } else if (messageExt instanceof MessageExtBrokerInner) {
-                /**
-                 * 支持传统的单个消息或新引入到的内部批次消息
-                 */
+                // 支持传统的单个消息或新引入到的内部批次消息
                 result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, (MessageExtBrokerInner) messageExt, putMessageContext);
             } else {
                 return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
             }
-            /**
-             * 更新写入位置
-             */
+            // 更新写入位置
             WROTE_POSITION_UPDATER.addAndGet(this, result.getWroteBytes());
-            /**
-             * 更新最新的消息存储时间
-             */
+            // 更新最新的消息存储时间
             this.storeTimestamp = result.getStoreTimestamp();
             return result;
         }
@@ -433,12 +422,14 @@ public class DefaultMappedFile extends AbstractMappedFile {
     }
 
     /**
-     * @return The current flushed position
+     * @return 当前已刷新的位置
      */
     @Override
     public int flush(final int flushLeastPages) {
+        // 检查是否可以刷新
         if (this.isAbleToFlush(flushLeastPages)) {
             if (this.hold()) {
+                // 获取读的位置
                 int value = getReadPosition();
 
                 try {
