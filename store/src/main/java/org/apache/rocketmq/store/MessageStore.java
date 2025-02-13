@@ -382,12 +382,12 @@ public interface MessageStore {
     List<SelectMappedBufferResult> getBulkCommitLogData(final long offset, final int size);
 
     /**
-     * Append data to commit log.
+     * 将消息数据追加到commit log
      *
-     * @param startOffset starting offset.
-     * @param data        data to append.
-     * @param dataStart   the start index of data array
-     * @param dataLength  the length of data array
+     * @param startOffset 开始写入的offset
+     * @param data        要追加的数据
+     * @param dataStart   数据在数组开始的索引位置
+     * @param dataLength  数据长度
      * @return true if success; false otherwise.
      */
     boolean appendToCommitLog(final long startOffset, final byte[] data, int dataStart, int dataLength);

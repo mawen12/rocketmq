@@ -24,12 +24,14 @@ import java.util.Map;
 import java.util.Objects;
 import org.apache.rocketmq.common.attribute.TopicMessageType;
 import org.apache.rocketmq.common.constant.PermName;
+import org.apache.rocketmq.common.mawen.CorePart;
 
 import static org.apache.rocketmq.common.TopicAttributes.TOPIC_MESSAGE_TYPE_ATTRIBUTE;
 
 /**
  * 主题配置
  */
+@CorePart(value = "主题配置信息", part = CorePart.Part.TOPIC)
 public class TopicConfig {
     private static final String SEPARATOR = " ";
     public static int defaultReadQueueNums = 16;
@@ -60,9 +62,13 @@ public class TopicConfig {
      */
     private int topicSysFlag = 0;
     /**
-     * 是否有序
+     * 是否有序，默认为false，即为非顺序主题
+     *
+     * <p>当设置为{@code true}，代表为顺序消息，ROCKETMQ保证该主题下的消费是有序的
      */
+    @CorePart(value = "这就是顺序消息的实现", part = CorePart.Part.MESSAGE)
     private boolean order = false;
+
     // Field attributes should not have ' ' char in key or value, otherwise will lead to decode failure.
     private Map<String, String> attributes = new HashMap<>();
 

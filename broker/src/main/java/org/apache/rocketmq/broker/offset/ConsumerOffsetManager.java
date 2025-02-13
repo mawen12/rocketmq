@@ -41,6 +41,8 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 /**
  * 消费者偏移量管理器，消费偏移量本地文件路径为ENV(user.home)/store/config/consumerOffset.json
+ *
+ * <p>保存了与该broker下consumer group与topic的消费进度
  */
 public class ConsumerOffsetManager extends ConfigManager {
     protected static final Logger LOG = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -52,10 +54,9 @@ public class ConsumerOffsetManager extends ConfigManager {
     protected DataVersion dataVersion = new DataVersion();
 
     /**
-     * Map<topic@group, Map<queueId, 偏移量>>
      * 保存了所有主题分组下的所有队列的偏移量
      */
-    protected ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable = new ConcurrentHashMap<>(512);
+    protected ConcurrentMap<String/* topic@consumerGroup */, ConcurrentMap<Integer/* queueId */, Long/* offset */>> offsetTable = new ConcurrentHashMap<>(512);
 
     /**
      * Map<topic@group, Map<queueId, 偏移量>>

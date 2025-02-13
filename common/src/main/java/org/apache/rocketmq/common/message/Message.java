@@ -22,6 +22,18 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 客户端发送的消息信息
+ *
+ * <p>消息组成，逻辑组成：
+ * <ul>
+ *     <li>主题: {@link #topic}</li>
+ *     <li>消息体: {@link #body}</li>
+ *     <li>标签：{@link #properties}TAGS</li>
+ *     <li>key：{@link #properties}KEYS</li>
+ * </ul>
+ *
+ */
 public class Message implements Serializable {
     private static final long serialVersionUID = 8445773977080406428L;
 

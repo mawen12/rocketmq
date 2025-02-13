@@ -98,6 +98,13 @@ import static org.apache.rocketmq.remoting.metrics.RemotingMetricsConstant.LABEL
 import static org.apache.rocketmq.remoting.metrics.RemotingMetricsConstant.LABEL_RESPONSE_CODE;
 import static org.apache.rocketmq.remoting.metrics.RemotingMetricsConstant.LABEL_RESULT;
 
+/**
+ * 弹出消息处理器
+ *
+ * <p>支持弹出的消费类型
+ *
+ * @see ConsumeType#CONSUME_POP
+ */
 public class PopMessageProcessor implements NettyRequestProcessor {
 
     private static final Logger POP_LOGGER = LoggerFactory.getLogger(LoggerName.ROCKETMQ_POP_LOGGER_NAME);
@@ -114,11 +121,10 @@ public class PopMessageProcessor implements NettyRequestProcessor {
 
     public PopMessageProcessor(final BrokerController brokerController) {
         this.brokerController = brokerController;
-        this.reviveTopic = PopAckConstants.buildClusterReviveTopic(
-            this.brokerController.getBrokerConfig().getBrokerClusterName());
+        this.reviveTopic = PopAckConstants.buildClusterReviveTopic(brokerController.getBrokerConfig().getBrokerClusterName());
         this.popLongPollingService = new PopLongPollingService(brokerController, this, false);
         this.queueLockManager = new QueueLockManager();
-        this.popBufferMergeService = new PopBufferMergeService(this.brokerController, this);
+        this.popBufferMergeService = new PopBufferMergeService(brokerController, this);
         this.ckMessageNumber = new AtomicLong();
     }
 
@@ -632,9 +638,8 @@ public class PopMessageProcessor implements NettyRequestProcessor {
     }
 
     private CompletableFuture<Long> popMsgFromTopic(TopicConfig topicConfig, boolean isRetry, GetMessageResult getMessageResult,
-        PopMessageRequestHeader requestHeader, int reviveQid, Channel channel, long popTime,
-        ExpressionMessageFilter messageFilter, StringBuilder startOffsetInfo,
-        StringBuilder msgOffsetInfo, StringBuilder orderCountInfo, int randomQ, CompletableFuture<Long> getMessageFuture) {
+        PopMessageRequestHeader requestHeader, int reviveQid, Channel channel, long popTime,ExpressionMessageFilter messageFilter,
+        StringBuilder startOffsetInfo, StringBuilder msgOffsetInfo, StringBuilder orderCountInfo, int randomQ, CompletableFuture<Long> getMessageFuture) {
         if (topicConfig != null) {
             for (int i = 0; i < topicConfig.getReadQueueNums(); i++) {
                 int queueId = (randomQ + i) % topicConfig.getReadQueueNums();
@@ -657,13 +662,12 @@ public class PopMessageProcessor implements NettyRequestProcessor {
     }
 
     private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, boolean isRetry,
-        GetMessageResult getMessageResult,
-        PopMessageRequestHeader requestHeader, int queueId, long restNum, int reviveQid,
+        GetMessageResult getMessageResult, PopMessageRequestHeader requestHeader, int queueId, long restNum, int reviveQid,
         Channel channel, long popTime, ExpressionMessageFilter messageFilter, StringBuilder startOffsetInfo,
         StringBuilder msgOffsetInfo, StringBuilder orderCountInfo) {
 
-        String lockKey =
-            topic + PopAckConstants.SPLIT + requestHeader.getConsumerGroup() + PopAckConstants.SPLIT + queueId;
+        // lockKey格式为<topic>@<consumerGroup>@<queueId>
+        String lockKey = topic + PopAckConstants.SPLIT + requestHeader.getConsumerGroup() + PopAckConstants.SPLIT + queueId;
         boolean isOrder = requestHeader.isOrder();
         long offset;
         try {

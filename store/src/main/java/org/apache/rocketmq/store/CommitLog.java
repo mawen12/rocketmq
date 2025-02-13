@@ -73,12 +73,12 @@ import sun.nio.ch.DirectBuffer;
 
 /**
  * 存储所有的消息和元数据。
- * <p>
- * 存储Producer端写入的消息主体内容，消息内容是不定长的。单个文件大小默认为1G，文件名长度为20位，左边补零，剩余为起始偏移量，
+ *
+ * <p>存储Producer端写入的消息主体内容，消息内容是不定长的。单个文件大小默认为1G，文件名长度为20位，左边补零，剩余为起始偏移量，
  * 比如00000000000000000000代表了第一个文件，起始偏移量为0，文件大小为1G=1073741824；当第一个文件写满了，
  * 第二个文件为00000000001073741824，起始偏移量为1073741824，以此类推。消息主要是顺序写入日志文件，当文件满了，写入下一个文件。
- * <p>
- * Broker单个实例下所有的队列共用一个日志文件（即为commitlog)来存储。
+ *
+ * <p>Broker单个实例下所有的队列共用一个日志文件（即为commitlog)来存储。
  */
 public class CommitLog implements Swappable {
     // Message's MAGIC CODE daa320a7
@@ -91,6 +91,9 @@ public class CommitLog implements Swappable {
      */
     public static final int CRC32_RESERVED_LEN = MessageConst.PROPERTY_CRC32.length() + 1 + 10 + 1;
 
+    /**
+     * 保存实际消息的文件队列
+     */
     protected final MappedFileQueue mappedFileQueue;
 
     protected final DefaultMessageStore defaultMessageStore;
@@ -109,6 +112,8 @@ public class CommitLog implements Swappable {
 
     /**
      * 基于自旋或可重复锁的实现
+     *
+     * <p>在写消息时需要使用该锁
      */
     protected final PutMessageLock putMessageLock;
 
@@ -216,6 +221,9 @@ public class CommitLog implements Swappable {
         return this.mappedFileQueue.getFlushedWhere();
     }
 
+    /**
+     * @return 返回最大偏移量，从最新的commitlog文件中，读取最新的偏移量
+     */
     public long getMaxOffset() {
         return this.mappedFileQueue.getMaxOffset();
     }
@@ -1540,16 +1548,21 @@ public class CommitLog implements Swappable {
     }
 
     public boolean appendData(long startOffset, byte[] data, int dataStart, int dataLength) {
+        // 获取写入消息的锁
         putMessageLock.lock();
         try {
+            // 根据要写入的offset，读取对应的commitlog文件，因为commitlog文件名上就是该文件的开始偏移量
+            // 如果commitlog不存在，则创建文件，因此不存在返回null的场景
             MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile(startOffset);
-            if (null == mappedFile) {
+            if (null == mappedFile) {// 出现异常情况，返回false
                 log.error("appendData getLastMappedFile error  " + startOffset);
                 return false;
             }
 
+            // 写入消息，写入的位置为消息最新的可读位置
             return mappedFile.appendMessage(data, dataStart, dataLength);
         } finally {
+            // 释放写入消息的锁
             putMessageLock.unlock();
         }
     }

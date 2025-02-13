@@ -1295,18 +1295,19 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public boolean appendToCommitLog(long startOffset, byte[] data, int dataStart, int dataLength) {
-        if (this.shutdown) {
+        if (this.shutdown) {// 存储已停止，无法写入，返回false
             LOGGER.warn("message store has shutdown, so appendToCommitLog is forbidden");
             return false;
         }
 
+        // 写入commitLog
         boolean result = this.commitLog.appendData(startOffset, data, dataStart, dataLength);
         if (result) {
+            // 写入成功，唤醒reput
             this.reputMessageService.wakeup();
         } else {
-            LOGGER.error(
-                "DefaultMessageStore#appendToCommitLog: failed to append data to commitLog, physical offset={}, data "
-                    + "length={}", startOffset, data.length);
+            // 写入失败，打印错误日志
+            LOGGER.error("DefaultMessageStore#appendToCommitLog: failed to append data to commitLog, physical offset={}, data " + "length={}", startOffset, data.length);
         }
 
         return result;

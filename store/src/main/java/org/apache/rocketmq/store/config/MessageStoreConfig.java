@@ -213,6 +213,9 @@ public class MessageStoreConfig {
     @ImportantField
     private boolean messageIndexSafe = false;
     private int haListenPort = 10912;
+    /**
+     * high available 发送心跳间隔
+     */
     private int haSendHeartbeatInterval = 1000 * 5;
     private int haHousekeepingInterval = 1000 * 20;
     /**

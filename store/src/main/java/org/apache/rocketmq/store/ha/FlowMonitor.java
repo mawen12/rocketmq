@@ -22,9 +22,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.rocketmq.common.ServiceThread;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
 
+/**
+ * 每隔1s计算流量速度，单位为字节
+ */
 public class FlowMonitor extends ServiceThread {
     private final AtomicLong transferredByte = new AtomicLong(0L);
+
     private volatile long transferredByteInSecond;
+
     protected MessageStoreConfig messageStoreConfig;
 
     public FlowMonitor(MessageStoreConfig messageStoreConfig) {
@@ -34,7 +39,9 @@ public class FlowMonitor extends ServiceThread {
     @Override
     public void run() {
         while (!this.isStopped()) {
+            // 等待1s
             this.waitForRunning(1 * 1000);
+            // 计算流速
             this.calculateSpeed();
         }
     }

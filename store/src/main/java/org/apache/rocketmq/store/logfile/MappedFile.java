@@ -146,9 +146,9 @@ public interface MappedFile {
     /**
      * 向文件末尾追加代表消息的指定区域的字节数组
      *
-     * @param data the byte array to append
-     * @param offset the offset within the array of the first byte to be read
-     * @param length the number of bytes to be read from the given array
+     * @param data 要追加的数据
+     * @param offset 数据在数组开始的索引位置
+     * @param length 数据长度
      * @return true if success; false otherwise.
      */
     boolean appendMessage(byte[] data, int offset, int length);
@@ -301,7 +301,7 @@ public interface MappedFile {
     void setWrotePosition(int wrotePosition);
 
     /**
-     * Returns the current max readable position of this mapped file.
+     * 返回当前映射文件最大可读位置
      *
      * @return the max readable position
      */

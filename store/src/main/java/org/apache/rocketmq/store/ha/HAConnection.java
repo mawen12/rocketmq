@@ -19,57 +19,61 @@ package org.apache.rocketmq.store.ha;
 
 import java.nio.channels.SocketChannel;
 
+/**
+ * High available 连接
+ *
+ */
 public interface HAConnection {
     /**
-     * Start HA Connection
+     * 开启High available连接
      */
     void start();
 
     /**
-     * Shutdown HA Connection
+     * 停止High available连接
      */
     void shutdown();
 
     /**
-     * Close HA Connection
+     * 关闭High available 连接
      */
     void close();
 
     /**
-     * Get socket channel
+     * 获取Socket信道
      */
     SocketChannel getSocketChannel();
 
     /**
-     * Get current state for ha connection
+     * 获取该连接的当前状态
      *
      * @return HAConnectionState
      */
     HAConnectionState getCurrentState();
 
     /**
-     * Get client address for ha connection
+     * 获取该连接的客户端地址
      *
      * @return client ip address
      */
     String getClientAddress();
 
     /**
-     * Get the transfer rate per second
+     * 获取该连接每秒传输速率
      *
      *  @return transfer bytes in second
      */
     long getTransferredByteInSecond();
 
     /**
-     * Get the current transfer offset to the slave
+     * 获取当前到slave的传输offset
      *
      * @return the current transfer offset to the slave
      */
     long getTransferFromWhere();
 
     /**
-     * Get slave ack offset
+     * 获取slave ack offset
      *
      * @return slave ack offset
      */

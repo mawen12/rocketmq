@@ -20,22 +20,29 @@
  */
 package org.apache.rocketmq.remoting.protocol.heartbeat;
 
+import org.apache.rocketmq.common.mawen.CorePart;
+
 /**
  * 消费类型
  */
+@CorePart(value = "消费者的消费行为", part = CorePart.Part.CONSUMER)
 public enum ConsumeType {
     /**
-     * 主动消费，拉模式，用于{@link PullMessageProcessor}
+     * 主动消费，拉模式，用于{@code PullMessageProcessor}
+     *
+     * <p>拉模式的实现原理是：消费者主动从broker拉取消息，然后再回调监听器
      */
     CONSUME_ACTIVELY("PULL"),
 
     /**
-     * 被动消费，推模式，用于{@link PullMessageProcessor}
+     * 被动消费，推模式，用于{@code PullMessageProcessor}
+     *
+     * <p>推模式的实现原理是：由后台线程池从broker拉去消息，再通知到对应的监听器实现消息的消费。推的核心点在于消息是被后台线程池推送到监听器
      */
     CONSUME_PASSIVELY("PUSH"),
 
     /**
-     * 弹出消费，弹出模式，用于{@link PopMessageProcessor}
+     * 弹出消费，弹出模式，用于{@code PopMessageProcessor}
      */
     CONSUME_POP("POP");
 

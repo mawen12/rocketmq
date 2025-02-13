@@ -69,7 +69,8 @@ public class DefaultHAService implements HAService {
         this.defaultMessageStore = defaultMessageStore;
         this.acceptSocketService = new DefaultAcceptSocketService(defaultMessageStore.getMessageStoreConfig());
         this.groupTransferService = new GroupTransferService(this, defaultMessageStore);
-        if (this.defaultMessageStore.getMessageStoreConfig().getBrokerRole() == BrokerRole.SLAVE) {
+
+        if (this.defaultMessageStore.getMessageStoreConfig().getBrokerRole() == BrokerRole.SLAVE) {// 仅当该broker为slave时才会创建high available客户端
             this.haClient = new DefaultHAClient(this.defaultMessageStore);
         }
         this.haConnectionStateNotificationService = new HAConnectionStateNotificationService(this, defaultMessageStore);

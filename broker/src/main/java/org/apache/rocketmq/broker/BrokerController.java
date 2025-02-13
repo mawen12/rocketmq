@@ -196,13 +196,25 @@ public class BrokerController {
     private final NettyClientConfig nettyClientConfig;
     protected final MessageStoreConfig messageStoreConfig;
     private final AuthConfig authConfig;
+    /**
+     * 管理了当前节点下consumer group消费topic的进度
+     */
     protected ConsumerOffsetManager consumerOffsetManager;
     protected final BroadcastOffsetManager broadcastOffsetManager;
+    /**
+     * 消费者管理器
+     */
     protected final ConsumerManager consumerManager;
     protected final ConsumerFilterManager consumerFilterManager;
+    /**
+     * 消费顺序信息管理
+     */
     protected final ConsumerOrderInfoManager consumerOrderInfoManager;
     protected final PopInflightMessageCounter popInflightMessageCounter;
     protected final PopConsumerService popConsumerService;
+    /**
+     * 生产者管理器
+     */
     protected final ProducerManager producerManager;
     protected final ScheduleMessageService scheduleMessageService;
     protected final ClientHousekeepingService clientHousekeepingService;
@@ -226,6 +238,15 @@ public class BrokerController {
     private final RebalanceLockManager rebalanceLockManager = new RebalanceLockManager();
     private final TopicRouteInfoManager topicRouteInfoManager;
     protected BrokerOuterAPI brokerOuterAPI;
+    /**
+     * 后台调度服务，单守护线程，线程名称前缀为BrokerControllerScheduledThread
+     *
+     * <p>任务内容如下：
+     * <ul>
+     *     <li>{@link BrokerStats#record()}</li>
+     *     <li></li>
+     * </ul>
+     */
     protected ScheduledExecutorService scheduledExecutorService;
     protected ScheduledExecutorService syncBrokerMemberGroupExecutorService;
     protected ScheduledExecutorService brokerHeartbeatExecutorService;
@@ -626,6 +647,7 @@ public class BrokerController {
     protected void initializeBrokerScheduledTasks() {
         final long initialDelay = UtilAll.computeNextMorningTimeMillis() - System.currentTimeMillis();
         final long period = TimeUnit.DAYS.toMillis(1);
+        // 间隔1天执行一次，用于统计Broker中非SystemTopic接受和分发的消息数量
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -637,6 +659,7 @@ public class BrokerController {
             }
         }, initialDelay, period, TimeUnit.MILLISECONDS);
 
+        // 10s后执行，每隔5s执行，将消费进度保存到$HOME/store/config/consumerOffset.json文件中
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -649,6 +672,7 @@ public class BrokerController {
             }
         }, 1000 * 10, this.brokerConfig.getFlushConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
+        // 10s后执行，每隔10s执行，保存消费者分组的过滤器和消费者消费顺序
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {

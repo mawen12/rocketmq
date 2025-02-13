@@ -86,6 +86,7 @@ public class ReplicasManager {
     private volatile RegisterState registerState = RegisterState.INITIAL;
 
     private ScheduledFuture<?> checkSyncStateSetTaskFuture;
+
     private ScheduledFuture<?> slaveSyncFuture;
 
     private Long brokerControllerId;
@@ -306,10 +307,10 @@ public class ReplicasManager {
                 this.masterAddress = newMasterAddress;
                 this.masterBrokerId = newMasterBrokerId;
 
-                // Handle the slave synchronise
+                // broker角色更新为slave
                 handleSlaveSynchronize(BrokerRole.SLAVE);
 
-                // Notify ha service, change to slave
+                // 通知high available服务，broker角色从切换到salve
                 this.haService.changeToSlave(newMasterAddress, newMasterEpoch, brokerControllerId);
 
                 this.brokerController.getTopicConfigManager().getDataVersion().nextVersion(newMasterEpoch);
@@ -346,7 +347,7 @@ public class ReplicasManager {
     }
 
     private void handleSlaveSynchronize(final BrokerRole role) {
-        if (role == BrokerRole.SLAVE) {
+        if (role == BrokerRole.SLAVE) {// 对于要切换的角色为slave的处理
             if (this.slaveSyncFuture != null) {
                 this.slaveSyncFuture.cancel(false);
             }

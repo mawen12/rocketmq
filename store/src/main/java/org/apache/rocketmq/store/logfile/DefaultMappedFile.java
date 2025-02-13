@@ -386,20 +386,26 @@ public class DefaultMappedFile extends AbstractMappedFile {
      */
     @Override
     public boolean appendMessage(final byte[] data, final int offset, final int length) {
+        // 获取写的位置
         int currentPos = WROTE_POSITION_UPDATER.get(this);
 
-        if ((currentPos + length) <= this.fileSize) {
+        if ((currentPos + length) <= this.fileSize) {// 检查当前文件能否写入这么多消息。因为文件限制了最大1G
             try {
+                // 获取一个用于单独惭怍的缓冲区
                 ByteBuffer buf = this.mappedByteBuffer.slice();
+                // 更新为之前写的位置
                 buf.position(currentPos);
+                // 写入消息
                 buf.put(data, offset, length);
             } catch (Throwable e) {
                 log.error("Error occurred when append message to mappedFile.", e);
             }
+            // 更新写的位置=之前位置+本地写入长度
             WROTE_POSITION_UPDATER.addAndGet(this, length);
             return true;
         }
 
+        // 写入的内容超过了文件的限制，无法写入，返回false
         return false;
     }
 
@@ -661,7 +667,7 @@ public class DefaultMappedFile extends AbstractMappedFile {
     }
 
     /**
-     * @return The max position which have valid data
+     * @return 存有合法数据的最大可读位置
      */
     @Override
     public int getReadPosition() {

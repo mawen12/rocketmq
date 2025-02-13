@@ -143,7 +143,7 @@ public abstract class ServiceThread implements Runnable {
     }
 
     /**
-     * 等待运行状态
+     * 等待指定时间后重新运行
      *
      * @param interval
      */
@@ -152,10 +152,11 @@ public abstract class ServiceThread implements Runnable {
         if (hasNotified.compareAndSet(true, false)) {
             // 结束等待
             this.onWaitEnd();
+            // 直接返回
             return;
         }
 
-        // 重置状态
+        // 重置闭锁
         waitPoint.reset();
 
         try {

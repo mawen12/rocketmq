@@ -20,6 +20,7 @@ import org.apache.rocketmq.common.annotation.ImportantField;
 import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.config.ConfigManagerVersion;
 import org.apache.rocketmq.common.constant.PermName;
+import org.apache.rocketmq.common.mawen.RepeatConsume;
 import org.apache.rocketmq.common.message.MessageRequestMode;
 import org.apache.rocketmq.common.metrics.MetricsExporterType;
 import org.apache.rocketmq.common.topic.TopicValidator;
@@ -102,6 +103,10 @@ public class BrokerConfig extends BrokerIdentity {
     private int endTransactionThreadPoolNums = Math.max(8 + PROCESSOR_NUMBER * 2,
             sendMessageThreadPoolNums * 4);
 
+    /**
+     * 刷新consumer offset的间隔
+     */
+    @RepeatConsume(reason = "如果在距离上次刷新的5s内broker或机器宕机，导致consumer offset没有被刷新到磁盘上，下次启动后会出现消息重复消费的问题")
     private int flushConsumerOffsetInterval = 1000 * 5;
 
     private int flushConsumerOffsetHistoryInterval = 1000 * 60;

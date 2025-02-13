@@ -38,7 +38,11 @@ import org.apache.rocketmq.store.logfile.DefaultMappedFile;
 import org.apache.rocketmq.store.logfile.MappedFile;
 
 /**
- * 映射文件队列
+ * 映射文件队列，其作为{@code commitlog}、{@code consumerQueue}、{@code timerlog}、{@code compactionlog}、{@code batchConsumeQueue}的底层实现。
+ * <ul>
+ *     <li>位于{@code $HOME/store/commitlog}</li>
+ *     <li>位于{@code $HOME/store/consumequeue/{topic}/{queueId}/{fileName}}</li>
+ * </ul>
  */
 public class MappedFileQueue implements Swappable {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -309,37 +313,28 @@ public class MappedFileQueue implements Swappable {
         return 0;
     }
 
+    /**
+     * @param startOffset 计算要获取文件的偏移量
+     * @param needCreate 如果文件不存在，是否需要创建
+     * @return
+     */
     public MappedFile getLastMappedFile(final long startOffset, boolean needCreate) {
         long createOffset = -1;
-        /**
-         * 获取映射文件列表最后一个文件
-         */
+        // 首先获取映射文件列表最后一个文件
         MappedFile mappedFileLast = getLastMappedFile();
 
-        /**
-         * 如果最后的文件为空，则代表该队列的物理文件还未被创建
-         */
-        if (mappedFileLast == null) {
-            /**
-             * 重新计算开始偏移量，即开始位置-(开始位置%整个文件大小)，如果开始偏移量小于文件整体大小，则重置为0；如果大于文件整体大小，则就是新文件的初始大小
-             */
+        if (mappedFileLast == null) {// 此时尚不存在文件
+            // 计算要创建的commitlog的文件名，即开始位置-(开始位置%整个文件大小)，如果开始偏移量小于文件整体大小，则重置为0；如果大于文件整体大小，则就是新文件的初始大小
             createOffset = startOffset - (startOffset % this.mappedFileSize);
         }
 
-        /**
-         * 如果文件存在，或者文件已经满了
-         */
-        if (mappedFileLast != null && mappedFileLast.isFull()) {
-            /**
-             * 计算下一个文件的初始偏移量
-             */
+        if (mappedFileLast != null && mappedFileLast.isFull()) {// 虽然存在文件，但是文件已经满了，不能满足写入了，此时需要重新创建文件
+            // 计算下一个文件的初始偏移量
             createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
         }
 
-        if (createOffset != -1 && needCreate) {
-            /**
-             * 使用createOffset作为文件名创建一个新的映射文件
-             */
+        if (createOffset != -1 && needCreate) {// 当偏移量为有效值时，且设置了需要创建的，便创建commitlog
+            // 以createOffset作为文件名创建commitlog，并返回创建的文件
             return tryCreateMappedFile(createOffset);
         }
 
@@ -373,17 +368,11 @@ public class MappedFileQueue implements Swappable {
     }
 
     public MappedFile tryCreateMappedFile(long createOffset) {
-        /**
-         * 计算下一个待创建的文件路径：{@code ${user.home}/store/<20位的offset>}
-         */
+        // 待创建的文件路径：{@code ${user.home}/store/<20位的offset>}
         String nextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset);
-        /**
-         * 计算下下一个待创建的文件路径：{@code ${user.home}/store/<20位的offset+1G>}
-         */
+        // 再下一个待创建的文件路径：{@code ${user.home}/store/<20位的offset+1G>}
         String nextNextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
-        /**
-         * 同时创建下一个和下下一个文件，在创建好下一个文件时，立即返回，无需等待下下一个文件的创建结果
-         */
+        // 同时创建下一个和下下一个文件，第一个文件创建好时立即返回，无需等待下下一个文件的创建结果
         return doCreateMappedFile(nextFilePath, nextNextFilePath);
     }
 
@@ -504,8 +493,10 @@ public class MappedFileQueue implements Swappable {
     }
 
     public long getMaxOffset() {
+        // 获取最新的文件
         MappedFile mappedFile = getLastMappedFile();
         if (mappedFile != null) {
+            // 最大偏移量计算方式：文件名称+最大可读位置
             return mappedFile.getFileFromOffset() + mappedFile.getReadPosition();
         }
         return 0;

@@ -43,10 +43,9 @@ public class ConsumerGroupInfo {
      */
     private final String groupName;
     /**
-     * Map<主题, 订阅数据>
      * 维护了同一个消费者分组下，消费者对于不同主题的订阅数据
      */
-    private final ConcurrentMap<String, SubscriptionData> subscriptionTable = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String/* topic */, SubscriptionData/* 订阅信息 */> subscriptionTable = new ConcurrentHashMap<>();
 
     private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable = new ConcurrentHashMap<>(16);
     /**

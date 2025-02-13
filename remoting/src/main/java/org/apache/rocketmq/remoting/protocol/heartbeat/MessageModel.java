@@ -20,16 +20,24 @@
  */
 package org.apache.rocketmq.remoting.protocol.heartbeat;
 
+import org.apache.rocketmq.common.mawen.CorePart;
+
 /**
  * 消息模式
  */
+@CorePart(value = "消费者消费消息的模式", part = CorePart.Part.CONSUMER)
 public enum MessageModel {
     /**
      * 广播模式，相同Consumer Group的每个Consumer实例都接收全量的消息。
+     *
+     * <p>在广播模式下，消费者分组对主题下消息的消费偏移量都由消费者分组自己去做管理的。Broker不负责管理消费的偏移量。
+     * 如果消费者不做管理，会导致消费消息的丢失
      */
     BROADCASTING("BROADCASTING"),
     /**
      * 集群模式，相同Consumer Group的每个Consumer实例平均分摊消息。
+     *
+     * <p>在集群模式下，Broker管理消费者分组消息主题下消息的偏移量，主要通过{@code ConsumerOffsetManager}实现偏移量的管理。
      */
     CLUSTERING("CLUSTERING");
 

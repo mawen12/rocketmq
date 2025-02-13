@@ -27,6 +27,9 @@ import org.apache.rocketmq.store.DefaultMessageStore;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.rocksdb.RocksDBException;
 
+/**
+ * High available 服务
+ */
 public interface HAService {
 
     /**
@@ -68,10 +71,12 @@ public interface HAService {
     }
 
     /**
-     * Change to slave state
+     * 将broker的角色从master(ASYNC_MASTER, SYNC_MASTER)切换到slave
      *
-     * @param newMasterAddr new master addr
-     * @param newMasterEpoch new masterEpoch
+     * <p>仅{@link org.apache.rocketmq.store.ha.autoswitch.AutoSwitchHAService}才能提供方法实现，默认的不支持切换
+     *
+     * @param newMasterAddr 新的master地址
+     * @param newMasterEpoch 新的master纪元
      */
     default boolean changeToSlave(String newMasterAddr, int newMasterEpoch, Long slaveId) {
         return false;

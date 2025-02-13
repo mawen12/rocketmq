@@ -43,8 +43,7 @@ public class ConsumerOrderInfoManager extends ConfigManager {
     private static final String TOPIC_GROUP_SEPARATOR = "@";
     private static final long CLEAN_SPAN_FROM_LAST = 24 * 3600 * 1000;
 
-    private ConcurrentHashMap<String/* topic@group*/, ConcurrentHashMap<Integer/*queueId*/, OrderInfo>> table =
-        new ConcurrentHashMap<>(128);
+    private ConcurrentHashMap<String/* topic@group*/, ConcurrentHashMap<Integer/*queueId*/, OrderInfo>> table = new ConcurrentHashMap<>(128);
 
     private transient ConsumerOrderInfoLockManager consumerOrderInfoLockManager;
     private transient BrokerController brokerController;

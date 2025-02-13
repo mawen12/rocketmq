@@ -54,7 +54,7 @@ import org.apache.rocketmq.store.ha.HAConnectionStateNotificationService;
 import org.rocksdb.RocksDBException;
 
 /**
- * SwitchAble ha service, support switch role to master or slave.
+ * 可切换的high available服务，支持将broker从master切换为slave
  */
 public class AutoSwitchHAService extends DefaultHAService {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -163,14 +163,17 @@ public class AutoSwitchHAService extends DefaultHAService {
 
     @Override
     public boolean changeToSlave(String newMasterAddr, int newMasterEpoch, Long slaveId) {
+        // 获取当前最新的纪元
         final int lastEpoch = this.epochCache.lastEpoch();
-        if (newMasterEpoch < lastEpoch) {
+        if (newMasterEpoch < lastEpoch) {// 新的master纪元比旧的还要老，代表此master上的数据比该broker还要老，也就意味着没办法同步消息
             LOGGER.warn("newMasterEpoch {} < lastEpoch {}, fail to change to slave", newMasterEpoch, lastEpoch);
             return false;
         }
         try {
+            // 停止当前所有的 high available 连接
             destroyConnections();
             if (this.haClient == null) {
+                // 使用可以从master切换为slave的high available客户端
                 this.haClient = new AutoSwitchHAClient(this, defaultMessageStore, this.epochCache, slaveId);
             } else {
                 this.haClient.reOpen();

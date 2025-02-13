@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import org.apache.rocketmq.common.BrokerConfig;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
+import org.apache.rocketmq.common.mawen.CorePart;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
@@ -40,12 +41,14 @@ import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.remoting.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
+/**
+ * 管理了与该Broker有关的消费者分组信息
+ */
+@CorePart(value = "Broker管理有关的消费者信息", part = CorePart.Part.BROKER_CONSUMER)
 public class ConsumerManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-    private final ConcurrentMap<String, ConsumerGroupInfo> consumerTable =
-            new ConcurrentHashMap<>(1024);
-    private final ConcurrentMap<String, ConsumerGroupInfo> consumerCompensationTable =
-            new ConcurrentHashMap<>(1024);
+    private final ConcurrentMap<String, ConsumerGroupInfo> consumerTable = new ConcurrentHashMap<>(1024);
+    private final ConcurrentMap<String, ConsumerGroupInfo> consumerCompensationTable = new ConcurrentHashMap<>(1024);
     private final List<ConsumerIdsChangeListener> consumerIdsChangeListenerList = new CopyOnWriteArrayList<>();
     protected final BrokerStatsManager brokerStatsManager;
     private final long channelExpiredTimeout;

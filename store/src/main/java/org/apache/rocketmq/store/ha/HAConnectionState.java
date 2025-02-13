@@ -17,25 +17,28 @@
 
 package org.apache.rocketmq.store.ha;
 
+/**
+ * High available 状态
+ */
 public enum HAConnectionState {
     /**
-     * Ready to start connection.
+     * 可准备开启连接
      */
     READY,
     /**
-     * CommitLog consistency checking.
+     * CommitLog一致性检查
      */
     HANDSHAKE,
     /**
-     * Synchronizing data.
+     * 可同步消息数据
      */
     TRANSFER,
     /**
-     * Temporarily stop transferring.
+     * 暂时停止传输
      */
     SUSPEND,
     /**
-     * Connection shutdown.
+     * 连接停止
      */
     SHUTDOWN,
 }
