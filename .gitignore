@@ -21,3 +21,9 @@ bazel-testlogs
 MODULE.bazel.lock
 
 *.bkp
+
+cluster
+!cluster/broker-a-master/broker.properties
+!cluster/broker-a-slave/broker.properties
+!cluster/broker-b-master/broker.properties
+!cluster/broker-b-slave/broker.properties

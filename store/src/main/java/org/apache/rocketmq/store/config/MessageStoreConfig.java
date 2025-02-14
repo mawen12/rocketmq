@@ -27,6 +27,12 @@ import org.apache.rocketmq.store.queue.BatchConsumeQueue;
 import org.rocksdb.CompressionType;
 import org.rocksdb.util.SizeUnit;
 
+/**
+ * 对应了 rocketmq_home/conf/broker.properties的配置的部分信息
+ *
+ * @see org.apache.rocketmq.common.BrokerConfig
+ */
+@CorePart(value = "对应ROCKETMQ_HOME/conf/broker.properties的配置", part = CorePart.Part.CONFIG)
 public class MessageStoreConfig {
 
     public static final String MULTI_PATH_SPLITTER = System.getProperty("rocketmq.broker.multiPathSplitter", ",");

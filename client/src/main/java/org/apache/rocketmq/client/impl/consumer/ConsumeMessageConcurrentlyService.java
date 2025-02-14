@@ -39,6 +39,7 @@ import org.apache.rocketmq.client.stat.ConsumerStatsManager;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.ThreadFactoryImpl;
 import org.apache.rocketmq.common.UtilAll;
+import org.apache.rocketmq.common.mawen.CorePart;
 import org.apache.rocketmq.common.message.MessageAccessor;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
@@ -50,14 +51,20 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
 /**
  * 基于并发消息消费的{@link ConsumeMessageService}实现。
- * <p>
- * 其中并发消费时通过{@link #consumeExecutor}来实现的，默认创建20个线程执行并发消费。
- * <p>
  *
+ * <p>基于Push的消费类型
+ *
+ * <p> 其中并发消费时通过{@link #consumeExecutor}来实现的，默认创建20个线程执行并发消费。
+ *
+ * @see org.apache.rocketmq.remoting.protocol.heartbeat.ConsumeType#CONSUME_PASSIVELY
  */
+@CorePart(value = "并发消费消息的实现", part = CorePart.Part.CONSUMER)
 public class ConsumeMessageConcurrentlyService implements ConsumeMessageService {
+
     private static final Logger log = LoggerFactory.getLogger(ConsumeMessageConcurrentlyService.class);
+
     private final DefaultMQPushConsumerImpl defaultMQPushConsumerImpl;
+
     private final DefaultMQPushConsumer defaultMQPushConsumer;
     /**
      * 用户注册的并发消息消息监听器
@@ -73,8 +80,9 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
      */
     private final ThreadPoolExecutor consumeExecutor;
     /**
-     * 用户指定的消费者组
+     * 消费者所在的消费者分组
      */
+    @CorePart(value = "消费者所在的分组", part = CorePart.Part.CONSUMER)
     private final String consumerGroup;
     /**
      * 定时调度执行器，单线程，线程名称前缀为ConsumeMessageScheduledThread_consumerGroup_，

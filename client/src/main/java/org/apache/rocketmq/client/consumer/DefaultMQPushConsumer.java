@@ -34,6 +34,7 @@ import org.apache.rocketmq.client.trace.hook.ConsumeMessageTraceHookImpl;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
+import org.apache.rocketmq.common.mawen.CorePart;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
@@ -217,11 +218,12 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private boolean unitMode = false;
 
     /**
-     * Max re-consume times.
-     * In concurrently mode, -1 means 16;
-     * In orderly mode, -1 means Integer.MAX_VALUE.
-     * If messages are re-consumed more than {@link #maxReconsumeTimes} before success.
+     * 最大重新消费次数.
+     *
+     * <p>在并发消费模式下，-1 意味着 16次
+     * <p>在顺序模式下，-1 意味着无限次
      */
+    @CorePart(value = "消息消费失败重试上限", part = CorePart.Part.CONSUMER)
     private int maxReconsumeTimes = -1;
 
     /**

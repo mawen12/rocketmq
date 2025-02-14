@@ -33,7 +33,7 @@ import org.apache.rocketmq.store.ha.autoswitch.AutoSwitchHAConnection;
 import org.apache.rocketmq.store.ha.autoswitch.AutoSwitchHAService;
 
 /**
- * GroupTransferService Service
+ * 分组传输服务，传输对象为{@link org.apache.rocketmq.store.CommitLog.GroupCommitRequest}。
  */
 public class GroupTransferService extends ServiceThread {
 
@@ -43,6 +43,9 @@ public class GroupTransferService extends ServiceThread {
     private final PutMessageSpinLock lock = new PutMessageSpinLock();
     private final DefaultMessageStore defaultMessageStore;
     private final HAService haService;
+    /**
+     * 存储待同步最新偏移量到slave的请求
+     */
     private volatile List<CommitLog.GroupCommitRequest> requestsWrite = new LinkedList<>();
     private volatile List<CommitLog.GroupCommitRequest> requestsRead = new LinkedList<>();
 
@@ -65,6 +68,9 @@ public class GroupTransferService extends ServiceThread {
         this.notifyTransferObject.wakeup();
     }
 
+    /**
+     * 将requestsWrite转换到requestsRead
+     */
     private void swapRequests() {
         lock.lock();
         try {
@@ -76,6 +82,9 @@ public class GroupTransferService extends ServiceThread {
         }
     }
 
+    /**
+     * 从
+     */
     private void doWaitTransfer() {
         if (!this.requestsRead.isEmpty()) {
             for (CommitLog.GroupCommitRequest req : this.requestsRead) {

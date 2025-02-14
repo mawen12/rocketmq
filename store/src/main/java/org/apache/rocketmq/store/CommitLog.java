@@ -1003,10 +1003,18 @@ public class CommitLog implements Swappable {
             currOffset = mappedFile.getFileFromOffset() + mappedFile.getWrotePosition();
         }
 
-        // 需要写入成功的副本数，默认为1，即MASTER本身
+        /**
+         * 需要写入成功的副本数，默认为1，即MASTER本身
+         *
+         * <p>在单机模式下，只有一个master节点，此时needAckNums=1
+         * <p>在集群模式下，如果同时开启了{@link MessageStoreConfig#enableControllerMode}=true和
+         * {@link MessageStoreConfig#allAckInSyncStateSet}=true，则代表需要将消息写入到所有的slave中才可以
+         *
+         * <p>在集群模式下，如果同时开启了{@link
+         */
         int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
 
-        // 检查是否需要HA
+        // 检查是否需要HA，如果消息开启了waitStoreMsgOk，且未开启duplication，
         boolean needHandleHA = needHandleHA(msg);
 
         // 是否需要HA并且enableControllerMode=true
@@ -1021,8 +1029,7 @@ public class CommitLog implements Swappable {
                 // 设置为-1，代表需要写入所有副本
                 needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
             }
-            // 是否需要HA并且enableSlaveActingMaster=true
-        } else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
+        } else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {// 是否需要HA并且enableSlaveActingMaster=true
             // 修正最小的同步副本数量，因为实际上Slave可能存在宕机，导致实际存活的数量小于设置的数量
             int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(), this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
             // 根据存活的副本计算同步副本的数量
@@ -1218,7 +1225,9 @@ public class CommitLog implements Swappable {
             currOffset = mappedFile.getFileFromOffset() + mappedFile.getWrotePosition();
         }
 
+        // 写入消息成功的副本数
         int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
+        // 是否需要处理high available
         boolean needHandleHA = needHandleHA(messageExtBatch);
 
         if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
@@ -1240,8 +1249,7 @@ public class CommitLog implements Swappable {
         }
 
         messageExtBatch.setVersion(MessageVersion.MESSAGE_VERSION_V1);
-        boolean autoMessageVersionOnTopicLen =
-            this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
+        boolean autoMessageVersionOnTopicLen = this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
         if (autoMessageVersionOnTopicLen && messageExtBatch.getTopic().length() > Byte.MAX_VALUE) {
             messageExtBatch.setVersion(MessageVersion.MESSAGE_VERSION_V2);
         }
@@ -1373,6 +1381,13 @@ public class CommitLog implements Swappable {
     /**
      * 该消息是否需要high available
      *
+     * <p>返回true的条件同时满足以下几个：
+     * <ul>
+     *     <li>{@link MessageExt#isWaitStoreMsgOK()}=true</li>
+     *     <li>{@link MessageStoreConfig#isDuplicationEnable()}=true</li>
+     *     <li>{@link MessageStoreConfig#getBrokerRole()} ()} != SYNC_MASTER</li>
+     * </ul>
+     *
      * @param messageExt
      * @return
      */
@@ -1400,13 +1415,16 @@ public class CommitLog implements Swappable {
         return true;
     }
 
+    @CorePart(value = "处理磁盘同步和高可用", part = CorePart.Part.HA)
     private CompletableFuture<PutMessageResult> handleDiskFlushAndHA(PutMessageResult putMessageResult, MessageExt messageExt, int needAckNums, boolean needHandleHA) {
-        // 将消息异步刷新到磁盘上
+        // 基于FlushDiskType执行消息刷盘
         CompletableFuture<PutMessageStatus> flushResultFuture = handleDiskFlush(putMessageResult.getAppendMessageResult(), messageExt);
         CompletableFuture<PutMessageStatus> replicaResultFuture;
         if (!needHandleHA) {
+            // 不需要处理high available时，同步处理就表示成功
             replicaResultFuture = CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
         } else {
+            // 需要处理high available，即需要将消息从master传递给slave
             replicaResultFuture = handleHA(putMessageResult.getAppendMessageResult(), putMessageResult, needAckNums);
         }
 
@@ -1426,17 +1444,19 @@ public class CommitLog implements Swappable {
         return this.flushManager.handleDiskFlush(result, messageExt);
     }
 
-    private CompletableFuture<PutMessageStatus> handleHA(AppendMessageResult result, PutMessageResult putMessageResult,
-        int needAckNums) {
+    @CorePart(value = "生产者发送到master上的消息传递给slave")
+    private CompletableFuture<PutMessageStatus> handleHA(AppendMessageResult result, PutMessageResult putMessageResult, int needAckNums) {
         if (needAckNums >= 0 && needAckNums <= 1) {
+            // 检查消息ack的数量，默认情况下为1，对于
             return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
         }
 
         HAService haService = this.defaultMessageStore.getHaService();
 
+        // 计算本次写之前的偏移量和待写的字节数，作为结束的偏移量
         long nextOffset = result.getWroteOffset() + result.getWroteBytes();
 
-        // Wait enough acks from different slaves
+        // 构造分组提交请求，并从不同的slave等待足够的ack
         GroupCommitRequest request = new GroupCommitRequest(nextOffset, this.defaultMessageStore.getMessageStoreConfig().getSlaveTimeout(), needAckNums);
         haService.putRequest(request);
         haService.getWaitNotifyObject().wakeupAll();
@@ -1724,10 +1744,20 @@ public class CommitLog implements Swappable {
         }
     }
 
+    /**
+     * 用于将本地master最新的偏移量同步到slave，该偏移量是存储完消息的偏移量
+     */
+    @CorePart(value = "master向slave同步接收到的消息的请求", part = CorePart.Part.HA)
     public static class GroupCommitRequest {
+        /**
+         * 本次写完之后的偏移量
+         */
         private final long nextOffset;
         // Indicate the GroupCommitRequest result: true or false
         private final CompletableFuture<PutMessageStatus> flushOKFuture = new CompletableFuture<>();
+        /**
+         * slave要确认的数量
+         */
         private volatile int ackNums = 1;
         private final long deadLine;
 

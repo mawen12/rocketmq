@@ -48,8 +48,16 @@ public class BrokerIdentity {
 
     @ImportantField
     private String brokerName = defaultBrokerName();
+    /**
+     * Broker所属的集群信息
+     *
+     * <p>通过该字段表示集群，多个Broker如果具有该字段相同名称，代表归属于同一个集群中
+     */
     @ImportantField
     private String brokerClusterName = DEFAULT_CLUSTER_NAME;
+    /**
+     * broker的id，为0时代表为master，非0代表为slave
+     */
     @ImportantField
     private volatile long brokerId = MixAll.MASTER_ID;
 

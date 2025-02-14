@@ -17,6 +17,8 @@
 package org.apache.rocketmq.client.impl.consumer;
 
 import java.util.List;
+
+import org.apache.rocketmq.common.mawen.CorePart;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.protocol.body.ConsumeMessageDirectlyResult;
@@ -24,6 +26,7 @@ import org.apache.rocketmq.remoting.protocol.body.ConsumeMessageDirectlyResult;
 /**
  * 消息消费服务，{@link org.apache.rocketmq.client.consumer.listener.MessageListener}的底层实现
  */
+@CorePart(value = "消费者消费消息的底层实现", part = CorePart.Part.CONSUMER)
 public interface ConsumeMessageService {
     /**
      * 启动消费服务

@@ -20,10 +20,7 @@ RocketMQ提供了以下功能：
 - 支持基于时间戳（timestamp）和偏移量（offset）的消息追溯
 - 支持高可用和容错，基于主从架构
 
-
-
 ## 二、快速启动
-
 
 
 ### 1.下载安装包
@@ -33,19 +30,13 @@ RocketMQ提供了以下功能：
 - https://dist.apache.org/repos/dist/release/rocketmq/5.3.1/rocketmq-all-5.3.1-bin-release.zip
 - https://github.com/apache/rocketmq/archive/refs/tags/rocketmq-all-5.3.1.zip
 
-
-
 ### 2.安装JDK
-
-
 
 #### 下载JDK
 
 从Oracle官方下载JDK1.8。
 
 http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html?spm=5238cd80.6a33be36.0.0.39f71e5dUDqr4o
-
-
 
 #### 配置JDK
 
@@ -167,88 +158,31 @@ storePathRootDir=D:\develop\github\mawen12\rocketmq\cluster\broker-b-master
 .\bin\mqbroker.cmd -n 127.0.0.1:9876 -c D:\develop\github\mawen12\rocketmq\cluster\broker-b-master\broker.properties --enable-proxy
 ```
 
+### 6.查看集群信息
+
+```cmd
+.\bin\mqadmin.cmd clusterList -n 127.0.0.1:9876
+```
+
+### 7.集群内创建主题
+
+在集群内创建主题，一般是把集群内的所有节点都创建相同的主题，确保消息发送时的负载均衡。
+
+```cmd
+.\bin\mqadmin.cmd updateTopic -n 127.0.0.1:9876 -t myTopic -b 127.0.0.1:10911 -r 4 -w 4
+```
+
+```cmd
+.\bin\mqadmin.cmd updateTopic -n 127.0.0.1:9876 -t myTopic -b 127.0.0.1:10921 -r 4 -w 4
+```
+
 # 第二章 RocketMQ Broker
-
-
-
-
-
 
 
 # 第三章 RocketMQ Client
 
 
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # RocketMQ 部署架构
-
 
 
 RocketMQ 的主要组件：
@@ -266,7 +200,6 @@ RocketMQ 的主要组件：
 ​	Nameserver 集群，topic 的路由注册中心，为客户端根据 Topic 提供路由服务，从而引导客户端向 Broker 发送消息。Nameserver 之间的节点不通信，路由信息在 Nameserver 集群中数据一致性采取的是最终一致性。
 
 ​	Nameserver 是在内存中存储 Topic 的路由信息。
-
 
 
 ## Broker
@@ -302,26 +235,19 @@ RocketMQ 的主要组件：
 ​	
 
 
-
 ## Client
-
 
 
 ​	消息客户端，包含：Producer 和 Consumer。客户端在同一时间只会连接一台 Nameserver，只有在连接异常时才会尝试连接另外一台。客户端每隔 30s 向 Nameserver 发起 topic 的路由信息查询。
 
 
-
 ### ConsumerGroup
-
-
 
 ​	消费组，一个消费单位的群体，consumergroup 在启动时订阅需要消费的 topic，一个 topic 可以被消费组订阅，同样一个 consumergroup 也可以订阅多个 topic，一个 consumergroup 拥有多个 consumer。
 
 ​	
 
 # 消息订阅模型
-
-
 
 ​	RocketMQ 采用发布订阅模式。
 
@@ -330,12 +256,9 @@ RocketMQ 的主要组件：
 ## 消费模式
 
 
-
 ​	广播模式：一个 consumergroup 中的所有消费者每一个都会处理 topic 中的每一条信息，通常用于刷新内存缓存。
 
 ​	集群模式：一个 consumergroup 中的所有消费者共同消费一个 topic 中的消息，即分工协作，一个 consumer 消费一部分数据，启动负载均衡。
-
-
 
 ## 负载均衡算法
 
@@ -350,8 +273,6 @@ RocketMQ 的主要组件：
 
 ​	上述的队列负载算法，主要处理 queue 数量大于 consumer 数量的场景。但是对于 queue 数量小于 consumer 数量，就不会应用，这会出现部分的 consumer 无法被分配到消息。
 
-
-
 ## 消费队列重平衡机制
 
 ​	
@@ -361,10 +282,7 @@ RocketMQ 的主要组件：
 ​	RocketMQ 会每隔20s去查询当前 topic 的所有 queue，consumer 个数，运用队列负载均衡算法重新分配。
 
 
-
 ## 消费进度
-
-
 
 ​	consumer 消费一条消息后需要记录消费的位置，这样在 consumer 重启的时候，继续从上一次消费的位点开始进行处理新的消息。在 RocketMQ 中，消息消费位点的存储时以 consumergroup 为单位的。
 
@@ -373,9 +291,7 @@ RocketMQ 的主要组件：
 ​	集群模式：消费进度存储在 broker 端，存储文件路径为：${ROCKETMQ_HOME}/store/config/consumerOffset.json。
 
 
-
 ## 消费模型
-
 
 
 ​	RocketMQ 提供了并发消费和顺序消费两种消费方式。
@@ -383,7 +299,6 @@ RocketMQ 的主要组件：
 ​	并发消费：对一个 queue 中消息，每一个 consumer 内部都会创建一个线程池，对队列中的消息多线程处理，即偏移量大的消息比偏移量小的消息有可能先被消费。
 
 ​	顺序消费：一个 consumergroup 中的 consumer 会创建多线程，但是对于同一个 queue，会加锁。
-
 
 
 ### 消费重试
@@ -395,9 +310,7 @@ RocketMQ 的主要组件：
 ​	顺序消费：消费失败后一直重试，直到消费成功。对于顺序消费的使用过程中，需要区分系统异常和业务异常。并提供告警机制，及时进行人为干预，否则会出现消息积压。
 
 
-
 ## 消息类型
-
 
 
 ### 事务消息
@@ -405,16 +318,12 @@ RocketMQ 的主要组件：
 ​	RocketMQ 提供了事务消息，用于实现最终一致性的场景，而非分布式事务。
 
 
-
 ### 定时消息
 
 ​	RocketMQ 支持将定时消息发送到 broker，但是该消息不会立即被消费，而是要到指定延迟时间后才能被消费。
 
 
-
 ## 消息过滤
-
-
 
 ​	RocketMQ 支持 consumer 根据特定条件来对 topic 中的消息进行过滤。
 
@@ -423,7 +332,6 @@ RocketMQ 的主要组件：
 
 
 # 第二章 RocketMQ的安装与启动
-
 
 
 ## 三、单机安装与启动
@@ -1951,12 +1859,7 @@ consumer.start();
 
 
 
-
-
 ### 5.
-
-
-
 
 
 # 第五章 请求头
@@ -1986,15 +1889,7 @@ consumer.start();
 |                    |         |        |                                                              |
 
 
-
-
-
-
-
 ## 二、Consumer
-
-
-
 
 
 ## 三、Broker
@@ -2008,11 +1903,6 @@ consumer.start();
 | 注册到Namesrv | Namesrv | 103    | RequestCode#REGISTER_BROKER |
 |               |         |        |                             |
 |               |         |        |                             |
-
-
-
-
-
 
 
 ## 四、Namesrv

@@ -935,7 +935,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
      */
     public synchronized void start() throws MQClientException {
         switch (this.serviceState) {
-            case CREATE_JUST:
+            case CREATE_JUST: // 处于刚启动状态，
                 log.info("the consumer [{}] start beginning. messageModel={}, isUnitMode={}", this.defaultMQPushConsumer.getConsumerGroup(), this.defaultMQPushConsumer.getMessageModel(), this.defaultMQPushConsumer.isUnitMode());
                 this.serviceState = ServiceState.START_FAILED;
                 // 校验消费者必要参数
@@ -990,15 +990,14 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 // 加载消费偏移量
                 this.offsetStore.load();
 
-
-                if (this.getMessageListenerInner() instanceof MessageListenerOrderly) {
+                if (this.getMessageListenerInner() instanceof MessageListenerOrderly) {// 有序消费者监听器
                     // 有序监听器标志位设置
                     this.consumeOrderly = true;
                     // 初始化有序消费消息服务
                     this.consumeMessageService = new ConsumeMessageOrderlyService(this, (MessageListenerOrderly) this.getMessageListenerInner());
                     // 初始化弹出有序消费消息服务
                     this.consumeMessagePopService = new ConsumeMessagePopOrderlyService(this, (MessageListenerOrderly) this.getMessageListenerInner());
-                } else if (this.getMessageListenerInner() instanceof MessageListenerConcurrently) {
+                } else if (this.getMessageListenerInner() instanceof MessageListenerConcurrently) {// 并发的消息消费监听器
                     // 非有序监听器标志位设置
                     this.consumeOrderly = false;
                     // 初始化并发消费消息服务

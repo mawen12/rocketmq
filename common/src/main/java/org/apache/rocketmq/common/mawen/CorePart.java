@@ -31,5 +31,7 @@ public @interface CorePart {
         STORE,
 
         HA,
+
+        CONFIG
     }
 }

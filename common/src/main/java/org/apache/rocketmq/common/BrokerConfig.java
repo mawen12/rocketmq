@@ -29,6 +29,12 @@ import org.apache.rocketmq.common.utils.NetworkUtil;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 对应了 rocketmq_home/conf/broker.properties的配置的部分信息
+ *
+ * @see MessageStoreConfig
+ */
+@CorePart(value = "对应ROCKETMQ_HOME/conf/broker.properties的配置", part = CorePart.Part.CONFIG)
 public class BrokerConfig extends BrokerIdentity {
 
     private String brokerConfigPath = null;
@@ -343,6 +349,8 @@ public class BrokerConfig extends BrokerIdentity {
     private long forwardTimeout = 3 * 1000;
 
     /**
+     * 是否开启故障转移，即当master宕机时，
+     *
      * 在故障转移时，Slave服务器将充当Master。如果设置true，当原本的Master宕机，Slave上过期的计时器或事务消息将放入Master
      * （在enableFailoverRemotingActing=true时，代理容器模式下的同一进程的主服务器或集群中的其他主服务器）
      */
@@ -373,7 +381,7 @@ public class BrokerConfig extends BrokerIdentity {
     private boolean compatibleWithOldNameSrv = true;
 
     /**
-     * 是否开启控制器模式，如果开启的话，执行切换broker角色。
+     * 是否开启控制器模式，如果开启的话，则允许切换broker角色。
      */
     @CorePart(value = "开启了之后，代表允许切换broker角色", part = CorePart.Part.HA)
     private boolean enableControllerMode = false;
