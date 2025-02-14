@@ -20,6 +20,7 @@ import java.io.File;
 
 import org.apache.rocketmq.common.annotation.ImportantField;
 import org.apache.rocketmq.common.annotation.PerformancePoint;
+import org.apache.rocketmq.common.mawen.CorePart;
 import org.apache.rocketmq.store.ConsumeQueue;
 import org.apache.rocketmq.store.StoreType;
 import org.apache.rocketmq.store.queue.BatchConsumeQueue;

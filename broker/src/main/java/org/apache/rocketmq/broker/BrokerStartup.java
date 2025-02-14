@@ -183,10 +183,11 @@ public class BrokerStartup {
             switch (messageStoreConfig.getBrokerRole()) {
                 case ASYNC_MASTER:
                 case SYNC_MASTER:
+                    // 对于master角色的broker，其brokerId为0
                     brokerConfig.setBrokerId(MixAll.MASTER_ID);
                     break;
                 case SLAVE:
-                    if (brokerConfig.getBrokerId() <= MixAll.MASTER_ID) {
+                    if (brokerConfig.getBrokerId() <= MixAll.MASTER_ID) {// 当slave角色的broker设置的brokerId<=0时，这是非法的
                         System.out.printf("Slave's brokerId must be > 0%n");
                         System.exit(-3);
                     }

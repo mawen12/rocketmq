@@ -223,6 +223,15 @@ public class ReplicasManager {
         this.scanExecutor.shutdownNow();
     }
 
+    /**
+     *
+     * @param newMasterBrokerId
+     * @param newMasterAddress
+     * @param newMasterEpoch
+     * @param syncStateSetEpoch
+     * @param syncStateSet
+     * @throws Exception
+     */
     public synchronized void changeBrokerRole(final Long newMasterBrokerId, final String newMasterAddress,
         final Integer newMasterEpoch,
         final Integer syncStateSetEpoch, final Set<Long> syncStateSet) throws Exception {
@@ -235,10 +244,19 @@ public class ReplicasManager {
         }
     }
 
+    /**
+     * slave节点选举为master
+     *
+     * @param newMasterEpoch
+     * @param syncStateSetEpoch
+     * @param syncStateSet
+     * @throws Exception
+     */
     public void changeToMaster(final int newMasterEpoch, final int syncStateSetEpoch, final Set<Long> syncStateSet) throws Exception {
         synchronized (this) {
-            if (newMasterEpoch > this.masterEpoch) {
+            if (newMasterEpoch > this.masterEpoch) {// 新的master必须要比当前master更新
                 LOGGER.info("Begin to change to master, brokerName:{}, replicas:{}, new Epoch:{}", this.brokerConfig.getBrokerName(), this.brokerAddress, newMasterEpoch);
+                // 更新当前的master纪元
                 this.masterEpoch = newMasterEpoch;
                 if (this.masterBrokerId != null && this.masterBrokerId.equals(this.brokerControllerId) && this.brokerController.getBrokerConfig().getBrokerId() == MixAll.MASTER_ID) {
                     // Change SyncStateSet

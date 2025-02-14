@@ -20,6 +20,7 @@ import org.apache.rocketmq.common.annotation.ImportantField;
 import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.config.ConfigManagerVersion;
 import org.apache.rocketmq.common.constant.PermName;
+import org.apache.rocketmq.common.mawen.CorePart;
 import org.apache.rocketmq.common.mawen.RepeatConsume;
 import org.apache.rocketmq.common.message.MessageRequestMode;
 import org.apache.rocketmq.common.metrics.MetricsExporterType;
@@ -165,6 +166,9 @@ public class BrokerConfig extends BrokerIdentity {
     private boolean slaveReadEnable = false;
 
     private boolean disableConsumeIfConsumerReadSlowly = false;
+    /**
+     * 消费者落后的阈值，默认为16g
+     */
     private long consumerFallbehindThreshold = 1024L * 1024 * 1024 * 16;
 
     private boolean brokerFastFailureEnable = true;
@@ -369,8 +373,9 @@ public class BrokerConfig extends BrokerIdentity {
     private boolean compatibleWithOldNameSrv = true;
 
     /**
-     * Is startup controller mode, which support auto switch broker's role.
+     * 是否开启控制器模式，如果开启的话，执行切换broker角色。
      */
+    @CorePart(value = "开启了之后，代表允许切换broker角色", part = CorePart.Part.HA)
     private boolean enableControllerMode = false;
 
     private String controllerAddr = "";

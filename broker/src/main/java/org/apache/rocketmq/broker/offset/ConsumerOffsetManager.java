@@ -34,6 +34,7 @@ import org.apache.rocketmq.common.ConfigManager;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.common.mawen.CorePart;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.remoting.protocol.DataVersion;
@@ -43,7 +44,10 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
  * 消费者偏移量管理器，消费偏移量本地文件路径为ENV(user.home)/store/config/consumerOffset.json
  *
  * <p>保存了与该broker下consumer group与topic的消费进度
+ *
+ * @see BrokerPathConfigHelper#getConsumerOffsetPath(String)
  */
+@CorePart(value = "保存了consumer group消费topic的进度", part = CorePart.Part.STORE)
 public class ConsumerOffsetManager extends ConfigManager {
     protected static final Logger LOG = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     /**

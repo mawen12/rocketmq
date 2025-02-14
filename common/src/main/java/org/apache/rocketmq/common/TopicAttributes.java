@@ -22,6 +22,7 @@ import org.apache.rocketmq.common.attribute.Attribute;
 import org.apache.rocketmq.common.attribute.EnumAttribute;
 import org.apache.rocketmq.common.attribute.LongRangeAttribute;
 import org.apache.rocketmq.common.attribute.TopicMessageType;
+import org.apache.rocketmq.common.mawen.CorePart;
 
 import static com.google.common.collect.Sets.newHashSet;
 
@@ -38,6 +39,17 @@ public class TopicAttributes {
         newHashSet("BatchCQ", "SimpleCQ"),
         "SimpleCQ"
     );
+
+    /**
+     * 过期commitlog清理策略
+     *
+     * <p>提供两种类型：
+     * <ul>
+     *     <li>DELETE：删除过期的commitlog文件</li>
+     *     <li>COMPACTION: 压缩过期的commitlog文件</li>
+     * </ul>
+     */
+    @CorePart(value = "负责对存储中过期的数据进行清理", part = CorePart.Part.STORE)
     public static final EnumAttribute CLEANUP_POLICY_ATTRIBUTE = new EnumAttribute(
         "cleanup.policy",
         false,

@@ -16,16 +16,23 @@
  */
 package org.apache.rocketmq.store.config;
 
+import org.apache.rocketmq.common.mawen.CorePart;
+import org.apache.rocketmq.common.mawen.MessageLost;
+
 /**
  * 磁盘刷新类型
  */
+@CorePart(value = "生产者发送消息到broker，保存到", part = CorePart.Part.STORE)
 public enum FlushDiskType {
     /**
      * 同步刷新
+     *
+     * <p>每次发送消息后，只有等待消息被写入到磁盘中，才会返回响应。
      */
     SYNC_FLUSH,
     /**
      * 异步刷新
      */
+    @MessageLost(reason = "如果在等待下次异步刷新期间，broker或及其宕机，会导致消息出现丢失")
     ASYNC_FLUSH
 }

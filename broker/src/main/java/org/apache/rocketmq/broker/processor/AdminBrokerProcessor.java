@@ -387,6 +387,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
             case RequestCode.GET_BROKER_EPOCH_CACHE:
                 return this.getBrokerEpochCache(ctx, request);
             case RequestCode.NOTIFY_BROKER_ROLE_CHANGED:
+                // 触发broker角色变更
                 return this.notifyBrokerRoleChanged(ctx, request);
             case RequestCode.AUTH_CREATE_USER:
                 return this.createUser(ctx, request);

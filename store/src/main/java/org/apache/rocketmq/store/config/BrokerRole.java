@@ -16,12 +16,17 @@
  */
 package org.apache.rocketmq.store.config;
 
+import org.apache.rocketmq.common.mawen.CorePart;
+
 /**
  * Broker角色
  */
+@CorePart(value = "不同的broker角色决定了high available的行为", part = CorePart.Part.HA)
 public enum BrokerRole {
     /**
      * 异步的MASTER
+     *
+     * <p>在broker接受消息后，会
      */
     ASYNC_MASTER,
     /**
@@ -30,6 +35,11 @@ public enum BrokerRole {
     SYNC_MASTER,
     /**
      * SLAVE
+     *
+     * <p>如果broker角色为slave，要做的事情
+     * <ul>
+     * <li>slave不允许设置brokerid < 1</li>
+     * </ul>
      */
     SLAVE;
 }

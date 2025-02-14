@@ -45,6 +45,7 @@ import org.apache.rocketmq.common.annotation.ImportantPoint;
 import org.apache.rocketmq.common.annotation.PerformancePoint;
 import org.apache.rocketmq.common.attribute.CQType;
 import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.common.mawen.CorePart;
 import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
@@ -80,6 +81,7 @@ import sun.nio.ch.DirectBuffer;
  *
  * <p>Broker单个实例下所有的队列共用一个日志文件（即为commitlog)来存储。
  */
+@CorePart(value = "日志实际存储的载体", part = CorePart.Part.STORE)
 public class CommitLog implements Swappable {
     // Message's MAGIC CODE daa320a7
     public final static int MESSAGE_MAGIC_CODE = -626843481;
@@ -969,40 +971,30 @@ public class CommitLog implements Swappable {
             msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
         }
 
-        /**
-         * 修正IPv6
-         */
+        // 修正IPv6
         InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
         if (bornSocketAddress.getAddress() instanceof Inet6Address) {
             msg.setBornHostV6Flag();
         }
 
-        /**
-         * 修正IPv6
-         */
+        // 修正IPv6
         InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
         if (storeSocketAddress.getAddress() instanceof Inet6Address) {
             msg.setStoreHostAddressV6Flag();
         }
-        /**
-         * 更新newMaxMessageSize
-         */
+
+        // 更新newMaxMessageSize
         PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
         updateMaxMessageSize(putMessageThreadLocal);
-        /**
-         * 构造主题队列key，topic-queueId
-         */
+
+        // 构造主题队列key，topic-queueId
         String topicQueueKey = generateKey(putMessageThreadLocal.getKeyBuilder(), msg);
         long elapsedTimeInLock = 0;
         MappedFile unlockMappedFile = null;
-        /**
-         * 获取最新的映射文件
-         */
+        // 获取最新的映射文件
         MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
 
-        /**
-         * 获取文件写入的位置，如果文件不存在，则设置为0；否则设置为文件名称+文件写入位置作为中的偏移量
-         */
+        // 获取文件写入的位置，如果文件不存在，则设置为0；否则设置为文件名称+文件写入位置作为中的偏移量
         long currOffset;
         if (mappedFile == null) {
             currOffset = 0;
@@ -1011,90 +1003,54 @@ public class CommitLog implements Swappable {
             currOffset = mappedFile.getFileFromOffset() + mappedFile.getWrotePosition();
         }
 
-        /**
-         * 需要写入成功的副本数，默认为1，即MASTER本身
-         */
+        // 需要写入成功的副本数，默认为1，即MASTER本身
         int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
-        /**
-         * 检查是否需要HA
-         */
+
+        // 检查是否需要HA
         boolean needHandleHA = needHandleHA(msg);
 
-        /**
-         * 是否需要HA并且enableControllerMode=true
-         */
+        // 是否需要HA并且enableControllerMode=true
         if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
-            /**
-             * 检查当前有效副本是否小于配置的最小同步副本数
-             */
+            // 检查当前有效副本是否小于配置的最小同步副本数
             if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
-                /**
-                 * 返回同步副本数不足的错误
-                 */
+                // 返回同步副本数不足的错误
                 return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
             }
-            /**
-             * 检查是否需要同步全部副本
-             */
+            // 检查是否需要同步全部副本
             if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
-                /**
-                 * 设置为-1，代表需要写入所有副本
-                 */
+                // 设置为-1，代表需要写入所有副本
                 needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
             }
-            /**
-             * 是否需要HA并且enableSlaveActingMaster=true
-             */
+            // 是否需要HA并且enableSlaveActingMaster=true
         } else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
-            /**
-             * 修正最小的同步副本数量，因为实际上Slave可能存在宕机，导致实际存活的数量小于设置的数量
-             */
+            // 修正最小的同步副本数量，因为实际上Slave可能存在宕机，导致实际存活的数量小于设置的数量
             int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(), this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
-            /**
-             * 根据存活的副本计算同步副本的数量
-             */
+            // 根据存活的副本计算同步副本的数量
             needAckNums = calcNeedAckNums(inSyncReplicas);
-            /**
-             * 检查有效副本是否小于最小同步副本数
-             */
+            // 检查有效副本是否小于最小同步副本数
             if (needAckNums > inSyncReplicas) {
-                /**
-                 * 返回同步副本数不足的错误
-                 */
+                // 返回同步副本数不足的错误
                 return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
             }
         }
 
-        /**
-         * 对topic-queueId加锁，限制同时只能操作同一个主题下的同一个队列
-         */
+        // 对topic-queueId加锁，限制同时只能操作同一个主题下的同一个队列
         topicQueueLock.lock(topicQueueKey);
         try {
-            /**
-             * 默认开启自动分配
-             */
+            // 默认开启自动分配
             boolean needAssignOffset = true;
-            /**
-             * 如果开启消息复制，且当前Broker非SLAVE，则代表不需要分配偏移量
-             */
+            // 如果开启消息复制，且当前Broker非SLAVE，则代表不需要分配偏移量
             if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable() && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
                 needAssignOffset = false;
             }
-            /**
-             * 如果开启了自动分配偏移量，则对其进行偏移量分配
-             */
+            // 如果开启了自动分配偏移量，则对其进行偏移量分配
             if (needAssignOffset) {
                 defaultMessageStore.assignOffset(msg);
             }
-
-            /**
-             * 将消息整体写入到{@link PutMessageThreadLocal#byteBuf}，如果消息校验不通过，则返回{@link PutMessageResult}；反之返回null
-             */
+            // 将消息整体写入到{@link PutMessageThreadLocal#byteBuf}，如果消息校验不通过，则返回{@link PutMessageResult}；反之返回null
             PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
             if (encodeResult != null) {
-                /**
-                 * 出现错误，字节返回
-                 */
+                // 出现错误，字节返回
                 return CompletableFuture.completedFuture(encodeResult);
             }
             // 将编码后的内容写入消息
@@ -1414,10 +1370,14 @@ public class CommitLog implements Swappable {
         return needAckNums;
     }
 
+    /**
+     * 该消息是否需要high available
+     *
+     * @param messageExt
+     * @return
+     */
     private boolean needHandleHA(MessageExt messageExt) {
-        /**
-         * 如果消息不需要等待存储返回OK，则不需要HA，则返回false
-         */
+        // 如果消息不需要等待存储返回OK，则不需要HA，则返回false
         if (!messageExt.isWaitStoreMsgOK()) {
             /*
               No need to sync messages that special config to extra broker slaves.
@@ -1425,22 +1385,18 @@ public class CommitLog implements Swappable {
              */
             return false;
         }
-
-        /**
-         * 如果消息存储未开启复制，则不需要HA，返回false
-         */
+        // 如果消息存储开启复制，则不需要HA，返回false
         if (this.defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
             return false;
         }
 
-        /**
-         * 如果当前Broker不是同步MASTER，则不需要HA，返回false
-         */
+        // 如果当前Broker不是同步MASTER，则不需要HA，返回false
         if (BrokerRole.SYNC_MASTER != this.defaultMessageStore.getMessageStoreConfig().getBrokerRole()) {
             // No need to check ha in async or slave broker
             return false;
         }
 
+        // 当消息选择了waitStoreMsgOk，并且broker角色为ASYNC_MASTER时，才会返回true
         return true;
     }
 

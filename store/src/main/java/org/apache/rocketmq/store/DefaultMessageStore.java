@@ -258,7 +258,7 @@ public class DefaultMessageStore implements MessageStore {
         this.indexService = new IndexService(this);
 
         if (!messageStoreConfig.isEnableDLegerCommitLog() && !this.messageStoreConfig.isDuplicationEnable()) {
-            if (brokerConfig.isEnableControllerMode()) {
+            if (brokerConfig.isEnableControllerMode()) { // 如果开启了控制器模式，则代表允许切换broker角色
                 this.haService = new AutoSwitchHAService();
                 LOGGER.warn("Load AutoSwitch HA Service: {}", AutoSwitchHAService.class.getSimpleName());
             } else {

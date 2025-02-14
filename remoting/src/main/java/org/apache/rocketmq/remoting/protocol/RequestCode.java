@@ -335,6 +335,9 @@ public class RequestCode {
 
     public static final int GET_BROKER_EPOCH_CACHE = 1007;
 
+    /**
+     * 触发broker角色变更
+     */
     public static final int NOTIFY_BROKER_ROLE_CHANGED = 1008;
 
     /**

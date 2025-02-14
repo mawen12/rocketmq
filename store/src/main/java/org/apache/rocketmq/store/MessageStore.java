@@ -736,7 +736,7 @@ public interface MessageStore {
     boolean isSyncDiskFlush();
 
     /**
-     * If this message store is sync master role
+     * 当前消息存储是否为SYNC_MASTER角色
      *
      * @return yes if true, no if false
      */

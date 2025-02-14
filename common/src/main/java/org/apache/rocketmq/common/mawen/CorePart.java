@@ -27,5 +27,9 @@ public @interface CorePart {
         MESSAGE,
 
         TOPIC,
+
+        STORE,
+
+        HA,
     }
 }

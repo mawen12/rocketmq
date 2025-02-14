@@ -63,6 +63,11 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.metrics.InstrumentSelector;
 import io.opentelemetry.sdk.metrics.ViewBuilder;
 
+/**
+ * 抽象的插件消息存储
+ *
+ * <p>装饰器设计模式
+ */
 public abstract class AbstractPluginMessageStore implements MessageStore {
     protected MessageStore next;
     protected MessageStorePluginContext context;

@@ -46,6 +46,9 @@ public class DefaultHAService implements HAService {
 
     protected final AtomicInteger connectionCount = new AtomicInteger(0);
 
+    /**
+     * 代表所有
+     */
     protected final List<HAConnection> connectionList = new LinkedList<>();
 
     protected AcceptSocketService acceptSocketService;

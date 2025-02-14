@@ -82,10 +82,10 @@ import static org.apache.rocketmq.remoting.protocol.RemotingCommand.buildErrorRe
 /**
  * 处理{@link SendMessageRequestHeader}请求头，该处理器负责处理一下请求代码：
  * <ul>
- *     <li>{@link RequestCode.SEND_MESSAGE}</li>
- *     <li>{@link RequestCode.SEND_MESSAGE_V2}</li>
- *     <li>{@link RequestCode.SEND_BATCH_MESSAGE}</li>
- *     <li>{@link RequestCode.CONSUMER_SEND_MSG_BACK}</li>
+ *     <li>{@code RequestCode.SEND_MESSAGE}</li>
+ *     <li>{@code RequestCode.SEND_MESSAGE_V2}</li>
+ *     <li>{@code RequestCode.SEND_BATCH_MESSAGE}</li>
+ *     <li>{@code RequestCode.CONSUMER_SEND_MSG_BACK}</li>
  * </ul>
  *
  * @see BrokerController#registerProcessor()
@@ -414,17 +414,6 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
     /**
      * 处理消息写入磁盘结果
      *
-     * @param putMessageResult
-     * @param response
-     * @param request
-     * @param msg
-     * @param responseHeader
-     * @param sendMessageContext
-     * @param ctx
-     * @param queueIdInt
-     * @param beginTimeMillis
-     * @param mappingContext
-     * @param messageType
      * @return
      */
     private RemotingCommand handlePutMessageResult(PutMessageResult putMessageResult, RemotingCommand response, RemotingCommand request, MessageExt msg, SendMessageResponseHeader responseHeader, SendMessageContext sendMessageContext,
@@ -484,24 +473,18 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
             // Failed
             case IN_SYNC_REPLICAS_NOT_ENOUGH:
-                /**
-                 * 可同步副本不足
-                 */
+                // 可同步副本不足
                 response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("in-sync replicas not enough");
                 break;
             case CREATE_MAPPED_FILE_FAILED:
-                /**
-                 * 创建映射文件失败
-                 */
+                // 创建映射文件失败
                 response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("create mapped file failed, server is busy or broken.");
                 break;
             case MESSAGE_ILLEGAL:
             case PROPERTIES_SIZE_EXCEEDED:
-                /**
-                 * 消息属性大小超过32K
-                 */
+                // 消息属性大小超过32K
                 response.setCode(ResponseCode.MESSAGE_ILLEGAL);
                 response.setRemark(String.format("the message is illegal, maybe msg body or properties length not matched. msg body length limit %dB, msg properties length limit 32KB.", this.brokerController.getMessageStoreConfig().getMaxMessageSize()));
                 break;
