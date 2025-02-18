@@ -26,181 +26,163 @@ import org.apache.rocketmq.store.MessageFilter;
 import org.rocksdb.RocksDBException;
 
 /**
- * 消费队列接口，用于管理${user.home}/store/consumequeue下的文件接口
- *
- * <p>文件目录：${user.home}/store/consumequeue/topic/queueId/file
+ * 用于操作$HOME/store/consumequeue/<topic>/<queueId>下文件的接口
  */
 public interface ConsumeQueueInterface extends FileQueueLifeCycle {
     /**
-     * @return 返回该ConsumeQueue所属的主题
+     * @return 返回该cq所属的主题名称
      */
     String getTopic();
 
     /**
-     * @return 返回该ConsumeQueue所属的队列ID
+     * @return 返回该cq所属的队列ID
      */
     int getQueueId();
 
     /**
      * Get the units from the start offset.
+     * 从开始索引获取cqUnit
      *
-     *
-     * @param startIndex start index
-     * @return the unit iterateFrom
+     * @param startIndex 开始索引
+     * @return 从哪里开始迭代
      */
     ReferredIterator<CqUnit> iterateFrom(long startIndex);
 
     /**
-     * Get the units from the start offset.
+     * 从开始索引获取指定总数的cqUnit
      *
-     * @param startIndex start index
-     * @param count the unit counts will be iterated
-     * @return the unit iterateFrom
+     * @param startIndex 开始索引
+     * @param count 被迭代的cqUnit总数
+     * @return 从哪里开始迭代
      * @throws RocksDBException only in rocksdb mode
      */
     ReferredIterator<CqUnit> iterateFrom(long startIndex, int count) throws RocksDBException;
 
     /**
-     * Get cq unit at specified index
-     * @param index index
-     * @return the cq unit at index
+     * @param index 逻辑索引
+     * @return 获取特定索引的cqUnit
      */
     CqUnit get(long index);
 
     /**
-     * Get earliest cq unit
-     * @return the cq unit and message storeTime at index
+     * @return 获取特定索引处的cqUnit和消息存储时间
      */
     Pair<CqUnit, Long> getCqUnitAndStoreTime(long index);
 
     /**
-     * Get earliest cq unit
-     * @return earliest cq unit and message storeTime
+     * @return 获取最早的cqUnit和消息存储时间
      */
     Pair<CqUnit, Long> getEarliestUnitAndStoreTime();
 
     /**
-     * Get earliest cq unit
-     * @return earliest cq unit
+     * @return 获取最早的cqUnit
      */
     CqUnit getEarliestUnit();
 
     /**
-     * Get last cq unit
-     * @return last cq unit
+     * @return 获取最新的cqUnit
      */
     CqUnit getLatestUnit();
 
     /**
-     * Get last commit log offset
-     * @return last commit log offset
+     * @return 获取最新的commitlog的物理偏移量
      */
     long getLastOffset();
 
     /**
-     * Get min offset(index) in queue
-     * @return the min offset(index) in queue
+     * @return 获取consumequeue中最小的索引
      */
     long getMinOffsetInQueue();
 
     /**
-     * Get max offset(index) in queue
-     * @return the max offset(index) in queue
+     * @return 获取consumequeue中最大的索引
      */
     long getMaxOffsetInQueue();
 
     /**
-     * Get total message count
-     * @return total message count
+     * @return 获取consumequeue的消息总数
      */
     long getMessageTotalInQueue();
 
     /**
-     * Get the message whose timestamp is the smallest, greater than or equal to the given time.
-     * @param timestamp timestamp
-     * @return the offset(index)
+     * @param timestamp 时间戳
+     * @return 获取最贴近给定时间戳的consumequeue的逻辑偏移量
      */
     long getOffsetInQueueByTime(final long timestamp);
 
     /**
-     * Get the message whose timestamp is the smallest, greater than or equal to the given time and when there are more
-     * than one message satisfy the condition, decide which one to return based on boundaryType.
-     * @param timestamp    timestamp
-     * @param boundaryType Lower or Upper
-     * @return the offset(index)
+     * @param timestamp    时间戳
+     * @param boundaryType 更多或更高
+     * @return 获取最贴近给定时间戳的consumequeue的逻辑偏移量，具体取上还是取下由{@link BoundaryType}来决定
      */
     long getOffsetInQueueByTime(final long timestamp, final BoundaryType boundaryType);
 
     /**
-     * The max physical offset of commitlog has been dispatched to this queue.
-     * It should be exclusive.
-     *
-     * @return the max physical offset point to commitlog
+     * @return 返回$HOME/store/consumequeue中最大的commitlog的物理偏移量
      */
     long getMaxPhysicOffset();
 
     /**
-     * Usually, the cq files are not exactly consistent with the commitlog, there maybe some redundant data in the first
-     * cq file.
+     * 通常cqUnit文件与commitlog并不完全一致，因为在第一个cq文件中可能存在冗余数据。
      *
-     * @return the minimal effective pos of the cq file.
+     * @return cq文件中最小的有效位置
      */
     long getMinLogicOffset();
 
     /**
-     * Get cq type
-     * @return cq type
+     * @return consumequeue类型
      */
     CQType getCQType();
 
     /**
-     * Gets the occupied size of CQ file on disk
-     * @return total size
+     * @return 获取consume queue文件在磁盘上的占用大小
      */
     long getTotalSize();
 
     /**
-     * Get the unit size of this CQ which is different in different CQ impl
-     * @return cq unit size
+     * @return 获取此consume queue的单元大小，不同的consume queue实现中单元大小不同
      */
     int getUnitSize();
 
     /**
-     * Correct min offset by min commit log offset.
-     * @param minCommitLogOffset min commit log offset
+     * 通过最小commitlog偏移量来纠正最小偏移量
+     *
+     * @param minCommitLogOffset 最小的commitlog物理偏移量
      */
     void correctMinOffset(long minCommitLogOffset);
 
     /**
-     * Do dispatch.
-     * @param request the request containing dispatch information.
+     * 分发来自commitlog的请求，用于构建consume queue
+     *
+     * @param request 包含分发信息的请求
      */
     void putMessagePositionInfoWrapper(DispatchRequest request);
 
     /**
-     * 为指定消息分配队列偏移量
+     * 分配consume queue偏移量
      *
-     * @param queueOffsetAssigner the delegated queue offset assigner
-     * @param msg message itself
+     * @param queueOffsetAssigner 负责执行consume queue偏移量分配的代理类
+     * @param msg 消息本身
      * @throws RocksDBException only in rocksdb mode
      */
     void assignQueueOffset(QueueOffsetOperator queueOffsetAssigner, MessageExtBrokerInner msg) throws RocksDBException;
 
     /**
-     * Increase queue offset.
-     * @param queueOffsetAssigner the delegated queue offset assigner
-     * @param msg message itself
-     * @param messageNum message number
+     * 自增consume queue偏移量
+     *
+     * @param queueOffsetAssigner 负责执行consume queue偏移量分配的代理类
+     * @param msg 消息本身
+     * @param messageNum 消息数量
      */
     void increaseQueueOffset(QueueOffsetOperator queueOffsetAssigner, MessageExtBrokerInner msg, short messageNum);
 
     /**
-     * Estimate number of records matching given filter.
+     * 估计与给定过滤器匹配的消息记录数
      *
-     * @param from Lower boundary, inclusive.
-     * @param to Upper boundary, inclusive.
-     * @param filter Specified filter criteria
-     * @return Number of matching records.
+     * @param from 包含
+     * @param to 包含
+     * @param filter 特定的消息过滤器
+     * @return 匹配的消息记录数
      */
     long estimateMessageCount(long from, long to, MessageFilter filter);
 }

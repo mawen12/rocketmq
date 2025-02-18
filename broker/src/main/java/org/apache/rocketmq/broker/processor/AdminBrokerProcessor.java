@@ -3410,8 +3410,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         return false;
     }
 
-    private CheckRocksdbCqWriteResult doCheckRocksdbCqWriteProgress(ChannelHandlerContext ctx,
-                                                                    RemotingCommand request) throws RemotingCommandException {
+    private CheckRocksdbCqWriteResult doCheckRocksdbCqWriteProgress(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         CheckRocksdbCqWriteProgressRequestHeader requestHeader = request.decodeCommandCustomHeader(CheckRocksdbCqWriteProgressRequestHeader.class);
         String requestTopic = requestHeader.getTopic();
         MessageStore messageStore = brokerController.getMessageStore();
@@ -3424,6 +3423,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         RocksDBMessageStore rocksDBMessageStore = defaultMessageStore.getRocksDBMessageStore();
         CheckRocksdbCqWriteResult result = new CheckRocksdbCqWriteResult();
 
+        // TODO by mawen replace by MessageStoreConfig#isEnableRocksDBStore
         if (defaultMessageStore.getMessageStoreConfig().getStoreType().equals(StoreType.DEFAULT_ROCKSDB.getStoreType())) {
             result.setCheckResult("storeType is DEFAULT_ROCKSDB, no need check");
             result.setCheckStatus(CheckRocksdbCqWriteResult.CheckStatus.CHECK_OK.getValue());

@@ -19,18 +19,18 @@ package org.apache.rocketmq.store.queue;
 import org.apache.rocketmq.store.Swappable;
 
 /**
- * 包含由 FILE 直接实现的 ConsumeQueue 的生命周期方法
+ * 基于File系统直接实现的包含consumequeue相关生命周期方法的接口
  */
 public interface FileQueueLifeCycle extends Swappable {
     /**
-     * 从文件中加载内容
+     * 从文件加载
      *
-     * @return 加载成功返回true
+     * @return {@code true}如果加载成功
      */
     boolean load();
 
     /**
-     * 从文件中恢复
+     * 从文件恢复
      */
     void recover();
 
@@ -40,51 +40,52 @@ public interface FileQueueLifeCycle extends Swappable {
     void checkSelf();
 
     /**
-     * 将缓存刷新到文件
+     * 将page cache刷新到文件
      *
-     * @param flushLeastPages  被刷新的最小页数
-     * @return 有数据被刷新时返回true
+     * @param flushLeastPages  被刷新的最少page cache数量
+     * @return {@code true}刷新成功
      */
     boolean flush(int flushLeastPages);
 
     /**
-     * 销毁文件
+     * 摧毁文件
      */
     void destroy();
 
     /**
-     * 截断最大提交日志位置作为起点的脏逻辑文件
+     * 从最大commitlog的物理偏移量截断脏逻辑文件
      *
-     * @param maxCommitLogPos 最大提交日志位置
+     * @param maxCommitLogPos 最大commitlog位置
      */
     void truncateDirtyLogicFiles(long maxCommitLogPos);
 
     /**
-     * 删除最小提交日志位置的过期文件
+     * 在最小commitlog的物理偏移量删除过期的文件
      *
-     * @param minCommitLogPos 最小提交日志位置
+     * @param minCommitLogPos 最小commitlog位置
      * @return 删除的文件数量
      */
     int deleteExpiredFile(long minCommitLogPos);
 
     /**
-     * 滚动到下一个文件
+     * 滚动到文件
      *
-     * @param nextBeginOffset 下一个开始偏移量
-     * @return 下一个文件的开始偏移量
+     * @param nextBeginOffset 下一个开始的偏移量
+     * @return 下一个文件开始的偏移量
      */
     long rollNextFile(final long nextBeginOffset);
 
     /**
-     * Is the first file available?
-     * @return true if it's available
+     * 第一个文件是否可用
+     *
+     * @return {@code true}第一个文件可用
      */
     boolean isFirstFileAvailable();
 
     /**
      * 第一个文件是否存在
      *
-     * @return 第一个文件存在时返回true
+     * @return {@code true}第一个文件存在
      */
     boolean isFirstFileExist();
 }

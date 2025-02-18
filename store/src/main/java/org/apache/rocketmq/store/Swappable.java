@@ -17,7 +17,7 @@
 package org.apache.rocketmq.store;
 
 /**
- * 清理超大磁盘上的页表
+ * 代表可清理超大磁盘上的page-table的接口
  */
 public interface Swappable {
     /**

@@ -73,9 +73,7 @@ public interface HAConnection {
     long getTransferFromWhere();
 
     /**
-     * 获取slave ack offset
-     *
-     * @return slave ack offset
+     * @return 返回slave发送给master最新同步的消息偏移量
      */
     long getSlaveAckOffset();
 }

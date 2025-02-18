@@ -22,13 +22,13 @@ package org.apache.rocketmq.common.attribute;
  */
 public enum CQType {
     /**
-     * 简单
+     * 基于简单的consume queue
      *
      * @see org.apache.rocketmq.store.ConsumeQueue
      */
     SimpleCQ,
     /**
-     * 批量
+     * 基于批量的consume queue
      *
      * @see org.apache.rocketmq.store.queue.BatchConsumeQueue
      */

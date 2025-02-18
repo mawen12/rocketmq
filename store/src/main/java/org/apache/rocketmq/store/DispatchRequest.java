@@ -21,20 +21,63 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.message.MessageConst;
 
+/**
+ * 被{@link CommitLogDispatcher}使用，用于分发commitlog消息的请求
+ */
 public class DispatchRequest {
+    /**
+     * 消息所属的主题
+     */
     private final String topic;
+    /**
+     * 消息所属的队列ID
+     */
     private final int queueId;
+    /**
+     * 消息在commitlog中的物理偏移量
+     */
     private final long commitLogOffset;
+    /**
+     * 消息大小
+     */
     private int msgSize;
+    /**
+     * 消息标签的hash值
+     */
     private final long tagsCode;
+    /**
+     * 消息保存到store的时间戳
+     */
     private final long storeTimestamp;
+    /**
+     * consumequeue的偏移量
+     */
     private final long consumeQueueOffset;
+    /**
+     * 消息上的key
+     */
     private final String keys;
+    /**
+     * 是否成功标识
+     */
     private final boolean success;
+    /**
+     * 消息的唯一键
+     */
     private final String uniqKey;
-
+    /**
+     * 消息的系统标识，例如是否为事务消息等
+     *
+     * @see org.apache.rocketmq.common.sysflag.MessageSysFlag
+     */
     private final int sysFlag;
+    /**
+     * 预准备的事务偏移量
+     */
     private final long preparedTransactionOffset;
+    /**
+     * 消息的属性信息
+     */
     private final Map<String, String> propertiesMap;
     private byte[] bitMap;
 
@@ -49,18 +92,18 @@ public class DispatchRequest {
     private String offsetId;
 
     public DispatchRequest(
-        final String topic,
-        final int queueId,
-        final long commitLogOffset,
-        final int msgSize,
-        final long tagsCode,
-        final long storeTimestamp,
-        final long consumeQueueOffset,
-        final String keys,
-        final String uniqKey,
-        final int sysFlag,
-        final long preparedTransactionOffset,
-        final Map<String, String> propertiesMap
+            final String topic,
+            final int queueId,
+            final long commitLogOffset,
+            final int msgSize,
+            final long tagsCode,
+            final long storeTimestamp,
+            final long consumeQueueOffset,
+            final String keys,
+            final String uniqKey,
+            final int sysFlag,
+            final long preparedTransactionOffset,
+            final Map<String, String> propertiesMap
     ) {
         this.topic = topic;
         this.queueId = queueId;
@@ -254,6 +297,6 @@ public class DispatchRequest {
                 ", msgBaseOffset=" + msgBaseOffset +
                 ", batchSize=" + batchSize +
                 ", nextReputFromOffset=" + nextReputFromOffset +
-            '}';
+                '}';
     }
 }

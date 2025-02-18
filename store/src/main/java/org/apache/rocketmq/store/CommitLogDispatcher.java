@@ -20,14 +20,22 @@ package org.apache.rocketmq.store;
 import org.rocksdb.RocksDBException;
 
 /**
- * Dispatcher of commit log.
+ * 负责将commitlog中消息的进行分发的类
+ *
+ * <p>主要用途有以下几个：
+ * <ul>
+ *     <li>用于构造：$HOME/store/consumequeue/<topic>/<queueId></li>
+ *     <li>用于构造：$HOME/store/index/</li>
+ *     <li>过滤数据</li>
+ * </ul>
  */
 public interface CommitLogDispatcher {
 
     /**
-     *  Dispatch messages from store to build consume queues, indexes, and filter data
-     * @param request dispatch message request
-     * @throws RocksDBException only in rocksdb mode
+     * 将在存储中的消息分发用于构建consumequeue、index和过滤数据
+     *
+     * @param request 用于分发数据的请求
+     * @throws RocksDBException 仅在{@link StoreType#DEFAULT_ROCKSDB}时才会出现
      */
     void dispatch(final DispatchRequest request) throws RocksDBException;
 }

@@ -55,6 +55,9 @@ public class DefaultHAConnection implements HAConnection {
     private ReadSocketService readSocketService;
     private volatile HAConnectionState currentState = HAConnectionState.TRANSFER;
     private volatile long slaveRequestOffset = -1;
+    /**
+     * 保存了slave最新通知master同步消息的偏移量
+     */
     private volatile long slaveAckOffset = -1;
     private FlowMonitor flowMonitor;
 

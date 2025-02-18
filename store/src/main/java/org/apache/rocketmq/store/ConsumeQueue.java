@@ -68,11 +68,16 @@ public class ConsumeQueue implements ConsumeQueueInterface, FileQueueLifeCycle {
      * ConsumeQueue's store unit. Size: CommitLog Physical Offset(8) + Body Size(4) + Tag HashCode(8) = 20 Bytes
      */
     public static final int CQ_STORE_UNIT_SIZE = 20;
+    /**
+     * 消息的标签哈希值的偏移量从12位开始
+     */
     public static final int MSG_TAG_OFFSET_INDEX = 12;
     private static final Logger LOG_ERROR = LoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
     private final MessageStore messageStore;
-
+    /**
+     * 文件目录为{@link #storePath}/{@link #topic}/{@link #queueId}
+     */
     private final MappedFileQueue mappedFileQueue;
     /**
      * 主题
@@ -85,14 +90,20 @@ public class ConsumeQueue implements ConsumeQueueInterface, FileQueueLifeCycle {
     private final ByteBuffer byteBufferIndex;
 
     /**
-     * 文件的存储路径，默认为{@code ${user.home}/store/consumequeue}
+     * 存储路径，默认为$HOME/store/consumequeue
      */
     private final String storePath;
+    /**
+     * consumequeue 文件大小
+     */
     private final int mappedFileSize;
+    /**
+     * 对应commitlog的最大物理偏移量
+     */
     private long maxPhysicOffset = -1;
 
     /**
-     * Minimum offset of the consume file queue that points to valid commit log record.
+     * 指向有效的commitlog记录的consume queue的最小偏移量
      */
     private volatile long minLogicOffset = 0;
     private ConsumeQueueExt consumeQueueExt = null;
@@ -110,12 +121,14 @@ public class ConsumeQueue implements ConsumeQueueInterface, FileQueueLifeCycle {
         this.topic = topic;
         this.queueId = queueId;
 
+        // 默认存储的路径为$HOME/store/consumequeue/<topic>/<queueId>
         String queueDir = this.storePath
             + File.separator + topic
             + File.separator + queueId;
 
         this.mappedFileQueue = new MappedFileQueue(queueDir, mappedFileSize, null);
 
+        // 预分配20字节
         this.byteBufferIndex = ByteBuffer.allocate(CQ_STORE_UNIT_SIZE);
 
         if (messageStore.getMessageStoreConfig().isEnableConsumeQueueExt()) {

@@ -27,131 +27,135 @@ import org.apache.rocketmq.store.exception.StoreException;
 import org.rocksdb.RocksDBException;
 
 /**
- * 消费队列存储接口
+ * 与%HOME/store/consumequeue的相关操作接口
  */
 public interface ConsumeQueueStoreInterface {
 
     /**
-     * 开启消费队列存储
+     * 开启consumequeue存储
      */
     void start();
 
     /**
-     * 从本地文件加载消费队列内存，文件路径ENV(user.home)/store/consumerqueue
+     * 从$HOME/store/consumequeue下中加载文件
      *
-     * @return true if loaded successfully.
+     * @return {@code true}代表加载成功
      */
     boolean load();
 
     /**
-     * 执行完{@link #load()}后销毁
-     * load after destroy
+     * 加载后摧毁%HOME/store/consumequeue下的文件
      */
     boolean loadAfterDestroy();
 
     /**
-     * 从本地文件恢复消息队列存储
+     * 从$HOME/store/consumequeue下的文件中恢复
      */
     void recover();
 
     /**
-     * 从本地文件并发恢复
+     * 从$HOME/store/consumequeue下的文件中并发恢复
      *
-     * @return true if recovered successfully.
+     * @return {@code true}恢复成功
      */
     boolean recoverConcurrently();
 
     /**
-     * 停止消费存储队列
+     * 停止consumequeue存储
      *
-     * @return true if shutdown successfully.
+     * @return {@code true}停止成功
      */
     boolean shutdown();
 
     /**
-     * 销毁所有的消费存储队列
+     * 摧毁$HOME/store/consumequeue下的所有文件
      */
     void destroy();
 
     /**
-     * 销毁特定的消费存储队列
+     * 摧毁特定的consumequeue
      *
      * @throws RocksDBException only in rocksdb mode
      */
     void destroy(ConsumeQueueInterface consumeQueue) throws RocksDBException;
 
     /**
-     * 将内存中特定的消费队列刷入文件
+     * 将page cache刷新到磁盘文件
      *
-     * @param consumeQueue the consumeQueue will be flushed
-     * @param flushLeastPages  the minimum number of pages to be flushed
-     * @return true if any data has been flushed.
+     * @param consumeQueue 被刷新的consumequeue
+     * @param flushLeastPages  被刷新的page cache的最小数量
+     * @return {@code true}任何数据被刷新
      */
     boolean flush(ConsumeQueueInterface consumeQueue, int flushLeastPages);
 
     /**
-     * 将所有内存中的消费队列刷入文件
+     * 将所有内置的consume queue刷新到磁盘
      *
      * @throws StoreException if there is an error during flush
      */
     void flush() throws StoreException;
 
     /**
-     * 清理以最小提交日志位置结束的过期文件
+     * 从指定commitlog的物理偏移量开始清理consumequeue中的过期数据
      *
-     * @param minCommitLogOffset Minimum commit log offset
+     * <p>这种一般用于commitlog清理了过期的数据，此时也需要将consumequeue中对应的文件清理
+     *
+     * @param minCommitLogOffset 最小的commitlog物理偏移量
      */
     void cleanExpired(long minCommitLogOffset);
 
     /**
-     * 检查本地文件
+     * 检查consumequeue文件
      */
     void checkSelf();
 
     /**
-     * 删除以最小提交日志位置结束的过期文件
+     * 删除截至到最小的commitlog位置的过期文件
      *
-     * @param consumeQueue
-     * @param minCommitLogOffset min commit log position
-     * @return deleted file numbers.
+     * @param consumeQueue 待删除的消费者队列
+     * @param minCommitLogOffset 最小的commitlog偏移量
+     * @return 被删除文件的数量
      */
     int deleteExpiredFile(ConsumeQueueInterface consumeQueue, long minCommitLogOffset);
 
     /**
-     * 指定消费队列的首个文件是否可用
+     * $HOME/store/consumequeue中第一个文件是否可用
      *
      * @param consumeQueue
-     * @return true if it's available
+     * @return {@code true}存在第一个文件
      */
     boolean isFirstFileAvailable(ConsumeQueueInterface consumeQueue);
 
     /**
-     * 指定消费队列的首个文件是否存在
+     * $HOME/store/consumequeue中第一个文件是否存在
      *
      * @param consumeQueue
-     * @return true if it exists
+     * @return {@code true}存在第一个文件
      */
     boolean isFirstFileExist(ConsumeQueueInterface consumeQueue);
 
     /**
-     * 滚动到下一个文件
+     * 滚动到$HOME/store/consuequeue的下一个文件的偏移量
+     *
      *
      * @param consumeQueue
-     * @param offset next beginning offset
-     * @return the beginning offset of the next file
+     * @param offset 下一个开始的偏移量
+     * @return 下一个文件的开始偏移量
      */
     long rollNextFile(ConsumeQueueInterface consumeQueue, final long offset);
 
     /**
      * 截断脏数据
      *
-     * @param offsetToTruncate
+     * @param offsetToTruncate 要截断的偏移量
      * @throws RocksDBException only in rocksdb mode
      */
     void truncateDirty(long offsetToTruncate) throws RocksDBException;
 
     /**
-     * Apply the dispatched request and build the consume queue. This function should be idempotent.
+     * 应用{@link DispatchRequest}并构造消费者队列。
+     *
+     * <p>该方法应该是幂等的。
      *
      * @param consumeQueue consume queue
      * @param request dispatch request
@@ -159,7 +163,9 @@ public interface ConsumeQueueStoreInterface {
     void putMessagePositionInfoWrapper(ConsumeQueueInterface consumeQueue, DispatchRequest request);
 
     /**
-     * Apply the dispatched request. This function should be idempotent.
+     * 应用{@link DispatchRequest}并构造消费者队列
+     *
+     * <p>该方法是幂等的。
      *
      * @param request dispatch request
      * @throws RocksDBException only in rocksdb mode will throw exception
@@ -168,168 +174,166 @@ public interface ConsumeQueueStoreInterface {
 
     /**
      * range query cqUnit(ByteBuffer) in rocksdb
-     * @param topic
-     * @param queueId
-     * @param startIndex
-     * @param num
+     * 从$HOME/store/consumequeue/<topic>/<queueId>下查询，
+     * 从指定索引开始，最大num条的consumequeue unit，最终以
+     * {@link ByteBuffer}列表返回.
+     *
+     * @param topic 主题
+     * @param queueId 队列ID
+     * @param startIndex 开始索引
+     * @param num 消息数量
      * @return the byteBuffer list of the topic-queueId in rocksdb
      * @throws RocksDBException only in rocksdb mode
      */
     List<ByteBuffer> rangeQuery(final String topic, final int queueId, final long startIndex, final int num) throws RocksDBException;
 
     /**
-     * query cqUnit(ByteBuffer) in rocksdb
-     * @param topic
-     * @param queueId
-     * @param startIndex
-     * @return the byteBuffer of the topic-queueId in rocksdb
+     * @param topic 主题
+     * @param queueId 队列ID
+     * @param startIndex 开始索引
+     * @return 返回$HOME/store/consumequeue/<topic>/<queueId>下，从指定索引开始的一条消息，以{@link ByteBuffer}返回
      * @throws RocksDBException only in rocksdb mode
      */
     ByteBuffer get(final String topic, final int queueId, final long startIndex) throws RocksDBException;
 
     /**
-     * get consumeQueue table
-     * @return the consumeQueue table
+     * @return 返回consumequeue表
      */
-    ConcurrentMap<String, ConcurrentMap<Integer, ConsumeQueueInterface>> getConsumeQueueTable();
+    ConcurrentMap<String/* 主题 */, ConcurrentMap<Integer/* 队列ID */, ConsumeQueueInterface/* 代表consumequeue的接口 */>> getConsumeQueueTable();
 
     /**
-     * Assign queue offset.
-     * @param msg message itself
+     * 分配队列偏移量
+     *
+     * @param msg 消息本身
      * @throws RocksDBException only in rocksdb mode
      */
     void assignQueueOffset(MessageExtBrokerInner msg) throws RocksDBException;
 
     /**
-     * Increase queue offset.
-     * @param msg message itself
-     * @param messageNum message number
+     * 增加队列偏移量
+     *
+     * @param msg 消息本身
+     * @param messageNum 消息数量
      */
     void increaseQueueOffset(MessageExtBrokerInner msg, short messageNum);
 
     /**
-     * Increase lmq offset
-     * @param topic Topic/Queue name
-     * @param queueId Queue ID
-     * @param delta amount to increase
+     * 增加lmq队列偏移量
+     *
+     * @param topic 主题
+     * @param queueId 队列ID
+     * @param delta 增加的数量
      */
     void increaseLmqOffset(String topic, int queueId, short delta) throws ConsumeQueueException;
 
     /**
-     * get lmq queue offset
-     * @param topic
-     * @param queueId
-     * @return
+     * @param topic 主题
+     * @param queueId 队列ID
+     * @return 返回lmq队列偏移量
      */
     long getLmqQueueOffset(String topic, int queueId) throws ConsumeQueueException;
 
     /**
-     * recover topicQueue table by minPhyOffset
+     * 根据最小的物理偏移量恢复主题队列表
+     *
      * @param minPhyOffset
      */
     void recoverOffsetTable(long minPhyOffset);
 
     /**
-     * set topicQueue table
+     * 设置主题队列表
+     *
      * @param topicQueueTable
      */
     void setTopicQueueTable(ConcurrentMap<String, Long> topicQueueTable);
 
     /**
-     * remove topic-queueId from topicQueue table
-     * @param topic
-     * @param queueId
+     * 移除指定主题队列表
+     *
+     * @param topic 主题
+     * @param queueId 队列ID
      */
     void removeTopicQueueTable(String topic, Integer queueId);
 
     /**
-     * get topicQueue table
-     * @return the topicQueue table
+     * @return 返回主题队列表，key为主题，value为队列ID
      */
+    // TODO by mawen the returned value should be same as setTopicQueueTable's parameter
     ConcurrentMap getTopicQueueTable();
 
     /**
-     * get the max physical offset in consumeQueue
-     * @param topic
-     * @param queueId
-     * @return
+     * @param topic 主题
+     * @param queueId 队列ID
+     * @return 返回$HOME/store/<topic>/<queueId>下消息的最大物理偏移量
      */
     Long getMaxPhyOffsetInConsumeQueue(String topic, int queueId);
 
     /**
-     * 读取消费队列中指定topic-queueId的最大逻辑偏移量
-     *
-     * @param topic Topic name
-     * @param queueId Queue identifier
-     * @return the max offset in QueueOffsetOperator
+     * @param topic 主题名称
+     * @param queueId 队列ID
+     * @return 返回$HOME/store/<topic>/<queueId>下最大的消息偏移量
      * @throws ConsumeQueueException if there is an error while retrieving max consume queue offset
      */
     Long getMaxOffset(String topic, int queueId) throws ConsumeQueueException;
 
     /**
-     * 读取消费队列中最大逻辑偏移量
-     *
-     * @return the max physic offset in consumeQueue
+     * @return 返回$HOME/store下最大的物理偏移量
      * @throws RocksDBException only in rocksdb mode
      */
     long getMaxPhyOffsetInConsumeQueue() throws RocksDBException;
 
     /**
-     * 读取消费队列中指定topic-queueId的最小逻辑偏移量
-     *
-     * @param topic
-     * @param queueId
-     * @return the min logic offset of specific topic-queueId in consumeQueue
+     * @param topic 主题
+     * @param queueId 队列ID
+     * @return 返回$HOME/store/<topic>/<queueId>下消息的最小偏移量
      * @throws RocksDBException only in rocksdb mode
      */
     long getMinOffsetInQueue(final String topic, final int queueId) throws RocksDBException;
 
     /**
-     * 读取消费队列中指定topic-queueId的最大逻辑偏移量
-     *
-     * @param topic
-     * @param queueId
-     * @return the max logic offset of specific topic-queueId in consumeQueue
+     * @param topic 主题
+     * @param queueId 队列ID
+     * @return 返回$HOME/store/<topic>/<queueId>下消息的最大偏移量
      * @throws RocksDBException only in rocksdb mode
      */
     long getMaxOffsetInQueue(final String topic, final int queueId) throws RocksDBException;
 
     /**
-     * Get the message whose timestamp is the smallest, greater than or equal to the given time and when there are more
-     * than one message satisfy the condition, decide which one to return based on boundaryType.
-     * @param timestamp    timestamp
-     * @param boundaryType Lower or Upper
-     * @return the offset(index)
+     * 返回$HOME/store/<topic>/<queueId>下，<=timestamp或>=timestamp的逻辑偏移量
+     *
+     * @param timestamp    时间戳
+     * @param boundaryType <= 或 >=
+     * @return consumequeue 逻辑偏移量
      * @throws RocksDBException only in rocksdb mode
      */
     long getOffsetInQueueByTime(String topic, int queueId, long timestamp, BoundaryType boundaryType) throws RocksDBException;
 
     /**
-     * find or create the consumeQueue
-     * @param topic
-     * @param queueId
+     * 如果存在，直接返回consumequeue，反之则创建再返回
+     *
+     * @param topic 主题
+     * @param queueId 队列ID
      * @return the consumeQueue
      */
     ConsumeQueueInterface findOrCreateConsumeQueue(String topic, int queueId);
 
     /**
-     * find the consumeQueueMap of topic
-     * @param topic
+     * 根据主题查询consumequeue映射
+     *
+     * @param topic 主题
      * @return the consumeQueueMap of topic
      */
-    ConcurrentMap<Integer, ConsumeQueueInterface> findConsumeQueueMap(String topic);
+    ConcurrentMap<Integer/* queueId */, ConsumeQueueInterface/* 代表了$HOME/store/consumequeue/<topic>/<queueId>/文件 */> findConsumeQueueMap(String topic);
 
     /**
-     * 读取内存中所有消费队列大小的综合
-     *
-     * @return the total size of all consumeQueue
+     * get the total size of all consumeQueue
+     * @return 返回所有的$HOME/store/consumequeue的总大小
      */
     long getTotalSize();
 
     /**
-     * Get store time from commitlog by cqUnit
      * @param cqUnit
-     * @return
+     * @return 根据{@link CqUnit}从commitlog中查询消息的存储时间
      */
     long getStoreTime(CqUnit cqUnit);
 }

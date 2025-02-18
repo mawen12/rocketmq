@@ -132,12 +132,12 @@ public class DefaultMessageStore implements MessageStore {
     private final MessageStoreConfig messageStoreConfig;
 
     /**
-     * 提交日志，存储消息的实际对象
+     * 负责%HOME/store/commitlog相关操作
      */
     protected final CommitLog commitLog;
 
     /**
-     * 消费队列存储接口
+     * 负责%HOME/store/consumequeue的相关操作
      */
     protected final ConsumeQueueStoreInterface consumeQueueStore;
 
@@ -2228,11 +2228,16 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     * 用于根据commitlog消息构建consumequeue的分发器
+     */
     class CommitLogDispatcherBuildConsumeQueue implements CommitLogDispatcher {
 
         @Override
         public void dispatch(DispatchRequest request) throws RocksDBException {
+            // 从请求中获取事务类型
             final int tranType = MessageSysFlag.getTransactionValue(request.getSysFlag());
+            // 仅处理非事务类型和已提交事务的类型
             switch (tranType) {
                 case MessageSysFlag.TRANSACTION_NOT_TYPE:
                 case MessageSysFlag.TRANSACTION_COMMIT_TYPE:

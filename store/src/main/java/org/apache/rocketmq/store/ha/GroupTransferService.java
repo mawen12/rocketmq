@@ -33,7 +33,9 @@ import org.apache.rocketmq.store.ha.autoswitch.AutoSwitchHAConnection;
 import org.apache.rocketmq.store.ha.autoswitch.AutoSwitchHAService;
 
 /**
- * 分组传输服务，传输对象为{@link org.apache.rocketmq.store.CommitLog.GroupCommitRequest}。
+ * 分组传输服务，该服务负责传输{@link org.apache.rocketmq.store.CommitLog.GroupCommitRequest}
+ *
+ * @see org.apache.rocketmq.store.CommitLog.GroupCommitRequest
  */
 public class GroupTransferService extends ServiceThread {
 

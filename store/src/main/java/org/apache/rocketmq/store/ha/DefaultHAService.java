@@ -44,18 +44,27 @@ public class DefaultHAService implements HAService {
 
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * 连接总数
+     */
     protected final AtomicInteger connectionCount = new AtomicInteger(0);
 
     /**
-     * 代表所有
+     * 维护了该master下slave连接列表
      */
     protected final List<HAConnection> connectionList = new LinkedList<>();
 
     protected AcceptSocketService acceptSocketService;
 
+    /**
+     * 默认的消息存储
+     */
     protected DefaultMessageStore defaultMessageStore;
 
     protected WaitNotifyObject waitNotifyObject = new WaitNotifyObject();
+    /**
+     * master发布到slave的最新偏移量
+     */
     protected AtomicLong push2SlaveMaxOffset = new AtomicLong(0);
 
     protected GroupTransferService groupTransferService;
@@ -98,13 +107,16 @@ public class DefaultHAService implements HAService {
         this.groupTransferService.putRequest(request);
     }
 
+    /**
+     * Slave检测机制为：当前已建立的连接，且master上与slave上的偏移量差值小于256m
+     *
+     * @param masterPutWhere
+     * @return
+     */
     @Override
     public boolean isSlaveOK(final long masterPutWhere) {
         boolean result = this.connectionCount.get() > 0;
-        result =
-            result
-                && masterPutWhere - this.push2SlaveMaxOffset.get() < this.defaultMessageStore
-                .getMessageStoreConfig().getHaMaxGapNotInSync();
+        result = result && masterPutWhere - this.push2SlaveMaxOffset.get() < this.defaultMessageStore.getMessageStoreConfig().getHaMaxGapNotInSync();
         return result;
     }
 
@@ -184,6 +196,13 @@ public class DefaultHAService implements HAService {
         return push2SlaveMaxOffset;
     }
 
+    /**
+     * 使用master当前最新消息的偏移量与各个slave上最新消息的偏移量比较，
+     * 返回仍处于同步状态的slave数量。
+     *
+     * @param masterPutWhere
+     * @return
+     */
     @Override
     public int inSyncReplicasNums(final long masterPutWhere) {
         int inSyncNums = 1;
@@ -195,9 +214,17 @@ public class DefaultHAService implements HAService {
         return inSyncNums;
     }
 
+    /**
+     * 检查master中最新消息的偏移量-slave中最新消息的偏移量，是否超够了配置的值，配置默认为256M。
+     * 即，如果slave有256M的消息未从master同步，就代表此时master与该slave未处于同步状态。
+     *
+     * @param masterPutWhere
+     * @param conn
+     * @return
+     */
     protected boolean isInSyncSlave(final long masterPutWhere, HAConnection conn) {
-        if (masterPutWhere - conn.getSlaveAckOffset() < this.defaultMessageStore.getMessageStoreConfig()
-            .getHaMaxGapNotInSync()) {
+        // TODO by mawen simply by just return
+        if (masterPutWhere - conn.getSlaveAckOffset() < this.defaultMessageStore.getMessageStoreConfig().getHaMaxGapNotInSync()) {
             return true;
         }
         return false;

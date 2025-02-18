@@ -16,17 +16,21 @@
  */
 package org.apache.rocketmq.common;
 
+/**
+ * 边界类型
+ */
 public enum BoundaryType {
     /**
-     * Indicate that lower boundary is expected.
+     * 代表lower，表示小于
      */
     LOWER("lower"),
 
     /**
-     * Indicate that upper boundary is expected.
+     * 代表upper，代表大于
      */
     UPPER("upper");
 
+    // TODO by mawen 枚举的值是不可变的，因此建议设置为final
     private String name;
 
     BoundaryType(String name) {

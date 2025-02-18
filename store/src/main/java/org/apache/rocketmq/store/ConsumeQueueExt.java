@@ -26,32 +26,55 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.logfile.MappedFile;
 
 /**
- * Extend of consume queue, to store something not important,
- * such as message store time, filter bit map and etc.
- * <p/>
- * <li>1. This class is used only by {@link ConsumeQueue}</li>
- * <li>2. And is week reliable.</li>
- * <li>3. Be careful, address returned is always less than 0.</li>
- * <li>4. Pls keep this file small.</li>
+ * consume queue的扩展，用来存储一些不重要的信息。
+ * 例如消息存储时间、过滤器bit map等等。
+ *
+ * <p>该类的特征
+ * <ul>
+ *     <li>该类仅被{@link ConsumeQueue}使用</li>
+ *     <li>且每周都可靠</li>
+ *     <li>需要注意，返回的地址总是小于0</li>
+ *     <li>要确保文件尽可能小</li>
+ * </ul>
+ *
+ * <p>配置相关
+ * <ul>
+ *     <li>开启条件：{@link MessageStoreConfig#enableConsumeQueueExt}</li>
+ *     <li>文件大小：{@link MessageStoreConfig#mappedFileSizeConsumeQueueExt}</li>
+ * </ul>
  */
 public class ConsumeQueueExt {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
-    private final MappedFileQueue mappedFileQueue;
-    private final String topic;
-    private final int queueId;
 
+    private final MappedFileQueue mappedFileQueue;
+    /**
+     * 主题
+     */
+    private final String topic;
+    /**
+     * 队列ID
+     */
+    private final int queueId;
+    /**
+     * 存储路径，默认为$HOME/store
+     */
     private final String storePath;
+    /**
+     * 映射文件大小
+     */
     private final int mappedFileSize;
     private ByteBuffer tempContainer;
 
     public static final int END_BLANK_DATA_LENGTH = 4;
 
     /**
-     * Addr can not exceed this value.For compatible.
+     * addr不能超过该值，为了兼容
      */
     public static final long MAX_ADDR = Integer.MIN_VALUE - 1L;
     public static final long MAX_REAL_OFFSET = MAX_ADDR - Long.MIN_VALUE;
@@ -65,11 +88,7 @@ public class ConsumeQueueExt {
      * @param mappedFileSize file size
      * @param bitMapLength bit map length.
      */
-    public ConsumeQueueExt(final String topic,
-        final int queueId,
-        final String storePath,
-        final int mappedFileSize,
-        final int bitMapLength) {
+    public ConsumeQueueExt(final String topic, final int queueId, final String storePath, final int mappedFileSize, final int bitMapLength) {
 
         this.storePath = storePath;
         this.mappedFileSize = mappedFileSize;
@@ -77,16 +96,16 @@ public class ConsumeQueueExt {
         this.topic = topic;
         this.queueId = queueId;
 
+        // 队列路径：$HOME/store/<topic>/<queueId>
         String queueDir = this.storePath
-            + File.separator + topic
-            + File.separator + queueId;
+                + File.separator + topic
+                + File.separator + queueId;
 
+        // 文件consume queue的路径
         this.mappedFileQueue = new MappedFileQueue(queueDir, mappedFileSize, null);
 
         if (bitMapLength > 0) {
-            this.tempContainer = ByteBuffer.allocate(
-                bitMapLength / Byte.SIZE
-            );
+            this.tempContainer = ByteBuffer.allocate(bitMapLength / Byte.SIZE);
         }
     }
 
@@ -226,7 +245,7 @@ public class ConsumeQueueExt {
                 if (size > blankSize) {
                     fullFillToEnd(mappedFile, wrotePosition);
                     log.info("No enough space(need:{}, has:{}) of file {}, so fill to end",
-                        size, blankSize, mappedFile.getFileName());
+                            size, blankSize, mappedFile.getFileName());
                     continue;
                 }
 
@@ -304,7 +323,7 @@ public class ConsumeQueueExt {
             }
 
             log.info("All files of consume queue extend has been recovered over, last mapped file "
-                + mappedFile.getFileName());
+                    + mappedFile.getFileName());
             break;
         }
 
@@ -336,7 +355,7 @@ public class ConsumeQueueExt {
 
             if (fileTailOffset < realOffset) {
                 log.info("Destroy consume queue ext by min: file={}, fileTailOffset={}, minOffset={}", file.getFileName(),
-                    fileTailOffset, realOffset);
+                        fileTailOffset, realOffset);
                 if (file.destroy(1000)) {
                     willRemoveFiles.add(file);
                 }
@@ -414,9 +433,9 @@ public class ConsumeQueueExt {
      */
     public static class CqExtUnit {
         public static final short MIN_EXT_UNIT_SIZE
-            = 2 * 1 // size, 32k max
-            + 8 * 2 // msg time + tagCode
-            + 2; // bitMapSize
+                = 2 * 1 // size, 32k max
+                + 8 * 2 // msg time + tagCode
+                + 2; // bitMapSize
 
         public static final int MAX_EXT_UNIT_SIZE = Short.MAX_VALUE;
 
@@ -610,12 +629,12 @@ public class ConsumeQueueExt {
         @Override
         public String toString() {
             return "CqExtUnit{" +
-                "size=" + size +
-                ", tagsCode=" + tagsCode +
-                ", msgStoreTime=" + msgStoreTime +
-                ", bitMapSize=" + bitMapSize +
-                ", filterBitMap=" + Arrays.toString(filterBitMap) +
-                '}';
+                    "size=" + size +
+                    ", tagsCode=" + tagsCode +
+                    ", msgStoreTime=" + msgStoreTime +
+                    ", bitMapSize=" + bitMapSize +
+                    ", filterBitMap=" + Arrays.toString(filterBitMap) +
+                    '}';
         }
     }
 }

@@ -42,7 +42,9 @@ public class Message implements Serializable {
      */
     private String topic;
     /**
-     * 完全由应用来设置，RocketMQ不做干预，选填
+     * 消息的系统标识
+     *
+     * @see org.apache.rocketmq.common.sysflag.MessageSysFlag
      */
     private int flag;
     /**
@@ -70,7 +72,7 @@ public class Message implements Serializable {
      */
     private Map<String, String> properties;
     /**
-     * 消息体，必填
+     * 消息体，必填，最大4M
      */
     private byte[] body;
     /**

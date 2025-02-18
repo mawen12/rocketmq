@@ -120,15 +120,23 @@ public class MessageStoreConfig {
     private int timerMetricSmallThreshold = 1000000;
     private int timerProgressLogIntervalMs = 10 * 1000;
 
-    // default, defaultRocksDB
+    /**
+     * commitlog的存储类型，默认为本地文件
+     */
     @ImportantField
     private String storeType = StoreType.DEFAULT.getStoreType();
 
-    // ConsumeQueue file size,default is 30W
+    /**
+     * consumequeue 文件大小，默认为5.7M，记录数有30w
+     */
     private int mappedFileSizeConsumeQueue = 300000 * ConsumeQueue.CQ_STORE_UNIT_SIZE;
-    // enable consume queue ext
+    /**
+     * 是否开启consume queue ext，默认不开启
+     */
     private boolean enableConsumeQueueExt = false;
-    // ConsumeQueue extend file size, 48M
+    /**
+     * consume queue extend 文件大小，默认为48M
+     */
     private int mappedFileSizeConsumeQueueExt = 48 * 1024 * 1024;
     private int mapperFileSizeBatchConsumeQueue = 300000 * BatchConsumeQueue.CQ_STORE_UNIT_SIZE;
     // Bit count of filter bit map.
@@ -232,6 +240,9 @@ public class MessageStoreConfig {
     private int haTransferBatchSize = 1024 * 32;
     @ImportantField
     private String haMasterAddress = null;
+    /**
+     * master与slave之间，最大不同步的间隙，默认为256M
+     */
     private int haMaxGapNotInSync = 1024 * 1024 * 256;
     @ImportantField
     private volatile BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
@@ -588,6 +599,9 @@ public class MessageStoreConfig {
         return compactionCqMappedFileSize;
     }
 
+    /**
+     * @return 存储类型是否为rocksdb
+     */
     public void setCompactionMappedFileSize(int compactionMappedFileSize) {
         this.compactionMappedFileSize = compactionMappedFileSize;
     }
@@ -648,8 +662,13 @@ public class MessageStoreConfig {
         this.storeType = storeType;
     }
 
+    /**
+     * @return consume queue的文件大小
+     */
     public int getMappedFileSizeConsumeQueue() {
+        // 计算结果默认值为30w
         int factor = (int) Math.ceil(this.mappedFileSizeConsumeQueue / (ConsumeQueue.CQ_STORE_UNIT_SIZE * 1.0));
+        // 最终结果为6000w
         return (int) (factor * ConsumeQueue.CQ_STORE_UNIT_SIZE);
     }
 

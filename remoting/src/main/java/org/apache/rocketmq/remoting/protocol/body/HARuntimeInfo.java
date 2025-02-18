@@ -21,12 +21,36 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+/**
+ * high available 运行时信息
+ *
+ * <p>master和slave之间的运行时信息
+ */
 public class HARuntimeInfo extends RemotingSerializable {
 
+    /**
+     * 是否为master节点
+     */
     private boolean master;
+
+    /**
+     * master节点上commitlog的最大物理偏移量
+     */
     private long masterCommitLogMaxOffset;
+
+    /**
+     * 处于同步中的slave数量
+     */
     private int inSyncSlaveNums;
+
+    /**
+     * master的连接运行时信息列表
+     */
     private List<HAConnectionRuntimeInfo> haConnectionInfo = new ArrayList<>();
+
+    /**
+     * high available 客户端运行时信息
+     */
     private HAClientRuntimeInfo haClientRuntimeInfo = new HAClientRuntimeInfo();
 
     public boolean isMaster() {
@@ -69,12 +93,33 @@ public class HARuntimeInfo extends RemotingSerializable {
         this.haClientRuntimeInfo = haClientRuntimeInfo;
     }
 
+    /**
+     * high available 连接运行时信息
+     */
     public static class HAConnectionRuntimeInfo extends RemotingSerializable {
+        /**
+         * 目标连接地址
+         */
         private String addr;
+        /**
+         * slave确认的偏移量
+         */
         private long slaveAckOffset;
+        /**
+         * master与slave的偏移量差值
+         */
         private long diff;
+        /**
+         * 是否处于正在同步状态
+         */
         private boolean inSync;
+        /**
+         * 每秒已传输的字节数
+         */
         private long transferredByteInSecond;
+        /**
+         * 从哪里传输的
+         */
         private long transferFromWhere;
 
         public String getAddr() {
@@ -127,12 +172,33 @@ public class HARuntimeInfo extends RemotingSerializable {
     }
 
     public static class HAClientRuntimeInfo extends RemotingSerializable {
+        /**
+         * master节点地址
+         */
         private String masterAddr;
+        /**
+         * 每秒已传输的字节数
+         */
         private long transferredByteInSecond;
+        /**
+         * 最大物理偏移量
+         */
         private long maxOffset;
+        /**
+         * 最后读取的时间戳
+         */
         private long lastReadTimestamp;
+        /**
+         * 最后写入的时间戳
+         */
         private long lastWriteTimestamp;
+        /**
+         * master节点刷新的偏移量
+         */
         private long masterFlushOffset;
+        /**
+         * 是否已经激活
+         */
         private boolean isActivated = false;
 
         public String getMasterAddr() {

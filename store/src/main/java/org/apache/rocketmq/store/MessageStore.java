@@ -49,536 +49,555 @@ import io.opentelemetry.sdk.metrics.InstrumentSelector;
 import io.opentelemetry.sdk.metrics.ViewBuilder;
 
 /**
- * This class defines contracting interfaces to implement, allowing third-party vendor to use customized message store.
+ * 消息存储的接口定义，其提供了消息存储相关的核心逻辑，其允许第三方供应商提供自定义的消息存储。
  */
 public interface MessageStore {
 
     /**
-     * Load previously stored messages.
+     * 将之前存储的消息加载到内存中
      *
-     * @return true if success; false otherwise.
+     * @return 加载成功返回true，否则返回false
      */
     boolean load();
 
     /**
-     * Launch this message store.
+     * 启动当前消息存储
      *
      * @throws Exception if there is any error.
      */
     void start() throws Exception;
 
     /**
-     * Shutdown this message store.
+     * 停止消息存储
      */
     void shutdown();
 
     /**
-     * Destroy this message store. Generally, all persistent files should be removed after invocation.
+     * 销毁消息存储，通常在调用该方法后，所有持久化的文件都需要被移除（或删除）
      */
     void destroy();
 
     /**
-     * Store a message into store in async manner, the processor can process the next request rather than wait for
-     * result when result is completed, notify the client in async manner
+     * 以异步方式将消息保存到存储中。处理器可以继续处理下一个请求而不是等待结果，
+     * 当消息保存成功后，会以异步的方式通知客户端
      *
-     * @param msg MessageInstance to store
-     * @return a CompletableFuture for the result of store operation
+     * @param msg 要存储的消息实例
+     * @return 代表存储操作结果的CompletableFuture对象
      */
     default CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
         return CompletableFuture.completedFuture(putMessage(msg));
     }
 
     /**
-     * Store a batch of messages in async manner
+     * 以异步的方式将一批消息保存到存储中。处理器可以处理下一个请求而不是等待结果。
+     * 当消息保存成功后，会以异步的方式通知客户端
      *
-     * @param messageExtBatch the message batch
-     * @return a CompletableFuture for the result of store operation
+     * @param messageExtBatch 要存储的消息批次实例
+     * @return 代表存储操作结果的CompletableFuture对象
      */
     default CompletableFuture<PutMessageResult> asyncPutMessages(final MessageExtBatch messageExtBatch) {
         return CompletableFuture.completedFuture(putMessages(messageExtBatch));
     }
 
     /**
-     * 将一条消息存储起来
+     * 以同步的方式将消息保存到存储中。
      *
-     * @param msg Message instance to store
-     * @return result of store operation.
+     * @param msg 要存储的消息实例
+     * @return 存储操作结果
      */
     PutMessageResult putMessage(final MessageExtBrokerInner msg);
 
     /**
-     * Store a batch of messages.
+     * 以同步的方式将一批消息保存到存储中
      *
-     * @param messageExtBatch Message batch.
-     * @return result of storing batch messages.
+     * @param messageExtBatch 要存储的消息批次实例
+     * @return 存储批次消息的结果
      */
     PutMessageResult putMessages(final MessageExtBatch messageExtBatch);
 
     /**
-     * Query at most <code>maxMsgNums</code> messages belonging to <code>topic</code> at <code>queueId</code> starting
-     * from given <code>offset</code>. Resulting messages will further be screened using provided message filter.
+     * 查询指定主题下的指定队列ID中从给定offset开始，最多{@code maxMsgNums}条消息。
+     * 对于从底层查询出来的结果，将使用{@code messageFilter}对消息进一步过滤。
      *
-     * @param group         Consumer group that launches this query.
-     * @param topic         Topic to query.
-     * @param queueId       Queue ID to query.
-     * @param offset        Logical offset to start from.
-     * @param maxMsgNums    Maximum count of messages to query.
-     * @param messageFilter Message filter used to screen desired messages.
-     * @return Matched messages.
+     * <p>执行逻辑为先获取指定数量的消息，再对消息进行过滤
+     *
+     * <p>对于该方法需要注意，返回的结果数量最大为{@code maxMsgNums}，因为提供的消息过滤器可能会过滤掉消息
+     *
+     * @param group         加载该查询的消费者分组
+     * @param topic         要查询的主题
+     * @param queueId       要查询的队列ID
+     * @param offset        开始查询的逻辑偏移量位置
+     * @param maxMsgNums    要查询的消息最大数量
+     * @param messageFilter 用于展示所需消息的过滤器
+     * @return 匹配的消息
+     */
+    GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset, final int maxMsgNums, final MessageFilter messageFilter);
+
+    /**
+     * {@link #getMessage(String, String, int, long, int, MessageFilter)}的异步版本
+     *
+     * @param group         加载该查询的消费者分组
+     * @param topic         要查询的主题
+     * @param queueId       要查询的队列ID
+     * @param offset        开始查询的逻辑偏移量位置
+     * @param maxMsgNums    要查询的消息最大数量
+     * @param messageFilter 用于展示所需消息的过滤器
+     * @return 匹配的消息
+     */
+    CompletableFuture<GetMessageResult> getMessageAsync(final String group, final String topic, final int queueId, final long offset, final int maxMsgNums, final MessageFilter messageFilter);
+
+    /**
+     * 查询指定主题下的指定队列ID中从给定offset开始，最多{@code maxMsgNums}条消息且最大{@code maxTotalMsgSize}。
+     * 对于从底层查询出来的结果，将使用{@code messageFilter}对消息进一步过滤。
+     *
+     * <p>执行逻辑为先获取指定数量且指定大小的消息，再对消息进行过滤。
+     *
+     * <p>对于该方法需要注意，返回的结果数量最大为{@code maxMsgNums}，因为提供的消息过滤器可能会过滤掉消息
+     *
+     * <p>该方法是{@link #getMessage(String, String, int, long, int, int, MessageFilter)}的增强版，
+     * 可以进一步准确限制返回消息的大小
+     *
+     * @param group           加载该查询的消费者分组
+     * @param topic           要查询的主题
+     * @param queueId         要查询的队列ID
+     * @param offset          开始查询的逻辑偏移量位置
+     * @param maxMsgNums      要查询的消息最大数量
+     * @param maxTotalMsgSize 要查询的消息最大字节
+     * @param messageFilter   用于展示所需消息的过滤器
+     * @return 匹配的消息
      */
     GetMessageResult getMessage(final String group, final String topic, final int queueId,
-        final long offset, final int maxMsgNums, final MessageFilter messageFilter);
+                                final long offset, final int maxMsgNums, final int maxTotalMsgSize, final MessageFilter messageFilter);
 
     /**
-     * Asynchronous get message
-     * @see #getMessage(String, String, int, long, int, MessageFilter) getMessage
+     * {@link #getMessage(String, String, int, long, int, int, MessageFilter)}的异步版本
      *
-     * @param group         Consumer group that launches this query.
-     * @param topic         Topic to query.
-     * @param queueId       Queue ID to query.
-     * @param offset        Logical offset to start from.
-     * @param maxMsgNums    Maximum count of messages to query.
-     * @param messageFilter Message filter used to screen desired messages.
-     * @return Matched messages.
+     * @param group           加载该查询的消费者分组
+     * @param topic           要查询的主题
+     * @param queueId         要查询的队列ID
+     * @param offset          开始查询的逻辑偏移量位置
+     * @param maxMsgNums      要查询的消息最大数量
+     * @param maxTotalMsgSize 要查询的消息最大字节
+     * @param messageFilter   用于展示所需消息的过滤器
+     * @return 匹配的消息
      */
     CompletableFuture<GetMessageResult> getMessageAsync(final String group, final String topic, final int queueId,
-        final long offset, final int maxMsgNums, final MessageFilter messageFilter);
+                                                        final long offset, final int maxMsgNums, final int maxTotalMsgSize, final MessageFilter messageFilter);
 
     /**
-     * Query at most <code>maxMsgNums</code> messages belonging to <code>topic</code> at <code>queueId</code> starting
-     * from given <code>offset</code>. Resulting messages will further be screened using provided message filter.
+     * 获取指定主题下指定队列ID下，最大的消息偏移量
      *
-     * @param group           Consumer group that launches this query.
-     * @param topic           Topic to query.
-     * @param queueId         Queue ID to query.
-     * @param offset          Logical offset to start from.
-     * @param maxMsgNums      Maximum count of messages to query.
-     * @param maxTotalMsgSize Maximum total msg size of the messages
-     * @param messageFilter   Message filter used to screen desired messages.
-     * @return Matched messages.
-     */
-    GetMessageResult getMessage(final String group, final String topic, final int queueId,
-        final long offset, final int maxMsgNums, final int maxTotalMsgSize, final MessageFilter messageFilter);
-
-    /**
-     * Asynchronous get message
-     * @see #getMessage(String, String, int, long, int, int, MessageFilter) getMessage
-     *
-     * @param group           Consumer group that launches this query.
-     * @param topic           Topic to query.
-     * @param queueId         Queue ID to query.
-     * @param offset          Logical offset to start from.
-     * @param maxMsgNums      Maximum count of messages to query.
-     * @param maxTotalMsgSize Maximum total msg size of the messages
-     * @param messageFilter   Message filter used to screen desired messages.
-     * @return Matched messages.
-     */
-    CompletableFuture<GetMessageResult> getMessageAsync(final String group, final String topic, final int queueId,
-        final long offset, final int maxMsgNums, final int maxTotalMsgSize, final MessageFilter messageFilter);
-
-    /**
-     * Get maximum offset of the topic queue.
-     *
-     * @param topic   Topic name.
-     * @param queueId Queue ID.
-     * @return Maximum offset at present.
+     * @param topic   主题名称
+     * @param queueId 队列ID
+     * @return 目前最大的偏移量
      */
     long getMaxOffsetInQueue(final String topic, final int queueId) throws ConsumeQueueException;
 
     /**
-     * Get maximum offset of the topic queue.
+     * 获取指定主题下指定队列ID下，已提交或未提交的最大的消息偏移量
      *
-     * @param topic     Topic name.
-     * @param queueId   Queue ID.
-     * @param committed return the max offset in ConsumeQueue if true, or the max offset in CommitLog if false
-     * @return Maximum offset at present.
+     * <p>{@code committed}用于控制读取的内容来源是consumequeue还是commitlog
+     * <ul>
+     *     <li>{@code true}，代表获取以消费的最大的消息偏移量，该数据是存储在$HOME/store/consumequeue/<topic>/<queueId>/下的</li>
+     *     <li>{@code false}，代表获取未消费的最大的消息偏移量，该数据是存储在$HOME/store/commitlog下的</li>
+     * </ul>
+     *
+     * @param topic     主题名称
+     * @param queueId   队列ID
+     * @param committed {@code true}代表读取consumequeue，{@code false}代表读取commitlog
+     * @return 目前最大的偏移量
      */
     long getMaxOffsetInQueue(final String topic, final int queueId, final boolean committed) throws ConsumeQueueException;
 
     /**
-     * Get the minimum offset of the topic queue.
+     * 获取指定主题下指定队列ID下最小的消息偏移量
      *
-     * @param topic   Topic name.
-     * @param queueId Queue ID.
-     * @return Minimum offset at present.
+     * @param topic   主题名称
+     * @param queueId 队列ID
+     * @return 目前最小的偏移量
      */
     long getMinOffsetInQueue(final String topic, final int queueId);
 
+    /**
+     * @return 返回定时器消息存储
+     */
     TimerMessageStore getTimerMessageStore();
 
+    /**
+     * 设置定时器消息存储
+     *
+     * @param timerMessageStore 定时器消息存储
+     */
     void setTimerMessageStore(TimerMessageStore timerMessageStore);
 
     /**
-     * Get the offset of the message in the commit log, which is also known as physical offset.
+     * 获取在commitlog中指定主题下指定队列ID，指定消费队列偏移量的物理消息偏移量.
      *
-     * @param topic              Topic of the message to lookup.
-     * @param queueId            Queue ID.
-     * @param consumeQueueOffset offset of consume queue.
-     * @return physical offset.
+     * @param topic              消息所属的主题
+     * @param queueId            队列ID
+     * @param consumeQueueOffset 消费队列的偏移量
+     * @return 物理偏移量
      */
     long getCommitLogOffsetInQueue(final String topic, final int queueId, final long consumeQueueOffset);
 
     /**
-     * Look up the physical offset of the message whose store timestamp is as specified.
+     * 获取指定主题下指定队列ID，指定时间戳的消息的物理偏移量
      *
-     * @param topic     Topic of the message.
-     * @param queueId   Queue ID.
-     * @param timestamp Timestamp to look up.
-     * @return physical offset which matches.
+     * @param topic     消息所属的主题
+     * @param queueId   队列ID
+     * @param timestamp 时间戳
+     * @return 物理偏移量
      */
     long getOffsetInQueueByTime(final String topic, final int queueId, final long timestamp);
 
     /**
-     * Look up the physical offset of the message whose store timestamp is as specified with specific boundaryType.
+     * 获取指定主题下指定队列ID，指定边界的时间戳的物理偏移量
      *
-     * @param topic        Topic of the message.
-     * @param queueId      Queue ID.
-     * @param timestamp    Timestamp to look up.
-     * @param boundaryType Lower or Upper
-     * @return physical offset which matches.
+     * @param topic        消息的主题
+     * @param queueId      队列ID
+     * @param timestamp    时间戳
+     * @param boundaryType 时间戳的边界
+     * @return 物理偏移量
      */
     long getOffsetInQueueByTime(final String topic, final int queueId, final long timestamp, final BoundaryType boundaryType);
 
     /**
-     * Look up the message by given commit log offset.
+     * 根据给定commitlog的偏移量查询一条消息
      *
-     * @param commitLogOffset physical offset.
-     * @return Message whose physical offset is as specified.
+     * @param commitLogOffset 物理偏移量
+     * @return 匹配偏移量的消息
      */
     MessageExt lookMessageByOffset(final long commitLogOffset);
 
     /**
-     * Look up the message by given commit log offset and size.
+     * 根据给定commitlog的偏移量和消息大小查询一条消息
      *
-     * @param commitLogOffset physical offset.
-     * @param size            message size
-     * @return Message whose physical offset is as specified.
+     * @param commitLogOffset 物理偏移量
+     * @param size            消息大小
+     * @return 匹配偏移量和大小的消息
      */
     MessageExt lookMessageByOffset(long commitLogOffset, int size);
 
     /**
-     * Get one message from the specified commit log offset.
+     * 根据给定commitlog的偏移量查询一条消息
      *
-     * @param commitLogOffset commit log offset.
-     * @return wrapped result of the message.
+     * @param commitLogOffset 物理偏移量
+     * @return 消息结果的包装
      */
     SelectMappedBufferResult selectOneMessageByOffset(final long commitLogOffset);
 
     /**
-     * Get one message from the specified commit log offset.
+     * 根据给定commitlog的偏移量查询一条消息
      *
-     * @param commitLogOffset commit log offset.
-     * @param msgSize         message size.
-     * @return wrapped result of the message.
+     * @param commitLogOffset 物理偏移量
+     * @param msgSize         消息大小
+     * @return 消息结果的包装
      */
     SelectMappedBufferResult selectOneMessageByOffset(final long commitLogOffset, final int msgSize);
 
     /**
-     * Get the running information of this store.
+     * 获取存储的运行时信息
      *
-     * @return message store running info.
+     * @return 消息存储的运行信息
      */
     String getRunningDataInfo();
 
     long getTimingMessageCount(String topic);
 
     /**
-     * Message store runtime information, which should generally contains various statistical information.
+     * 消息存储的运行信息，通常包含多个统计信息
      *
-     * @return runtime information of the message store in format of key-value pairs.
+     * @return 以key-value键值对保存的消息存储的运行时信息
      */
     HashMap<String, String> getRuntimeInfo();
 
     /**
-     * HA runtime information
-     * @return runtime information of ha
+     * @return high available 运行时信息
      */
     HARuntimeInfo getHARuntimeInfo();
 
     /**
-     * Get the maximum commit log offset.
-     *
-     * @return maximum commit log offset.
+     * @return 返回commitlog中最新消息的偏移量
      */
     long getMaxPhyOffset();
 
     /**
-     * Get the minimum commit log offset.
+     * 由于rocketmq存在过期文件删除的机制，默认为48小时有效期，
+     * 因此最早的消息一般为48小时之前的消息，而非实际场景中最早
+     * 生产的消息。
      *
-     * @return minimum commit log offset.
+     * @return 返回commitlog中最早消息的偏移量
      */
     long getMinPhyOffset();
 
     /**
-     * Get the store time of the earliest message in the given queue.
+     * 由于rocketmq存在过期文件删除的机制，默认为48小时有效期，
+     * 因此最早的消息一般为48小时之前的消息，而非实际场景中最早
+     * 生产的消息。
      *
-     * @param topic   Topic of the messages to query.
-     * @param queueId Queue ID to find.
-     * @return store time of the earliest message.
+     * @param topic   主题
+     * @param queueId 队列ID
+     * @return consumequeue最早消息的存储时间
      */
     long getEarliestMessageTime(final String topic, final int queueId);
 
     /**
-     * Get the store time of the earliest message in this store.
+     * 由于rocketmq存在过期文件删除的机制，默认为48小时有效期，
+     * 因此最早的消息一般为48小时之前的消息，而非实际场景中最早
+     * 生产的消息。
      *
-     * @return timestamp of the earliest message in this store.
+     * @return 当前存储中最早的消息的存储时间
      */
     long getEarliestMessageTime();
 
     /**
-     * Asynchronous get the store time of the earliest message in this store.
-     * @see #getEarliestMessageTime() getEarliestMessageTime
+     * {@link #getEarliestMessageTime(String, int)}的异步版本。
      *
-     * @return timestamp of the earliest message in this store.
+     * @return 当前存储中最早的消息的存储时间
      */
     CompletableFuture<Long> getEarliestMessageTimeAsync(final String topic, final int queueId);
 
     /**
-     * Get the store time of the message specified.
-     *
-     * @param topic              message topic.
-     * @param queueId            queue ID.
-     * @param consumeQueueOffset consume queue offset.
-     * @return store timestamp of the message.
+     * @param topic              主题
+     * @param queueId            队列ID
+     * @param consumeQueueOffset consumequeue中的偏移量
+     * @return 消息的存储时间
      */
     long getMessageStoreTimeStamp(final String topic, final int queueId, final long consumeQueueOffset);
 
     /**
-     * Asynchronous get the store time of the message specified.
-     * @see #getMessageStoreTimeStamp(String, int, long) getMessageStoreTimeStamp
+     * {@link #getMessageStoreTimeStamp(String, int, long)}的异步版本
      *
-     * @param topic              message topic.
-     * @param queueId            queue ID.
-     * @param consumeQueueOffset consume queue offset.
-     * @return store timestamp of the message.
+     * @param topic              主题
+     * @param queueId            队列ID
+     * @param consumeQueueOffset consumequeue的偏移量
+     * @return 消息的存储时间
      */
     CompletableFuture<Long> getMessageStoreTimeStampAsync(final String topic, final int queueId,
-        final long consumeQueueOffset);
+                                                          final long consumeQueueOffset);
 
     /**
-     * Get the total number of the messages in the specified queue.
+     * 由于consumequeue中的entry定长设计的，每个entry占用20个字节，由以下组成：8字节的commitlog物理偏移量，4字节的消息长度，8字节的标签hash值。
+     * 因此只要读取到consumequeue的大小fileSize，那么个数就等于fileSize/20，依次计算所有的consumequeue文件，累加得到总数。
      *
-     * @param topic   Topic
-     * @param queueId Queue ID.
-     * @return total number.
+     *
+     * @param topic   主题
+     * @param queueId 队列ID
+     * @return consumequeue中总的消息数量
      */
     long getMessageTotalInQueue(final String topic, final int queueId);
 
     /**
-     * Get the raw commit log data starting from the given offset, which should used for replication purpose.
+     * 返回在commitlog中给以给定偏移量作为开始位置的原始数据。
      *
-     * @param offset starting offset.
-     * @return commit log data.
+     * <p>一般用于副本，进行数据同步使用。
+     *
+     * @param offset 开始偏移量
+     * @return commitlog中的数据
      */
     SelectMappedBufferResult getCommitLogData(final long offset);
 
     /**
-     * Get the raw commit log data starting from the given offset, across multiple mapped files.
+     * 返回在多个commtilog中以给定偏移量作为开始位置的原始数据。
      *
-     * @param offset starting offset.
-     * @param size   size of data to get
-     * @return commit log data.
+     * <p>一般用于副本，进行数据同步使用。
+     *
+     * @param offset 开始偏移量
+     * @param size   返回数据的大小
+     * @return commitlog中的数据
      */
     List<SelectMappedBufferResult> getBulkCommitLogData(final long offset, final int size);
 
     /**
-     * 将消息数据追加到commit log
+     * 将数组中的消息追加到commitlog中
      *
-     * @param startOffset 开始写入的offset
+     * @param startOffset commitlog中开始的偏移量
      * @param data        要追加的数据
-     * @param dataStart   数据在数组开始的索引位置
-     * @param dataLength  数据长度
-     * @return true if success; false otherwise.
+     * @param dataStart   数组中开始的偏移量
+     * @param dataLength  数组的长度
+     * @return {@code true}追加成功，{@code false}追加失败
      */
     boolean appendToCommitLog(final long startOffset, final byte[] data, int dataStart, int dataLength);
 
     /**
-     * Execute file deletion manually.
+     * 手动执行文件删除
      */
     void executeDeleteFilesManually();
 
     /**
-     * Query messages by given key.
+     * 使用指定主题下查询指定时间范围内，满足指定key的最大数量的消息
      *
-     * @param topic  topic of the message.
-     * @param key    message key.
-     * @param maxNum maximum number of the messages possible.
-     * @param begin  begin timestamp.
-     * @param end    end timestamp.
+     * @param topic  主题
+     * @param key    消息key
+     * @param maxNum 可能的最大数量的消息
+     * @param begin  开始时间戳
+     * @param end    结束时间戳
      */
     QueryMessageResult queryMessage(final String topic, final String key, final int maxNum, final long begin,
-        final long end);
+                                    final long end);
 
     /**
-     * Asynchronous query messages by given key.
-     * @see #queryMessage(String, String, int, long, long) queryMessage
+     * {@link #queryMessage(String, String, int, long, long)}的异步版本
      *
-     * @param topic  topic of the message.
-     * @param key    message key.
-     * @param maxNum maximum number of the messages possible.
-     * @param begin  begin timestamp.
-     * @param end    end timestamp.
+     * @param topic  主题
+     * @param key    消息key
+     * @param maxNum 可能消息的最大数量
+     * @param begin  开始时间戳
+     * @param end    结束时间戳
      */
     CompletableFuture<QueryMessageResult> queryMessageAsync(final String topic, final String key, final int maxNum,
-        final long begin, final long end);
+                                                            final long begin, final long end);
 
     /**
-     * Update HA master address.
+     * 更新master的high available地址
      *
-     * @param newAddr new address.
+     * @param newAddr 新的地址
      */
     void updateHaMasterAddress(final String newAddr);
 
     /**
-     * Update master address.
+     * 更新master的地址
      *
-     * @param newAddr new address.
+     * @param newAddr 新的地址
      */
     void updateMasterAddress(final String newAddr);
 
     /**
-     * Return how much the slave falls behind.
-     *
-     * @return number of bytes that slave falls behind.
+     * @return 返回slave落后了多少字节数
      */
     long slaveFallBehindMuch();
 
     /**
-     * Return the current timestamp of the store.
-     *
-     * @return current time in milliseconds since 1970-01-01.
+     * @return 返回存储的当前时间戳，从1970-01-01开始计算
      */
     long now();
 
     /**
-     * Delete topic's consume queue file and unused stats.
-     * This interface allows user delete system topic.
+     * 删除主题下的consumequeue的文件和未使用的统计数据。
      *
-     * @param deleteTopics unused topic name set
-     * @return the number of the topics which has been deleted.
+     * <p>允许用户删除系统主题
+     *
+     * <p>删除的文件位于$HOME/store/consumequeue/目录下
+     *
+     * @param deleteTopics 未使用的主题名称集合
+     * @return 被删除的主题的数量
      */
     int deleteTopics(final Set<String> deleteTopics);
 
     /**
-     * Clean unused topics which not in retain topic name set.
+     * 清理不包含指定主题集合外的其他主题
      *
-     * @param retainTopics all valid topics.
-     * @return number of the topics deleted.
+     * <p>删除的文件位于$HOME/store/consumequeue/目录下
+     *
+     * @param retainTopics 所有合法的而主题
+     * @return 被删除的主题的数量
      */
     int cleanUnusedTopic(final Set<String> retainTopics);
 
     /**
-     * Clean expired consume queues.
+     * 清理已过期的consumequeue文件
      */
     void cleanExpiredConsumerQueue();
 
     /**
-     * Check if the given message has been swapped out of the memory.
+     * 检查consumequeue中指定主题下的指定队列ID下特定的consumeOffset对应的消息
+     * 是否不在内存中
      *
-     * @param topic         topic.
-     * @param queueId       queue ID.
-     * @param consumeOffset consume queue offset.
-     * @return true if the message is no longer in memory; false otherwise.
+     * @param topic         主题
+     * @param queueId       队列ID
+     * @param consumeOffset consumequeue偏移量
+     * @return {@code true}如果消息不在内存中，{@code false}则代表在磁盘上
      * @deprecated As of RIP-57, replaced by {@link #checkInMemByConsumeOffset(String, int, long, int)}, see <a href="https://github.com/apache/rocketmq/issues/5837">this issue</a> for more details
      */
     @Deprecated
     boolean checkInDiskByConsumeOffset(final String topic, final int queueId, long consumeOffset);
 
     /**
-     * Check if the given message is in the page cache.
+     * 检查consumequeue中指定主题下的指定队列ID下特定的consumeOffset开始，
+     * 最大批次大小的消息，是否不在page cache中
      *
-     * @param topic         topic.
-     * @param queueId       queue ID.
-     * @param consumeOffset consume queue offset.
-     * @return true if the message is in page cache; false otherwise.
+     * @param topic         主题
+     * @param queueId       队列ID
+     * @param consumeOffset consumequeue偏移量
+     * @return {@code true}如果消息在page cache中，{@code false}则代表在磁盘上
      */
     boolean checkInMemByConsumeOffset(final String topic, final int queueId, long consumeOffset, int batchSize);
 
     /**
-     * Check if the given message is in store.
+     * 检查consumequeue中指定主题下的指定队列ID下特定的consumeOffset对应的消息
+     * 是否在存储中存在
      *
-     * @param topic         topic.
-     * @param queueId       queue ID.
-     * @param consumeOffset consume queue offset.
-     * @return true if the message is in store; false otherwise.
+     * @param topic         主题
+     * @param queueId       队列ID
+     * @param consumeOffset consumequeue偏移量
+     * @return {@code true}如果消息存在于store中，{@code false}不存在于store中
      */
     boolean checkInStoreByConsumeOffset(final String topic, final int queueId, long consumeOffset);
 
     /**
-     * Get number of the bytes that have been stored in commit log and not yet dispatched to consume queue.
-     *
-     * @return number of the bytes to dispatch.
+     * @return 获取已经保存到commitlog中，但是尚未dispatch到consumequeue的消息字节数
      */
     long dispatchBehindBytes();
 
     /**
-     * Get number of the milliseconds that have been stored in commit log and not yet dispatched to consume queue.
-     *
-     * @return number of the milliseconds to dispatch.
+     * @return 返回已经保存到commitlog中，但是尚未dispatch到consumequeue的毫秒数，
+     * 即当前记录上次同步的时间差
      */
     long dispatchBehindMilliseconds();
 
     /**
-     * Flush the message store to persist all data.
+     * 刷新store以便持久化所有数据
      *
-     * @return maximum offset flushed to persistent storage device.
+     * @return 被刷新到持久化存储设备的最大物理偏移量
      */
     long flush();
 
     /**
-     * Get the current flushed offset.
-     *
-     * @return flushed offset
+     * @return 返回当前已被刷新的最大物理偏移量
      */
     long getFlushedWhere();
 
     /**
-     * Reset written offset.
+     * 重置写偏移量到指定的偏移量
      *
-     * @param phyOffset new offset.
-     * @return true if success; false otherwise.
+     * @param phyOffset 新的偏移量
+     * @return {@code true}重置成功，{@code false}重置失败
      */
     boolean resetWriteOffset(long phyOffset);
 
     /**
-     * Get confirm offset.
-     *
-     * @return confirm offset.
+     * @return 返回确认偏移量
      */
     long getConfirmOffset();
 
     /**
-     * Set confirm offset.
+     * 更新设置偏移量到新的偏移量
      *
-     * @param phyOffset confirm offset to set.
+     * @param phyOffset 新的物理偏移量
      */
     void setConfirmOffset(long phyOffset);
 
     /**
-     * Check if the operating system page cache is busy or not.
+     * 检查操作系统页page cache是否繁忙
      *
-     * @return true if the OS page cache is busy; false otherwise.
+     * @return {@code true}OS page cache处于繁忙状态，{@code false}位处于繁忙
      */
     boolean isOSPageCacheBusy();
 
     /**
-     * Get lock time in milliseconds of the store by far.
-     *
-     * @return lock time in milliseconds.
+     * @return 获取到目前位置，在存储中以毫秒为单位的锁定时间
      */
     long lockTimeMills();
 
     /**
-     * Check if the transient store pool is deficient.
+     * 检查瞬态存储池是否不足
      *
-     * @return true if the transient store pool is running out; false otherwise.
+     * @return {@code true}瞬态存储池不足；{@code false}瞬态存储池充足
      */
     boolean isTransientStorePoolDeficient();
 
     /**
-     * Get the dispatcher list.
-     *
-     * @return list of the dispatcher.
+     * @return 返回commitlog dispatcher的列表
      */
     LinkedList<CommitLogDispatcher> getDispatcherList();
 
@@ -633,7 +652,7 @@ public interface MessageStore {
      * @throws RocksDBException      only in rocksdb mode
      */
     void onCommitLogDispatch(DispatchRequest dispatchRequest, boolean doDispatch, MappedFile commitLogFile,
-        boolean isRecover, boolean isFileEnd) throws RocksDBException;
+                             boolean isRecover, boolean isFileEnd) throws RocksDBException;
 
     /**
      * Get the message store config
@@ -736,7 +755,7 @@ public interface MessageStore {
     boolean isSyncDiskFlush();
 
     /**
-     * 当前消息存储是否为SYNC_MASTER角色
+     * If this message store is sync master role
      *
      * @return yes if true, no if false
      */
@@ -925,7 +944,7 @@ public interface MessageStore {
      * @return DispatchRequest
      */
     DispatchRequest checkMessageAndReturnSize(final ByteBuffer byteBuffer, final boolean checkCRC,
-        final boolean checkDupInfo, final boolean readBody);
+                                              final boolean checkDupInfo, final boolean readBody);
 
     /**
      * Get remain transientStoreBuffer numbers

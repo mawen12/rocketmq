@@ -18,6 +18,17 @@ package org.apache.rocketmq.common.sysflag;
 
 import org.apache.rocketmq.common.compression.CompressionType;
 
+/**
+ * 消息系统标识，主要由以下部分组成
+ * <ul>
+ *     <li>消息是否已压缩</li>
+ *     <li>消息是否存在多个标签</li>
+ *     <li>是否为事务消息</li>
+ *     <li>发送消息的主机</li>
+ *     <li>存储消息的主机</li>
+ *     <li>消息压缩类型</li>
+ * </ul>
+ */
 public class MessageSysFlag {
 
     /**
@@ -35,23 +46,23 @@ public class MessageSysFlag {
      */
     public final static int COMPRESSED_FLAG = 0x1;
     /**
-     * 消息多个Tags标志
+     * 消息上存在多个标签
      */
     public final static int MULTI_TAGS_FLAG = 0x1 << 1;
     /**
-     * 非事务消息类型
+     * 非事务的消息
      */
     public final static int TRANSACTION_NOT_TYPE = 0;
     /**
-     * 事务预准备类型
+     * 消息的事务预备类型
      */
     public final static int TRANSACTION_PREPARED_TYPE = 0x1 << 2;
     /**
-     * 事务提交类型
+     * 消息的事务提交类型
      */
     public final static int TRANSACTION_COMMIT_TYPE = 0x2 << 2;
     /**
-     * 事务会滚类型
+     * 消息的事务回滚类型
      */
     public final static int TRANSACTION_ROLLBACK_TYPE = 0x3 << 2;
     /**

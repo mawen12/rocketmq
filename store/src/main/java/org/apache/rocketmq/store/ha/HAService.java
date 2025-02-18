@@ -113,7 +113,7 @@ public interface HAService {
     int inSyncReplicasNums(long masterPutWhere);
 
     /**
-     * Get connection count
+     * 返回连接总数
      *
      * @return the number of connection
      */

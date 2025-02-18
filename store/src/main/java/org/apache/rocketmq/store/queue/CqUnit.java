@@ -21,6 +21,9 @@ import org.apache.rocketmq.store.ConsumeQueueExt;
 
 import java.nio.ByteBuffer;
 
+/**
+ * consume queue 单元
+ */
 public class CqUnit {
     /**
      * 队列偏移量
