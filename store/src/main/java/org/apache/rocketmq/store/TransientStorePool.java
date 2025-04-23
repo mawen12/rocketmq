@@ -24,11 +24,12 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
+import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
 /**
- * 临时存储池
+ * 临时存储池，分配指定数量的，特定大小的存储池
  */
 public class TransientStorePool {
 
@@ -37,13 +38,13 @@ public class TransientStorePool {
     /**
      * 缓存池大小，默认为5
      *
-     * @see org.apache.rocketmq.store.config.MessageStoreConfig#transientStorePoolSize
+     * @see MessageStoreConfig#getTransientStorePoolSize()
      */
     private final int poolSize;
     /**
      * 文件大小，默认为1G
      *
-     * @see org.apache.rocketmq.store.config.MessageStoreConfig#mappedFileSizeCommitLog
+     * @see MessageStoreConfig#getMappedFileSizeCommitLog()
      */
     private final int fileSize;
     /**
@@ -95,9 +96,9 @@ public class TransientStorePool {
     }
 
     /**
-     * 将内存中的第一个字节缓冲区取出，并保存到参数中
+     * 将参数中提供的缓冲区加入到队列中
      *
-     * @param byteBuffer
+     * @param byteBuffer 缓冲区
      */
     public void returnBuffer(ByteBuffer byteBuffer) {
         byteBuffer.position(0);

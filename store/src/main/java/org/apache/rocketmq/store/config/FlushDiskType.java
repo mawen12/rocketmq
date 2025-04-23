@@ -31,7 +31,7 @@ public enum FlushDiskType {
      */
     SYNC_FLUSH,
     /**
-     * 异步刷新
+     * 异步刷新，只要消息写入到page cache中，就返回响应。
      */
     @MessageLost(reason = "如果在等待下次异步刷新期间，broker或及其宕机，会导致消息出现丢失")
     ASYNC_FLUSH

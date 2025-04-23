@@ -28,21 +28,34 @@ import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.exception.ConsumeQueueException;
 import org.rocksdb.RocksDBException;
 
+/**
+ * $HOME/store/consumequeue的抽象类实现
+ */
 public abstract class AbstractConsumeQueueStore implements ConsumeQueueStoreInterface {
+
     protected static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * 默认的消息存储实现
+     */
     protected final DefaultMessageStore messageStore;
+    /**
+     * 消息存储配置
+     */
     protected final MessageStoreConfig messageStoreConfig;
+    /**
+     * consume queue 偏移量操作器
+     */
     protected final QueueOffsetOperator queueOffsetOperator = new QueueOffsetOperator();
     /**
-     * Map<主题, Map<队列ID, 消费队列接口>>
+     * 管理了所有的consume queue
      */
     protected final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueueInterface>> consumeQueueTable;
 
     public AbstractConsumeQueueStore(DefaultMessageStore messageStore) {
         this.messageStore = messageStore;
         this.messageStoreConfig = messageStore.getMessageStoreConfig();
-        if (messageStoreConfig.isEnableLmq()) {
+        if (messageStoreConfig.isEnableLmq()) {// 是否开启了lmq
             this.consumeQueueTable = new ConcurrentHashMap<>(32_768);
         } else {
             this.consumeQueueTable = new ConcurrentHashMap<>(32);
@@ -51,11 +64,13 @@ public abstract class AbstractConsumeQueueStore implements ConsumeQueueStoreInte
 
     @Override
     public void putMessagePositionInfoWrapper(ConsumeQueueInterface consumeQueue, DispatchRequest request) {
+        // 使用提供的consume queue执行消息分发请求
         consumeQueue.putMessagePositionInfoWrapper(request);
     }
 
     @Override
     public Long getMaxOffset(String topic, int queueId) throws ConsumeQueueException {
+        // 获取指定topic-queueId对应的最大的消息偏移量
         return this.queueOffsetOperator.currentQueueOffset(topic + "-" + queueId);
     }
 
@@ -72,25 +87,17 @@ public abstract class AbstractConsumeQueueStore implements ConsumeQueueStoreInte
 
     @Override
     public void assignQueueOffset(MessageExtBrokerInner msg) throws RocksDBException {
-        /**
-         * 查找主题主题，如果有直接返回；反之根据主题配置的queueType构造消息队列
-         */
+        // 查找主题主题，如果有直接返回；反之根据主题配置的queueType构造消息队列
         ConsumeQueueInterface consumeQueue = findOrCreateConsumeQueue(msg.getTopic(), msg.getQueueId());
-        /**
-         * 使用消息队列为消息分配偏移量，如果不存在，则设置为0
-         */
+        // 使用消息队列为消息分配偏移量，如果不存在，则设置为0
         consumeQueue.assignQueueOffset(this.queueOffsetOperator, msg);
     }
 
     @Override
     public void increaseQueueOffset(MessageExtBrokerInner msg, short messageNum) {
-        /**
-         * 查找主题主题，如果有直接返回；反之根据主题配置的queueType构造消息队列
-         */
+        // 查找主题主题，如果有直接返回；反之根据主题配置的queueType构造消息队列
         ConsumeQueueInterface consumeQueue = findOrCreateConsumeQueue(msg.getTopic(), msg.getQueueId());
-        /**
-         * 增加队列消息总数，即队列偏移量
-         */
+        // 增加队列消息总数，即队列偏移量
         consumeQueue.increaseQueueOffset(this.queueOffsetOperator, msg, messageNum);
     }
 

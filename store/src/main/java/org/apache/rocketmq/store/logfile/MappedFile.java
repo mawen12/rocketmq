@@ -64,7 +64,7 @@ public interface MappedFile {
     /**
      * 重命名文件名称
      *
-     * @param fileName the new file name
+     * @param fileName 新的文件名称
      */
     boolean renameTo(String fileName);
 
@@ -91,10 +91,10 @@ public interface MappedFile {
     /**
      * 向文件末尾追加消息，执行完成后触发回调
      *
-     * @param message a message to append
-     * @param messageCallback the specific call back to execute the real append action
+     * @param message 要追加的消息
+     * @param messageCallback 在执行完消息追加后要执行的回调
      * @param putMessageContext
-     * @return the append result
+     * @return 追加结果
      */
     @ImportantPoint("将消息写入到物理文件")
     AppendMessageResult appendMessage(MessageExtBrokerInner message, AppendMessageCallback messageCallback, PutMessageContext putMessageContext);
@@ -102,27 +102,27 @@ public interface MappedFile {
     /**
      * 向文件末尾追加一批消息，执行完成后触发回调
      *
-     * @param message a message to append
-     * @param messageCallback the specific call back to execute the real append action
+     * @param message 要追加的消息
+     * @param messageCallback 在执行完消息追加后要执行的回调
      * @param putMessageContext
-     * @return the append result
+     * @return 追加结果
      */
     AppendMessageResult appendMessages(MessageExtBatch message, AppendMessageCallback messageCallback, PutMessageContext putMessageContext);
 
     /**
      * 向文件末尾追加代表消息的字节缓冲，执行完成后触发回调
      *
-     * @param byteBufferMsg
-     * @param cb
-     * @return
+     * @param byteBufferMsg 包含消息的缓冲区
+     * @param cb 压缩的消息回调
+     * @return 追加结果
      */
     AppendMessageResult appendMessage(final ByteBuffer byteBufferMsg, final CompactionAppendMsgCallback cb);
 
     /**
      * 向文件末尾追加代表消息的字节数组，
      *
-     * @param data the byte array to append
-     * @return true if success; false otherwise.
+     * @param data 包含消息的字节数组
+     * @return 追加结果
      */
     boolean appendMessage(byte[] data);
 
@@ -130,16 +130,16 @@ public interface MappedFile {
     /**
      * 向文件末尾使用{@link FileChannel}追加代表消息的字节数组，
      *
-     * @param data the byte array to append
-     * @return true if success; false otherwise.
+     * @param data 包含消息的字节数组
+     * @return 追加结果
      */
     boolean appendMessageUsingFileChannel(byte[] data);
 
     /**
      * 向文件末尾追加代表消息的字节缓冲区
      *
-     * @param data the byte buffer to append
-     * @return true if success; false otherwise.
+     * @param data 包含消息的缓冲区
+     * @return 追加结果
      */
     boolean appendMessage(ByteBuffer data);
 
@@ -149,247 +149,233 @@ public interface MappedFile {
      * @param data 要追加的数据
      * @param offset 数据在数组开始的索引位置
      * @param length 数据长度
-     * @return true if success; false otherwise.
+     * @return 追加结果
      */
     boolean appendMessage(byte[] data, int offset, int length);
 
     /**
-     * 返回当前文件全局偏移量，即获取其文件名称
-     *
-     * @return the offset of this file
+     * @return 返回当前文件全局偏移量，即获取其文件名称
      */
     long getFileFromOffset();
 
     /**
      * 立刻将缓存中的数据刷新到磁盘
      *
-     * @param flushLeastPages the least pages to flush
-     * @return the flushed position after the method call
+     * @param flushLeastPages 要刷新的最少页数
+     * @return 刷新后位置
      */
     int flush(int flushLeastPages);
 
     /**
      * 立刻将二级缓存中的数据刷新到页缓存或磁盘
      *
-     * @param commitLeastPages the least pages to commit
-     * @return the committed position after the method call
+     * @param commitLeastPages 要提交的最少页数
+     * @return 提交后的位置
      */
     int commit(int commitLeastPages);
 
     /**
-     * @param pos the given position
-     * @param size the size of the returned sub-region
+     * @param pos 开始位置
+     * @param size 大小
      * @return 返回当前文件中指定区域的MappedBuffer
      */
     SelectMappedBufferResult selectMappedBuffer(int pos, int size);
 
     /**
-     * Selects a slice of the mapped byte buffer's sub-region behind the mapped file,
-     * starting at the given position.
-     *
-     * @param pos the given position
-     * @return
+     * @param pos 开始位置
+     * @return 以指定位置为起点，文件末尾作为终点，返回该区域的映射字节缓冲池
      */
     SelectMappedBufferResult selectMappedBuffer(int pos);
 
     /**
-     * Returns the mapped byte buffer behind the mapped file.
-     *
-     * @return the mapped byte buffer
+     * @return 返回该文件背后的映射字节缓冲区
      */
     MappedByteBuffer getMappedByteBuffer();
 
     /**
-     * Returns a slice of the mapped byte buffer behind the mapped file.
-     *
-     * @return the slice of the mapped byte buffer
+     * @return 返回该文件背后的字节缓冲区
      */
     ByteBuffer sliceByteBuffer();
 
     /**
-     * Returns the store timestamp of the last message.
-     *
-     * @return the store timestamp
+     * @return 返回该文件中最后一条消息的存储时间
      */
     long getStoreTimestamp();
 
     /**
-     * Returns the last modified timestamp of the file.
-     *
-     * @return the last modified timestamp
+     * @return 返回该文件最后编辑的时间戳
      */
     long getLastModifiedTimestamp();
 
     /**
-     * Get data from a certain pos offset with size byte
+     * 从文件中指定位置获取指定大小的数据，
+     * 并将数据保存到ByteBuffer中
      *
-     * @param pos a certain pos offset to get data
-     * @param size the size of data
-     * @param byteBuffer the data
-     * @return true if with data; false if no data;
+     * @param pos 开始位置
+     * @param size 数据大小
+     * @param byteBuffer 保存获取到的数据
+     * @return 获取结果
      */
     boolean getData(int pos, int size, ByteBuffer byteBuffer);
 
     /**
-     * Destroys the file and delete it from the file system.
+     * 销毁文件，并从文件系统中删除该文件
      *
-     * @param intervalForcibly If {@code true} then this method will destroy the file forcibly and ignore the reference
-     * @return true if success; false otherwise.
+     * @param intervalForcibly 如果{@code true}，该方法将强制销毁文件并忽略引用
+     * @return 操作结果
      */
     boolean destroy(long intervalForcibly);
 
     /**
-     * Shutdowns the file and mark it unavailable.
+     * 停止文件，并标记为不可用
      *
-     * @param intervalForcibly If {@code true} then this method will shutdown the file forcibly and ignore the reference
+     * @param intervalForcibly 如果{@code true}，该方法将强制销毁文件并忽略引用
      */
     void shutdown(long intervalForcibly);
 
     /**
-     * Decreases the reference count by {@code 1} and clean up the mapped file if the reference count reaches at
-     * {@code 0}.
+     * 将引用计数-1，并在引用计数到达0时清理映射文件
      */
     void release();
 
     /**
-     * Increases the reference count by {@code 1}.
+     * 将引用计数+1
      *
-     * @return true if success; false otherwise.
+     * @return 操作结果
      */
     boolean hold();
 
     /**
-     * Returns true if the current file is first mapped file of some consume queue.
-     *
-     * @return true or false
+     * @return {@code true}如果该文件是某个consume queue的第一个映射文件
      */
     boolean isFirstCreateInQueue();
 
     /**
-     * Sets the flag whether the current file is first mapped file of some consume queue.
+     * 为当前文件设置标识符，即是否为某个consume queue的第一个文件
      *
      * @param firstCreateInQueue true or false
      */
     void setFirstCreateInQueue(boolean firstCreateInQueue);
 
     /**
-     * Returns the flushed position of this mapped file.
-     *
-     * @return the flushed posotion
+     * @return 返回该映射文件的刷新位置
      */
     int getFlushedPosition();
 
     /**
-     * Sets the flushed position of this mapped file.
+     * 设置该映射文件的已刷新位置
      *
-     * @param flushedPosition the specific flushed position
+     * @param flushedPosition 已刷新位置
      */
     void setFlushedPosition(int flushedPosition);
 
     /**
-     * Returns the wrote position of this mapped file.
-     *
-     * @return the wrote position
+     * @return 返回该映射文件的已写入位置
      */
     int getWrotePosition();
 
     /**
-     * Sets the wrote position of this mapped file.
+     * 设置该映射文件的已写入位置
      *
-     * @param wrotePosition the specific wrote position
+     * @param wrotePosition 写入位置
      */
     void setWrotePosition(int wrotePosition);
 
     /**
-     * 返回当前映射文件最大可读位置
-     *
-     * @return the max readable position
+     * @return 返回当前映射文件最大可读位置
      */
     int getReadPosition();
 
     /**
-     * Sets the committed position of this mapped file.
+     * 设置该映射文件的已提交位置
      *
-     * @param committedPosition the specific committed position
+     * @param committedPosition 已提交的位置
      */
     void setCommittedPosition(int committedPosition);
 
     /**
-     * Lock the mapped bytebuffer
+     * 锁定映射的字节缓冲区
      */
     void mlock();
 
     /**
-     * Unlock the mapped bytebuffer
+     * 解锁映射的字节缓冲区
      */
     void munlock();
 
     /**
-     * Warm up the mapped bytebuffer
-     * @param type
-     * @param pages
+     * 预热映射的字节缓冲区
+     *
+     * @param type 刷新到磁盘类型
+     * @param pages 页
      */
     void warmMappedFile(FlushDiskType type, int pages);
 
     /**
-     * Swap map
+     * 交换map
      */
     boolean swapMap();
 
     /**
-     * Clean pageTable
+     * 清理交换的map，即pageTable
      */
     void cleanSwapedMap(boolean force);
 
     /**
-     * Get recent swap map time
+     * 返回最近的交换map时间
      */
     long getRecentSwapMapTime();
 
     /**
-     * Get recent MappedByteBuffer access count since last swap
+     * 返回从上次交换后，最近访问MappedByteBuffer的次数
      */
     long getMappedByteBufferAccessCountSinceLastSwap();
 
     /**
-     * Get the underlying file
-     * @return
+     * @return 返回底层文件
      */
     File getFile();
 
     /**
-     * rename file to add ".delete" suffix
+     * 将文件重命名为带有.delete后缀的名称，
+     * 用于之后检测删除
      */
     void renameToDelete();
 
     /**
-     * move the file to the parent directory
-     * @throws IOException
+     * 将文件移动到父级目录中
+     *
+     * @throws IOException 文件操作异常
      */
     void moveToParent() throws IOException;
 
     /**
-     * Get the last flush time
-     * @return
+     * @return 返回最后一次的刷新时间
      */
     long getLastFlushTime();
 
     /**
-     * Init mapped file
-     * @param fileName file name
-     * @param fileSize file size
-     * @param transientStorePool transient store pool
-     * @throws IOException
+     * 初始化映射的文件
+     *
+     * @param fileName 文件名称
+     * @param fileSize 文件大小
+     * @param transientStorePool 易变存储池
+     * @throws IOException 文件操作异常
      */
     void init(String fileName, int fileSize, TransientStorePool transientStorePool) throws IOException;
 
+    /**
+     * @param pos 开始位置
+     * @return 从指定位置开始的迭代器
+     */
     Iterator<SelectMappedBufferResult> iterator(int pos);
 
     /**
-     * Check mapped file is loaded to memory with given position and size
-     * @param position start offset of data
-     * @param size data size
-     * @return data is resided in memory or not
+     * 检查给定的位置和大小的映射文件是否已经加载到内存中
+     *
+     * @param position 数据的开始偏移量
+     * @param size 数据大小
+     * @return 加载结果
      */
     boolean isLoaded(long position, int size);
 }

@@ -53,6 +53,11 @@ import static java.lang.String.format;
 import static org.apache.rocketmq.store.config.StorePathConfigHelper.getStorePathBatchConsumeQueue;
 import static org.apache.rocketmq.store.config.StorePathConfigHelper.getStorePathConsumeQueue;
 
+/**
+ * 基于默认的File文件系统实现的consume queue的存储与管理
+ *
+ * <p>默认的存储路径位于$HOME/store/consumequeue/<topic>/<queueId>
+ */
 public class ConsumeQueueStore extends AbstractConsumeQueueStore {
 
     public ConsumeQueueStore(DefaultMessageStore messageStore) {
@@ -66,7 +71,9 @@ public class ConsumeQueueStore extends AbstractConsumeQueueStore {
 
     @Override
     public boolean load() {
+        // 加载位于$HOME/store/consumequeue目录下的所有文件
         boolean cqLoadResult = loadConsumeQueues(getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()), CQType.SimpleCQ);
+        // 加载位于$HOME/store/consumequeue目录下
         boolean bcqLoadResult = loadConsumeQueues(getStorePathBatchConsumeQueue(this.messageStoreConfig.getStorePathRootDir()), CQType.BatchCQ);
         return cqLoadResult && bcqLoadResult;
     }
@@ -202,27 +209,35 @@ public class ConsumeQueueStore extends AbstractConsumeQueueStore {
     }
 
     private boolean loadConsumeQueues(String storePath, CQType cqType) {
+        // 以$HOME/store/consumequeue为例
         File dirLogic = new File(storePath);
+        // 获取$HOME/store/consumequeue下所有的文件，第一层为目录名称
         File[] fileTopicList = dirLogic.listFiles();
         if (fileTopicList != null) {
-
             for (File fileTopic : fileTopicList) {
+                // 第一层为主题名称
                 String topic = fileTopic.getName();
 
                 File[] fileQueueIdList = fileTopic.listFiles();
                 if (fileQueueIdList != null) {
                     for (File fileQueueId : fileQueueIdList) {
+                        // 第二层为queueId
                         int queueId;
                         try {
                             queueId = Integer.parseInt(fileQueueId.getName());
                         } catch (NumberFormatException e) {
+                            // 对于文件名为非数字的格式，跳过处理
                             continue;
                         }
 
+                        // 检查CQType应当匹配，即应为SimpleCQ
                         queueTypeShouldBe(topic, cqType);
 
+                        // 根据类型、主题、队列ID，以及路径创建接口
                         ConsumeQueueInterface logic = createConsumeQueueByType(cqType, topic, queueId, storePath);
+                        // 保存到consumeQueueTable
                         this.putConsumeQueue(topic, queueId, logic);
+                        // 加载文件
                         if (!this.load(logic)) {
                             return false;
                         }
@@ -384,19 +399,13 @@ public class ConsumeQueueStore extends AbstractConsumeQueueStore {
 
     @Override
     public ConsumeQueueInterface findOrCreateConsumeQueue(String topic, int queueId) {
-        /**
-         * 获取消费队列表中该主题的队列映射
-         */
-        ConcurrentMap<Integer, ConsumeQueueInterface> map = consumeQueueTable.get(topic);
-        /**
-         * 检查主题下是否存在队列映射
-         */
+        // 获取消费队列表中该主题的队列映射
+        ConcurrentMap<Integer/* queueId */, ConsumeQueueInterface/* consume queue接口 */> map = consumeQueueTable.get(topic);
+        // 检查主题下是否存在队列映射
         if (null == map) {
-            /**
-             * 对于不存在的情况，构造并写入
-             */
-            ConcurrentMap<Integer, ConsumeQueueInterface> newMap = new ConcurrentHashMap<>(128);
-            ConcurrentMap<Integer, ConsumeQueueInterface> oldMap = consumeQueueTable.putIfAbsent(topic, newMap);
+            // 对于不存在的情况，构造并写入
+            ConcurrentMap<Integer/* queueId */, ConsumeQueueInterface/* consume queue接口 */> newMap = new ConcurrentHashMap<>(128);
+            ConcurrentMap<Integer/* queueId */, ConsumeQueueInterface/* consume queue接口 */> oldMap = consumeQueueTable.putIfAbsent(topic, newMap);
             if (oldMap != null) {
                 map = oldMap;
             } else {
@@ -404,42 +413,28 @@ public class ConsumeQueueStore extends AbstractConsumeQueueStore {
             }
         }
 
-        /**
-         * 获取对应映射中该队列的消费队列接口
-         */
+        // 获取对应映射中该队列的消费队列接口
         ConsumeQueueInterface logic = map.get(queueId);
-        /**
-         * 存在消费队列接口，则直接返回
-         */
+        // 存在消费队列接口，则直接返回
         if (logic != null) {
             return logic;
         }
 
         ConsumeQueueInterface newLogic;
 
-        /**
-         * 获取队列配置
-         */
+        // 获取队列配置
         Optional<TopicConfig> topicConfig = this.messageStore.getTopicConfig(topic);
         // TODO maybe the topic has been deleted.
-        /**
-         * 检测是否为批量消费类型，除非显式指定，默认为SimpleCQ
-         */
+        // 检测是否为批量消费类型，除非显式指定，默认为SimpleCQ
         if (Objects.equals(CQType.BatchCQ, QueueTypeUtils.getCQType(topicConfig))) {
-            /**
-             * 构造批量消息队列
-             */
+            // 构造批量消息队列
             newLogic = new BatchConsumeQueue(topic, queueId, getStorePathBatchConsumeQueue(this.messageStoreConfig.getStorePathRootDir()), this.messageStoreConfig.getMapperFileSizeBatchConsumeQueue(), this.messageStore);
         } else {
-            /**
-             * 构造默认的消息队列
-             */
+            // 构造默认的消息队列
             newLogic = new ConsumeQueue(topic, queueId, getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()), this.messageStoreConfig.getMappedFileSizeConsumeQueue(), this.messageStore);
         }
 
-        /**
-         * 写入消费队列映射，并返回
-         */
+        // 写入消费队列映射，并返回
         ConsumeQueueInterface oldLogic = map.putIfAbsent(queueId, newLogic);
         if (oldLogic != null) {
             logic = oldLogic;
@@ -460,6 +455,7 @@ public class ConsumeQueueStore extends AbstractConsumeQueueStore {
     }
 
     private void putConsumeQueue(final String topic, final int queueId, final ConsumeQueueInterface consumeQueue) {
+        // TODO by mawen simplify by computeIfAbsent
         ConcurrentMap<Integer/* queueId */, ConsumeQueueInterface> map = this.consumeQueueTable.get(topic);
         if (null == map) {
             map = new ConcurrentHashMap<>();

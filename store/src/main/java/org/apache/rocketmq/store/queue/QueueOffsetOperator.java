@@ -31,26 +31,33 @@ import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.store.exception.ConsumeQueueException;
 
 /**
- * 用于操作队列中偏移量的组件
+ * 用于操作consume queue中偏移量的组件
+ *
+ * <p>主要维护了以下三种类型的consume queue
+ * <ul>
+ *     <li>{@link org.apache.rocketmq.common.attribute.CQType#SimpleCQ}</li>
+ *     <li>{@link org.apache.rocketmq.common.attribute.CQType#BatchCQ}</li>
+ *     <li>{@code LMQ}</li>
+ * </ul>
  */
 @ImportantPoint("队列的偏移量，就是队列中消息数量")
 public class QueueOffsetOperator {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
     /**
-     * Map<topic-queueId, 队列中消息总数，即队列偏移量>
+     * 维护了{@link org.apache.rocketmq.common.attribute.CQType#SimpleCQ}类型的consume queue的偏移量信息
      */
-    private ConcurrentMap<String, Long> topicQueueTable = new ConcurrentHashMap<>(1024);
+    private ConcurrentMap<String/* topic-queueId */, Long/* 该主题队列下的消息总数，也被看作队列偏移量 */> topicQueueTable = new ConcurrentHashMap<>(1024);
 
     /**
-     * Map<topic-queueId, 队列中消息总数，即队列偏移量>
+     * 维护了{@link org.apache.rocketmq.common.attribute.CQType#BatchCQ}类型的consume queue的偏移量信息
      */
-    private ConcurrentMap<String, Long> batchTopicQueueTable = new ConcurrentHashMap<>(1024);
+    private ConcurrentMap<String/* topic-queueId */, Long/* 该主题队列下的消息总数，也被看作队列偏移量 */> batchTopicQueueTable = new ConcurrentHashMap<>(1024);
 
     /**
-     * Map<topic-queueId, 队列中消息总数，即队列偏移量>
+     * 维护了{@code LMQ}类型的consume queue的偏移量信息
      */
-    private ConcurrentMap<String, Long> lmqTopicQueueTable = new ConcurrentHashMap<>(1024);
+    private ConcurrentMap<String/* topic-queueId */, Long/* 该主题队列下的消息总数，也被看作队列偏移量 */> lmqTopicQueueTable = new ConcurrentHashMap<>(1024);
 
     public long getQueueOffset(String topicQueueKey) {
         /**
@@ -111,8 +118,13 @@ public class QueueOffsetOperator {
         log.debug("Max offset of LMQ[{}:{}] increased: {} --> {}", topic, queueId, prev, current);
     }
 
+    /**
+     * @param topicQueueKey topic-queueId
+     * @return 返回指定topic-queueId下当前的队列偏移量
+     */
     public long currentQueueOffset(String topicQueueKey) {
         Long currentQueueOffset = this.topicQueueTable.get(topicQueueKey);
+        // TODO by mawen simplify by getOrDefault
         return currentQueueOffset == null ? 0L : currentQueueOffset;
     }
 

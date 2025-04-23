@@ -252,7 +252,9 @@ public class MappedFileQueue implements Swappable {
 
 
     public boolean load() {
+        // 构造目录
         File dir = new File(this.storePath);
+        // 获取目录下所有的文件
         File[] ls = dir.listFiles();
         if (ls != null) {
             return doLoad(Arrays.asList(ls));
@@ -261,33 +263,39 @@ public class MappedFileQueue implements Swappable {
     }
 
     public boolean doLoad(List<File> files) {
-        // ascending order
+        // 按照文件名称升序排列
         files.sort(Comparator.comparing(File::getName));
 
         for (int i = 0; i < files.size(); i++) {
             File file = files.get(i);
+            // 对于目录，跳过处理
             if (file.isDirectory()) {
                 continue;
             }
 
+            // 对于长度为0的最后一个文件，将其删除
             if (file.length() == 0 && i == files.size() - 1) {
                 boolean ok = file.delete();
                 log.warn("{} size is 0, auto delete. is_ok: {}", file, ok);
                 continue;
             }
 
+            // 对于文件实际长度与MessageStoreConfig#getMappedFileSizeConsumeQueue不一致的情况，中止处理
             if (file.length() != this.mappedFileSize) {
-                log.warn(file + "\t" + file.length()
-                        + " length not matched message store config value, please check it manually");
+                log.warn(file + "\t" + file.length() + " length not matched message store config value, please check it manually");
                 return false;
             }
 
             try {
+                // 构造映射文件对象
                 MappedFile mappedFile = new DefaultMappedFile(file.getPath(), mappedFileSize);
-
+                // 默认的写位置为最大的位置
                 mappedFile.setWrotePosition(this.mappedFileSize);
+                // 默认的刷新位置为最大的位置
                 mappedFile.setFlushedPosition(this.mappedFileSize);
+                // 默认的提交位置为最大的位置
                 mappedFile.setCommittedPosition(this.mappedFileSize);
+                // 因为存在多个文件的情况，所以需要加入到列表中
                 this.mappedFiles.add(mappedFile);
                 log.info("load " + file.getPath() + " OK");
             } catch (IOException e) {

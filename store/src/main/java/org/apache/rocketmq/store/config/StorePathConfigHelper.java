@@ -20,29 +20,58 @@ import java.io.File;
 
 public class StorePathConfigHelper {
 
+    /**
+     * @param rootDir 根路径，如果未设置，则为$HOME/store
+     * @return 默认位于$HOME/store/consumequeue
+     */
     public static String getStorePathConsumeQueue(final String rootDir) {
         return rootDir + File.separator + "consumequeue";
     }
 
+    /**
+     * @param rootDir 根路径，如果未设置，则为$HOME/store
+     * @return 默认位于$HOME/store/consumequeue_ext
+     */
     public static String getStorePathConsumeQueueExt(final String rootDir) {
         return rootDir + File.separator + "consumequeue_ext";
     }
+    /**
+     * @param rootDir 根路径，如果未设置，则为$HOME/store
+     * @return 默认位于$HOME/store/batchconsumequeue
+     */
+
     public static String getStorePathBatchConsumeQueue(final String rootDir) {
         return rootDir + File.separator + "batchconsumequeue";
     }
 
+    /**
+     * @param rootDir 根路径，如果未设置，则为$HOME/store
+     * @return 默认位于$HOME/store/index
+     */
     public static String getStorePathIndex(final String rootDir) {
         return rootDir + File.separator + "index";
     }
 
+    /**
+     * @param rootDir 根路径，如果未设置，则为$HOME/store
+     * @return 默认位于$HOME/store/checkpoint
+     */
     public static String getStoreCheckpoint(final String rootDir) {
         return rootDir + File.separator + "checkpoint";
     }
 
+    /**
+     * @param rootDir 根路径，如果未设置，则为$HOME/store
+     * @return 默认位于$HOME/store/abort
+     */
     public static String getAbortFile(final String rootDir) {
         return rootDir + File.separator + "abort";
     }
 
+    /**
+     * @param rootDir 根路径，如果未设置，则为$HOME/store
+     * @return 默认位于$HOME/store/lock
+     */
     public static String getLockFile(final String rootDir) {
         return rootDir + File.separator + "lock";
     }

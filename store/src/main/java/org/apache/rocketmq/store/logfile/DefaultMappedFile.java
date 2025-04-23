@@ -63,23 +63,41 @@ import sun.nio.ch.DirectBuffer;
  */
 public class DefaultMappedFile extends AbstractMappedFile {
     /**
-     * 系统页大小，4k
+     * 操作系统 page cache大小，默认为4k
      */
     public static final int OS_PAGE_SIZE = 1024 * 4;
+
     public static final Unsafe UNSAFE = getUnsafe();
+
     private static final Method IS_LOADED_METHOD;
+
     public static final int UNSAFE_PAGE_SIZE = UNSAFE == null ? OS_PAGE_SIZE : UNSAFE.pageSize();
 
     protected static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * 总的映射虚拟内存大小
+     */
     protected static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
 
+    /**
+     * 总的映射文件数
+     */
     protected static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
 
+    /**
+     * 写入位置的原子引用，指向{@link #wrotePosition}
+     */
     protected static final AtomicIntegerFieldUpdater<DefaultMappedFile> WROTE_POSITION_UPDATER;
 
+    /**
+     * 已提交位置的原子引用，指向{@link #committedPosition}
+     */
     protected static final AtomicIntegerFieldUpdater<DefaultMappedFile> COMMITTED_POSITION_UPDATER;
 
+    /**
+     * 已刷新位置的原子引用，指向{@link #flushedPosition}
+     */
     protected static final AtomicIntegerFieldUpdater<DefaultMappedFile> FLUSHED_POSITION_UPDATER;
 
     static {
@@ -101,15 +119,15 @@ public class DefaultMappedFile extends AbstractMappedFile {
     }
 
     /**
-     * 文件写入位置，当该值与{@link #fileSize}相等时，代表文件已经满了
+     * 文件已写入位置，当该值与{@link #fileSize}相等时，代表文件已经满了
      */
     protected volatile int wrotePosition;
     /**
-     * 文件提交位置
+     * 文件已提交位置
      */
     protected volatile int committedPosition;
     /**
-     * 文件刷新位置
+     * 文件已刷新位置
      */
     protected volatile int flushedPosition;
     /**
@@ -137,15 +155,22 @@ public class DefaultMappedFile extends AbstractMappedFile {
      */
     protected long fileFromOffset;
     /**
-     * 底层的文件
+     * 底层的原始文件
      */
     protected File file;
+
     protected MappedByteBuffer mappedByteBuffer;
+    /**
+     * 最新一条消息存储的时间戳
+     */
     protected volatile long storeTimestamp = 0;
     /**
      * 是否为队列中的第一个文件的标识
      */
     protected boolean firstCreateInQueue = false;
+    /**
+     * 最后一条消息的刷新时间
+     */
     private long lastFlushTime = -1L;
 
     protected MappedByteBuffer mappedByteBufferWaitToClean = null;
@@ -153,14 +178,12 @@ public class DefaultMappedFile extends AbstractMappedFile {
     protected long mappedByteBufferAccessCountSinceLastSwap = 0L;
 
     /**
-     * If this mapped file belongs to consume queue, this field stores store-timestamp of first message referenced by
-     * this logical queue.
+     *  如果该文件属于consume queue，该字段存储首个被逻辑队列引用的首条消息的存储时间
      */
     private long startTimestamp = -1;
 
     /**
-     * If this mapped file belongs to consume queue, this field stores store-timestamp of last message referenced by
-     * this logical queue.
+     * 如果该文件属于consume queue，该字段存储首个被逻辑队列引用的最后一条消息的存储时间
      */
     private long stopTimestamp = -1;
 
@@ -194,15 +217,21 @@ public class DefaultMappedFile extends AbstractMappedFile {
         this.fileName = fileName;
         this.fileSize = fileSize;
         this.file = new File(fileName);
+        // 文件名称作为起始偏移量
         this.fileFromOffset = Long.parseLong(this.file.getName());
         boolean ok = false;
 
+        // 检查目录存在
         UtilAll.ensureDirOK(this.file.getParent());
 
         try {
+            // 读写模式的文件信道
             this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();
+            // 读写模式的字节缓冲区
             this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);
+            // 累加文件大小
             TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(fileSize);
+            // 累加文件数
             TOTAL_MAPPED_FILES.incrementAndGet();
             ok = true;
         } catch (FileNotFoundException e) {
@@ -235,10 +264,12 @@ public class DefaultMappedFile extends AbstractMappedFile {
     }
 
     public boolean getData(int pos, int size, ByteBuffer byteBuffer) {
+        // 如果buffer可用空间不足以容纳那么多数据，便直接返回
         if (byteBuffer.remaining() < size) {
             return false;
         }
 
+        //
         int readPosition = getReadPosition();
         if ((pos + size) <= readPosition) {
 
@@ -667,6 +698,9 @@ public class DefaultMappedFile extends AbstractMappedFile {
     }
 
     /**
+     * 如果未使用临时存储池，或者临时存储池不是实时提交的，则从{@link #WROTE_POSITION_UPDATER}获取。
+     * 如果使用了临时存储池且开启了实时提交，则从{@link #COMMITTED_POSITION_UPDATER}获取
+     *
      * @return 存有合法数据的最大可读位置
      */
     @Override
